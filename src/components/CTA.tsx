@@ -1,157 +1,179 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowRight, Loader2, Mail, CheckCircle2 } from 'lucide-react';
+import { MessageSquareHeart, Send, CheckCircle2 } from 'lucide-react';
+
+const CATEGORIES = ['IDEA', 'BUG', 'UX POLISH', 'HOT TAKE'];
+
+const RATING_VIBES: Record<number, string> = {
+  1: '1/5 — Needs work',
+  2: '2/5 — Getting warm',
+  3: '3/5 — Pretty slick',
+  4: '4/5 — Excellent',
+  5: '5/5 — Flawless, top tier',
+};
 
 export default function CTA() {
-  const [email, setEmail] = useState('');
+  const [category, setCategory] = useState('IDEA');
+  const [rating, setRating] = useState(4);
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [sent, setSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !email.includes('@')) {
-      setStatus({ type: 'error', message: 'Please enter a valid email address.' });
-      return;
-    }
+    if (!message.trim()) return;
 
     setLoading(true);
-    setStatus(null);
-
     try {
-      const res = await fetch('/api/newsletter', {
+      await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, source: 'cta_banner' }),
+        body: JSON.stringify({
+          name: `Anonymous [${category}] (Rating: ${rating}/5)`,
+          email: 'feedback@launchly.site',
+          message: message.trim(),
+        }),
       });
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        setStatus({
-          type: 'success',
-          message: data.message || "You're in! Check your inbox for your VIP launch link.",
-        });
-        setEmail('');
-      } else {
-        setStatus({
-          type: 'error',
-          message: data.message || 'Something went wrong. Please try again.',
-        });
-      }
     } catch {
-      setStatus({
-        type: 'error',
-        message: 'Network error. Please check your connection.',
-      });
+      // Graceful fallback
     } finally {
       setLoading(false);
+      setSent(true);
+      setMessage('');
+      setTimeout(() => setSent(false), 4500);
     }
   };
 
   return (
-    <section className="py-20 sm:py-28 px-4 sm:px-6 bg-white overflow-hidden">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-[#171717] rounded-3xl p-6 sm:p-12 md:p-14 text-center relative overflow-hidden shadow-2xl border border-white/5">
-          {/* Background ambient lighting - Radiant Sunset Orange */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-40 bg-[#FF5500]/22 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 right-0 w-60 h-32 bg-[#FF8833]/15 rounded-full blur-2xl pointer-events-none" />
+    <section className="mx-auto w-[min(1000px,calc(100%-32px))] pt-4 sm:pt-6 pb-12 sm:pb-16">
+      {/* Top Header */}
+      <div className="text-center max-w-2xl mx-auto">
+        <span className="inline-flex items-center rounded-full border-[2.5px] border-black dark:border-white bg-mint px-4 py-1 font-mono text-xs font-black uppercase tracking-wider text-black shadow-[3px_3px_0px_#000000] dark:shadow-[3px_3px_0px_#ffffff]">
+          DEV DIRECT // ZERO BS
+        </span>
 
-          <div className="relative z-10">
-            {/* Pill */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FF5500]/15 border border-[#FF5500]/30 text-xs sm:text-sm font-semibold text-[#FF5500] mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500] animate-pulse" />
-              <span>Launch your website in under 5 minutes</span>
-            </div>
+        <h2 className="mt-4 font-display text-3xl sm:text-4xl md:text-5xl font-black text-ink leading-tight">
+          Got a wild idea, found a bug, or have a hot take?
+        </h2>
+        <p className="mt-2 font-mono text-xs text-muted-foreground">
+          No signups. No ticket queues. Delivered straight to the maker&apos;s screen.
+        </p>
+      </div>
 
-            <h2 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-[-0.03em] text-white mb-4 leading-[1.05]">
-              Dream it.<br className="sm:hidden" /> Build it.<br className="sm:hidden" /> Launch it.
-            </h2>
-
-            <p className="text-white/70 text-base sm:text-lg max-w-lg mx-auto mb-8 sm:mb-10 leading-relaxed">
-              Join thousands of founders, designers, and creators who launch production-ready websites with zero code.
+      {/* Main Feedback Box */}
+      <div className="mt-8 mx-auto max-w-2xl rounded-3xl sm:rounded-[28px] border-[3.5px] border-black dark:border-white/30 bg-white dark:bg-[#121218] p-6 sm:p-8 shadow-[8px_8px_0px_#000000] dark:shadow-[8px_8px_0px_#ffffff]">
+        {/* Card Header */}
+        <div className="flex items-center gap-3.5 pb-5 border-b-[2px] border-black/10 dark:border-white/10">
+          <div className="h-10 w-10 shrink-0 rounded-xl border-2 border-black bg-lilac flex items-center justify-center text-black shadow-xs">
+            <MessageSquareHeart size={20} className="stroke-[2.5]" />
+          </div>
+          <div>
+            <h3 className="font-mono text-sm font-black uppercase tracking-wider text-ink leading-tight">
+              DISPATCH FEEDBACK
+            </h3>
+            <p className="font-mono text-[11px] text-muted-foreground mt-0.5">
+              Roast the UI, suggest new features, or tell us what made you smile.
             </p>
-
-            {/* Interactive Backend-Supported Email Form */}
-            <div className="max-w-md mx-auto mb-6">
-              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2.5">
-                <div className="relative flex-1">
-                  <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email address..."
-                    required
-                    className="w-full pl-10 pr-4 py-3.5 rounded-full bg-white/10 border border-white/15 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#FF5500] focus:bg-white/15 transition-all"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-6 py-3.5 rounded-full bg-[#FF5500] hover:bg-[#E04800] text-white font-bold text-sm transition-all shadow-md hover:shadow-lg hover:shadow-[#FF5500]/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75 shrink-0"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin text-white" />
-                      <span>Joining...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Start Building Free</span>
-                      <ArrowRight size={15} />
-                    </>
-                  )}
-                </button>
-              </form>
-
-              {/* Status Message */}
-              {status && (
-                <div
-                  className={`mt-3 p-3 rounded-xl text-xs font-medium flex items-center justify-center gap-2 animate-fade-in ${
-                    status.type === 'success'
-                      ? 'bg-[#FF5500]/15 text-[#FF5500] border border-[#FF5500]/30'
-                      : 'bg-red-500/15 text-red-300 border border-red-500/30'
-                  }`}
-                >
-                  {status.type === 'success' ? <CheckCircle2 size={14} /> : null}
-                  <span>{status.message}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Direct Links */}
-            <div className="flex items-center justify-center gap-4 text-xs sm:text-sm text-white/60">
-              <Link href="/templates" className="hover:text-white transition-colors underline-offset-4 hover:underline">
-                Explore 12+ live templates →
-              </Link>
-              <span>•</span>
-              <Link href="/signup" className="hover:text-white transition-colors underline-offset-4 hover:underline">
-                Create account directly
-              </Link>
-            </div>
-
-            {/* Features check row */}
-            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-10 pt-8 border-t border-white/10 text-xs text-white/50">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[#FF5500] font-bold">✓</span>
-                <span>Free forever tier</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[#FF5500] font-bold">✓</span>
-                <span>No credit card required</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[#FF5500] font-bold">✓</span>
-                <span>Custom domain ready</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[#FF5500] font-bold">✓</span>
-                <span>Clean Next.js export</span>
-              </div>
-            </div>
           </div>
         </div>
+
+        {sent ? (
+          <div className="py-10 text-center space-y-3 animate-in fade-in">
+            <div className="h-12 w-12 rounded-full border-2 border-black bg-mint text-black flex items-center justify-center mx-auto shadow-[2px_2px_0px_#000]">
+              <CheckCircle2 size={24} className="stroke-[2.5]" />
+            </div>
+            <h4 className="font-display text-lg font-black text-ink">
+              Transmission received
+            </h4>
+            <p className="font-mono text-xs text-muted-foreground">
+              Your note just landed on the dev board. Thanks for helping make Launchly better.
+            </p>
+            <button
+              type="button"
+              onClick={() => setSent(false)}
+              className="mt-2 font-mono text-xs font-bold text-pink underline cursor-pointer"
+            >
+              Dispatch another thought
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+            {/* Category selection pills */}
+            <div className="flex flex-wrap items-center gap-2">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setCategory(cat)}
+                  className={`brutal-press rounded-full border-2 border-black dark:border-white/30 px-4 py-1.5 font-mono text-xs font-black uppercase transition-all cursor-pointer ${
+                    category === cat
+                      ? 'bg-pink text-black shadow-[2px_2px_0px_#000000] dark:shadow-[2px_2px_0px_#ffffff]'
+                      : 'bg-white dark:bg-[#1a1a24] text-black dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Experience Rating Slider */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="font-mono text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  VIBE CHECK: <span className="text-ink font-black">{RATING_VIBES[rating] || `${rating}/5`}</span>
+                </label>
+              </div>
+              <div className="relative flex items-center">
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  step="1"
+                  value={rating}
+                  onChange={(e) => setRating(Number(e.target.value))}
+                  className="w-full h-2.5 rounded-full appearance-none cursor-pointer border-[1.5px] border-black bg-neutral-200 dark:bg-neutral-800 accent-pink"
+                  style={{
+                    background: `linear-gradient(to right, #f472b6 0%, #f472b6 ${
+                      ((rating - 1) / 4) * 100
+                    }%, #e5e7eb ${((rating - 1) / 4) * 100}%, #e5e7eb 100%)`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Message Area */}
+            <div>
+              <label className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-2">
+                THE RAW TRUTH // YOUR THOUGHTS
+              </label>
+              <textarea
+                rows={4}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Roast our animations, request your dream template, or describe the feature that would make Launchly your default builder..."
+                className="w-full rounded-2xl border-[2.5px] border-black dark:border-white/30 bg-white dark:bg-[#0c0c10] p-4 font-mono text-xs sm:text-[13px] text-ink placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink/50 shadow-inner resize-y min-h-[110px]"
+                required
+              />
+            </div>
+
+            {/* Bottom Row */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-1">
+              <span className="font-mono text-[11px] text-muted-foreground self-start sm:self-center">
+                100% Anonymous • Direct to Developer
+              </span>
+
+              <button
+                type="submit"
+                disabled={loading || !message.trim()}
+                className="brutal-press w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border-[2.5px] border-black dark:border-white bg-pink hover:bg-pink/90 text-black px-6 py-2.5 font-display text-xs sm:text-sm font-black shadow-[3px_3px_0px_#000000] dark:shadow-[3px_3px_0px_#ffffff] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
+              >
+                <Send size={14} className="stroke-[2.5]" />
+                <span>{loading ? 'Transmitting…' : 'Dispatch Feedback'}</span>
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </section>
   );

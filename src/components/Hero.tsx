@@ -1,71 +1,73 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 
 export default function Hero() {
   return (
-    <section className="relative min-h-[calc(100vh-4.5rem)] flex flex-col items-center justify-center pt-28 pb-16 px-4 sm:px-6 overflow-hidden">
-      {/* Background ambient lighting - Warm Aesthetic Sunset Orange */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[720px] h-[360px] bg-gradient-to-b from-[#FF5500]/15 via-[#FF8833]/5 to-transparent rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/3 left-10 w-80 h-80 bg-[#FF5500]/8 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/3 right-10 w-72 h-72 bg-[#6366F1]/6 rounded-full blur-3xl pointer-events-none" />
+    <section className="relative overflow-hidden bg-transparent text-black dark:text-white flex flex-col justify-center items-center py-4 sm:py-6 min-h-[calc(100vh-125px)]">
+      {/* Background ambient lighting blurs */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-full overflow-hidden">
+        <div className="absolute -left-20 top-10 h-[340px] w-[340px] rounded-full bg-pink/20 blur-3xl" />
+        <div className="absolute -right-20 top-20 h-[300px] w-[300px] rounded-full bg-lilac/25 blur-3xl" />
+        <div className="absolute left-1/3 top-[260px] h-[260px] w-[260px] rounded-full bg-yellow/20 blur-3xl" />
+      </div>
 
-      {/* Grid Pattern */}
-      <div
-        className="absolute inset-0 opacity-[0.035] pointer-events-none"
-        style={{
-          backgroundImage: `linear-gradient(#171717 1px, transparent 1px), linear-gradient(90deg, #171717 1px, transparent 1px)`,
-          backgroundSize: '56px 56px',
-        }}
-      />
-
-      {/* Hero Content */}
-      <div className="relative z-10 text-center max-w-4xl mx-auto my-auto">
-        {/* Main Headline */}
-        <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-[-0.04em] leading-[0.94] text-[#171717] mb-6">
-          Your ideas deserve{' '}
+      <div className="relative mx-auto flex flex-col items-center w-[min(1220px,calc(100%-24px))] text-center px-4">
+        {/* Main Headline - Bold, high-impact visible text in both Light & Dark modes */}
+        <h1 className="font-display text-5xl sm:text-7xl md:text-8xl lg:text-[92px] xl:text-[96px] font-black leading-[1.04] sm:leading-[1.02] tracking-[-0.03em] max-w-5xl text-black dark:text-white">
+          Build websites <br />
+          without{' '}
           <span className="relative inline-block">
-            <span className="relative z-10">a website.</span>
-            {/* Animated Sunset Orange underline */}
-            <svg
-              className="absolute -bottom-2 left-0 w-full"
-              height="8"
-              viewBox="0 0 300 8"
-              preserveAspectRatio="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M0 5 Q 75 1, 150 5 T 300 5"
-                stroke="#FF5500"
-                strokeWidth="3.5"
-                fill="none"
-                strokeLinecap="round"
-              />
-            </svg>
+            <span className="relative z-10 italic text-black dark:text-white">context switching.</span>
+            <span aria-hidden="true" className="select-none pointer-events-none absolute inset-x-0 bottom-1 sm:bottom-2 -z-0 h-3.5 sm:h-5 rounded-md bg-pink/60 dark:bg-pink/40" />
           </span>
         </h1>
 
-        {/* Supporting description */}
-        <p className="text-lg sm:text-xl text-[#525252] max-w-2xl mx-auto leading-relaxed mb-8">
-          Discover world-class templates, customize every pixel visually, and publish live to your custom domain in minutes. No coding required.
+        {/* Supporting description - Crisp solid readable text */}
+        <p className="mx-auto mt-4 sm:mt-5 max-w-2xl text-base sm:text-lg md:text-xl font-medium leading-relaxed text-neutral-800 dark:text-neutral-200">
+          Discover world-class templates, customize every pixel visually, and{' '}
+          <span className="font-bold text-black dark:text-white underline decoration-yellow decoration-4 underline-offset-4">
+            publish live to your custom domain
+          </span>{' '}
+          in minutes. No coding required.
         </p>
 
         {/* Primary CTAs */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+        <div className="mt-6 flex flex-row items-center justify-center gap-3 sm:gap-4 w-full sm:w-auto">
           <Link
             href="/templates"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full text-base font-semibold bg-[#FF5500] hover:bg-[#E04800] text-white shadow-lg shadow-[#FF5500]/25 transition-all group"
+            className="brutal-press group inline-flex min-h-12 sm:min-h-13 items-center justify-center gap-2.5 rounded-2xl border-[3px] border-black dark:border-white bg-pink px-7 sm:px-8 font-display text-base font-black text-black shadow-brutal dark:shadow-[4px_4px_0px_#ffffff] hover:bg-pink/90"
           >
-            <span>Explore all templates</span>
-            <ArrowRight size={16} className="text-white group-hover:translate-x-1 transition-transform" />
+            <span>Start building free</span>
+            <ArrowUpRight className="h-4.5 w-4.5 stroke-[3] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </Link>
-          <Link
-            href="/editor/saas-launch"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-full text-base font-medium bg-white text-[#171717] border border-[#E8E6E0] hover:border-[#FF5500]/40 hover:bg-[#FAF9F6] transition-all shadow-xs"
+
+          <a
+            href="#live-workspace"
+            className="brutal-press inline-flex min-h-12 sm:min-h-13 items-center justify-center gap-2 rounded-2xl border-[3px] border-black dark:border-white bg-white dark:bg-[#161622] px-6 sm:px-7 font-display text-base font-black text-black dark:text-white shadow-brutal dark:shadow-[4px_4px_0px_#ffffff] hover:bg-neutral-50 dark:hover:bg-[#1f1f2e]"
           >
-            <span>Open in Visual Editor</span>
-          </Link>
+            <span>Live Studio</span>
+          </a>
+        </div>
+
+        {/* Social Proof */}
+        <div className="mt-5 flex items-center justify-center gap-2.5 font-mono text-[11px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+          <div className="flex -space-x-1.5">
+            <div className="h-6.5 w-6.5 rounded-full border-2 border-black dark:border-white bg-mint shadow-xs flex items-center justify-center text-[9px] font-black text-black">
+              M
+            </div>
+            <div className="h-6.5 w-6.5 rounded-full border-2 border-black dark:border-white bg-yellow shadow-xs flex items-center justify-center text-[9px] font-black text-black">
+              K
+            </div>
+            <div className="h-6.5 w-6.5 rounded-full border-2 border-black dark:border-white bg-pink shadow-xs flex items-center justify-center text-[9px] font-black text-black">
+              S
+            </div>
+            <div className="h-6.5 w-6.5 rounded-full border-2 border-black dark:border-white bg-lilac shadow-xs flex items-center justify-center text-[9px] font-black text-black">
+              V
+            </div>
+          </div>
+          <span>Joined by 2,400+ makers & founders</span>
         </div>
       </div>
     </section>

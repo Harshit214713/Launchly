@@ -426,27 +426,27 @@ interface TemplateCardProps {
 
 export default function TemplateCard({ template, onCustomize }: TemplateCardProps) {
   return (
-    <div className="template-card group rounded-[26px] overflow-hidden border border-[#E8E6E0] bg-white hover:border-[#FF5500]/50 hover:shadow-[0_20px_50px_-10px_rgba(255,85,0,0.14)] transition-all duration-400 flex flex-col justify-between">
-      {/* Full-bleed visual preview canvas */}
-      <div className="relative h-60 sm:h-64 overflow-hidden bg-[#0A0A0C]">
+    <div className="group rounded-2xl overflow-hidden border-[3px] border-ink bg-card shadow-brutal hover:shadow-brutal-lg hover:-translate-y-1 transition-all flex flex-col justify-between">
+      {/* Visual preview canvas */}
+      <div className="relative h-60 sm:h-64 overflow-hidden bg-[#0A0A0C] border-b-[3px] border-ink">
         <div className="w-full h-full transition-transform duration-500 ease-out group-hover:scale-[1.03]">
           <TemplatePreviewCanvas template={template} />
         </div>
 
-        {/* Sleek frosted glass hover actions overlay */}
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3 p-4">
+        {/* Neo-brutalist hover actions overlay */}
+        <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-3 p-4">
           <Link
             href={`/templates/${template.id}`}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-white text-[#171717] rounded-full text-xs font-bold hover:bg-[#FAF9F6] transition-all shadow-xl hover:scale-105"
+            className="brutal-press flex items-center gap-1.5 px-4 py-2 bg-card text-ink border-[2.5px] border-ink rounded-xl text-xs font-display font-black shadow-brutal-sm hover:bg-[#faf5ff]"
             onClick={(e) => e.stopPropagation()}
           >
             <Eye size={14} />
-            <span>Live Preview</span>
+            <span>Preview</span>
           </Link>
 
           <Link
             href={`/editor/${template.id}`}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-[#FF5500] hover:bg-[#E04800] text-white rounded-full text-xs font-bold transition-all shadow-xl shadow-[#FF5500]/30 hover:scale-105"
+            className="brutal-press flex items-center gap-1.5 px-4 py-2 bg-pink text-black border-[2.5px] border-ink rounded-xl text-xs font-display font-black shadow-brutal-sm hover:bg-pink/90"
             onClick={(e) => {
               if (onCustomize) {
                 e.preventDefault();
@@ -454,33 +454,33 @@ export default function TemplateCard({ template, onCustomize }: TemplateCardProp
               }
             }}
           >
-            <span>Open in Editor</span>
-            <ArrowRight size={13} />
+            <span>Edit</span>
+            <ArrowRight size={13} className="stroke-[3]" />
           </Link>
         </div>
       </div>
 
-      {/* Clean, high-end card details */}
+      {/* Neo-brutal card details */}
       <div className="p-5 sm:p-6 flex flex-col justify-between flex-1">
         <div>
           {/* Top row: Name & Badges */}
           <div className="flex items-center justify-between gap-2 mb-2">
             <Link
               href={`/templates/${template.id}`}
-              className="font-black text-lg text-[#171717] tracking-tight hover:text-[#FF5500] transition-colors"
+              className="font-display font-black text-lg text-ink tracking-tight hover:text-pink transition-colors"
             >
               {template.name}
             </Link>
 
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FAF9F6] text-[#525252] border border-[#E8E6E0]">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-yellow text-black border-2 border-ink">
                 {template.category}
               </span>
               <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border-2 border-ink ${
                   template.isPro
-                    ? 'bg-[#FF5500]/10 text-[#FF5500] border border-[#FF5500]/25'
-                    : 'bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/25'
+                    ? 'bg-pink text-black'
+                    : 'bg-mint text-black'
                 }`}
               >
                 {template.isPro ? 'Pro' : 'Free'}
@@ -489,25 +489,25 @@ export default function TemplateCard({ template, onCustomize }: TemplateCardProp
           </div>
 
           {/* Description */}
-          <p className="text-xs text-[#666666] leading-relaxed line-clamp-2 mb-4">
+          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-4 font-mono">
             {template.description}
           </p>
         </div>
 
         {/* Bottom row: Tech tags & action */}
-        <div className="pt-3 border-t border-[#E8E6E0]/80 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#8A8A8A]">
+        <div className="pt-3 border-t-[2px] border-ink/20 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground font-bold">
             <span>Next.js 15</span>
-            <span>•</span>
+            <span>✦</span>
             <span>Tailwind v4</span>
           </div>
 
           <Link
             href={`/templates/${template.id}`}
-            className="inline-flex items-center gap-1 text-xs font-bold text-[#171717] group-hover:text-[#FF5500] transition-colors"
+            className="inline-flex items-center gap-1 text-xs font-display font-black text-ink hover:text-pink transition-colors"
           >
             <span>View Template</span>
-            <ArrowUpRight size={13} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            <ArrowUpRight size={13} className="stroke-[3]" />
           </Link>
         </div>
       </div>

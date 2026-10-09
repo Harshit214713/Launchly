@@ -91,7 +91,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 alt="Launchly Emblem"
                 width={28}
                 height={28}
-                className="w-full h-full object-cover rounded-md"
+                className="w-full h-full object-contain p-0.5 rounded-md"
               />
             </div>
             <div className="hidden sm:block">
@@ -680,16 +680,16 @@ function SectionProperties({ sectionId, sections, theme }: {
         <div className="text-xs font-medium text-[#8A8A8A] uppercase tracking-wide mb-3">Visibility</div>
         <div className="flex gap-2">
           {[
-            { label: '💻', title: 'Desktop' },
-            { label: '📱', title: 'Tablet' },
-            { label: '📲', title: 'Mobile' },
-          ].map(({ label, title }) => (
+            { icon: <Monitor size={16} className="mx-auto" />, title: 'Desktop' },
+            { icon: <Tablet size={16} className="mx-auto" />, title: 'Tablet' },
+            { icon: <Smartphone size={16} className="mx-auto" />, title: 'Mobile' },
+          ].map(({ icon, title }) => (
             <button
               key={title}
               title={title}
-              className="flex-1 py-2 bg-[#F5F4F0] rounded-lg text-base hover:bg-[#FF5500]/15 transition-all"
+              className="flex-1 py-2 bg-[#F5F4F0] rounded-lg text-base hover:bg-[#FF5500]/15 transition-all flex items-center justify-center text-neutral-700"
             >
-              {label}
+              {icon}
             </button>
           ))}
         </div>
@@ -822,7 +822,7 @@ function PublishDialog({ onClose, siteName, templateId }: { onClose: () => void;
             <div className="w-16 h-16 rounded-full bg-[#FF5500] text-white flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#FF5500]/25">
               <Check size={28} strokeWidth={3} />
             </div>
-            <div className="font-black text-[#171717] text-2xl mb-1">Your Website is Live! 🎉</div>
+            <div className="font-black text-[#171717] text-2xl mb-1">Your Website is Live!</div>
             <div className="text-xs text-[#8A8A8A] mb-5">Genuinely deployed and accessible worldwide:</div>
 
             <div className="bg-[#FAF9F6] border border-[#E8E6E0] rounded-xl px-4 py-3 mb-6">

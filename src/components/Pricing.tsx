@@ -5,14 +5,12 @@ import { useRouter } from 'next/navigation';
 import { 
   Check, 
   Sparkles, 
-  ArrowRight, 
-  Download, 
-  Globe, 
-  Loader2, 
+  ArrowUpRight, 
   Plus,
   Minus,
   ShieldCheck,
-  Zap
+  Zap,
+  HelpCircle
 } from 'lucide-react';
 
 const FREE_FEATURES = [
@@ -20,7 +18,7 @@ const FREE_FEATURES = [
   'Visual website customizer',
   'Publish on Launchly edge subdomain',
   'Automated SSL certificate',
-  'Mobile, tablet & desktop preview',
+  'Responsive desktop, tablet & mobile preview',
   'Basic visitor analytics',
   'Community support access',
 ];
@@ -33,25 +31,25 @@ const PRO_FEATURES = [
   'Zero Launchly brand watermarks',
   'Priority 24/7 engineering support',
   'Edge SSR & global CDN caching',
-  'Production build export with TypeScript',
+  'Production build export with TypeScript & Tailwind v4',
 ];
 
 const FAQS = [
   {
-    q: 'Can I download the actual source code?',
-    a: 'Yes! On the Pro plan or through a single template export, you receive clean, fully documented Next.js 15, React, Tailwind CSS v4, and TypeScript source code that you can self-host on Vercel, Netlify, AWS, or any server.'
+    q: 'Can I download the actual Next.js source code?',
+    a: 'Yes! On the Pro plan, you can download clean, fully documented Next.js 15, React 19, Tailwind CSS v4, and TypeScript code that you can deploy to Vercel, Netlify, or any VPS.'
   },
   {
     q: 'Do I need any coding or design experience to build?',
-    a: 'Not at all. Launchly is designed specifically so anyone can customize typography, colors, sections, and images visually with live real-time responsive previews.'
+    a: 'Not at all. Launchly is built for creators, marketers, and founders. You customize typography, colors, sections, and images visually with live real-time responsive previews.'
   },
   {
     q: 'How does custom domain connection work?',
-    a: 'On the Pro plan, you can connect your own domain (e.g. www.yourcompany.com). Simply add an A or CNAME record in your DNS provider, and Launchly automatically provisions an SSL certificate within minutes.'
+    a: 'On Pro, you simply add an A or CNAME record with your DNS registrar (Cloudflare, GoDaddy, Namecheap). Launchly automatically provisions an SSL certificate within minutes.'
   },
   {
     q: 'Can I cancel my subscription anytime?',
-    a: 'Yes. There are zero contracts or cancellation fees. If you cancel, your published websites remain active through the end of your billing cycle.'
+    a: 'Yes. There are zero contracts or lock-in. If you cancel, your published websites stay live through the end of your billing cycle.'
   },
   {
     q: 'Are the templates commercially licensed?',
@@ -62,256 +60,205 @@ const FAQS = [
 export default function Pricing() {
   const router = useRouter();
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const monthlyPrice = 19;
   const yearlyPrice = Math.floor(monthlyPrice * 12 * 0.7);
 
-  const handleSelectPlan = async (plan: 'free' | 'pro') => {
-    setLoadingPlan(plan);
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, billing }),
-      });
-      const data = await res.json();
-      if (res.ok && data.checkoutUrl) {
-        router.push(data.checkoutUrl);
-      } else {
-        router.push(plan === 'pro' ? '/signup?plan=pro' : '/signup');
-      }
-    } catch {
-      router.push(plan === 'pro' ? '/signup?plan=pro' : '/signup');
-    } finally {
-      setLoadingPlan(null);
-    }
+  const handleSelectPlan = (plan: 'free' | 'pro') => {
+    router.push(plan === 'pro' ? '/signup?plan=pro' : '/signup');
   };
 
   return (
-    <section id="pricing" className="py-24 sm:py-32 px-4 sm:px-6 bg-[#FAF9F6] overflow-hidden">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12 sm:mb-16">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#E8E6E0] text-xs font-semibold text-[#525252] mb-4 shadow-2xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#FF5500]" />
-            <span>Transparent Plans</span>
-          </div>
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-[-0.03em] text-[#171717] mb-4">
-            Start free, upgrade<br className="hidden sm:inline" /> when you need code.
-          </h2>
-          <p className="text-base sm:text-lg text-[#525252] max-w-xl mx-auto mb-8">
-            Build and launch visually without spending a dime. Unlock full source code ownership whenever you are ready.
-          </p>
+    <section id="pricing" className="mx-auto w-[min(1200px,calc(100%-32px))] py-8 sm:py-10">
+      {/* Header */}
+      <div className="text-center max-w-2xl mx-auto mb-8">
+        <span className="inline-flex items-center gap-2 rounded-full border-[3px] border-ink bg-yellow px-4 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-black shadow-brutal mb-4">
+          <Zap size={13} className="fill-black" />
+          Transparent Pricing
+        </span>
+        <h2 className="font-display text-4xl sm:text-5xl md:text-6xl font-black text-ink leading-tight">
+          Ship fast, pay fair.
+        </h2>
+        <p className="mt-3 text-base text-muted-foreground">
+          Start for free, upgrade when you want custom domains and source code export.
+        </p>
 
-          {/* Billing toggle */}
-          <div className="inline-flex items-center p-1 bg-white rounded-full border border-[#E8E6E0] shadow-2xs">
-            {(['monthly', 'yearly'] as const).map((period) => (
-              <button
-                key={period}
-                type="button"
-                onClick={() => setBilling(period)}
-                className={`px-5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer ${
-                  billing === period
-                    ? 'bg-[#171717] text-white shadow-xs'
-                    : 'text-[#6B6B6B] hover:text-[#171717]'
-                }`}
-              >
-                <span>{period.charAt(0).toUpperCase() + period.slice(1)}</span>
-                {period === 'yearly' && (
-                  <span className="ml-1.5 text-[10px] font-bold text-white bg-[#FF5500] px-2 py-0.5 rounded-full">
-                    30% OFF
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Pricing Cards Grid */}
-        <div className="grid md:grid-cols-2 gap-6 sm:gap-8 mb-20 items-stretch">
-          {/* Free plan */}
-          <div className="rounded-3xl p-7 sm:p-10 border border-[#E8E6E0] bg-white flex flex-col justify-between hover:border-black/20 hover:shadow-xl transition-all duration-300">
-            <div>
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <span className="text-xs font-mono font-bold text-[#8A8A8A] uppercase tracking-wider mb-1 block">
-                    Free Tier
-                  </span>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl sm:text-5xl font-black text-[#171717]">$0</span>
-                    <span className="text-[#8A8A8A] text-xs sm:text-sm">/ month</span>
-                  </div>
-                  <p className="text-xs text-[#8A8A8A] mt-1">Unlimited draft projects & subdomain hosting</p>
-                </div>
-                <div className="w-11 h-11 rounded-2xl bg-[#FAF9F6] border border-[#E8E6E0] flex items-center justify-center shadow-2xs">
-                  <Globe size={20} className="text-[#525252]" />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleSelectPlan('free')}
-                disabled={loadingPlan === 'free'}
-                className="w-full py-3.5 px-4 rounded-full text-xs sm:text-sm font-bold bg-[#FAF9F6] text-[#171717] border border-[#E8E6E0] hover:bg-[#F0EEE9] hover:border-black/20 transition-all flex items-center justify-center gap-2 mb-8 cursor-pointer disabled:opacity-75"
-              >
-                {loadingPlan === 'free' ? (
-                  <Loader2 size={15} className="animate-spin" />
-                ) : (
-                  <>
-                    <span>Start Free Today</span>
-                    <ArrowRight size={14} />
-                  </>
-                )}
-              </button>
-
-              <div className="space-y-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#8A8A8A] block mb-3">
-                  What is included:
-                </span>
-                {FREE_FEATURES.map((feature) => (
-                  <div key={feature} className="flex items-center gap-3 text-xs sm:text-sm text-[#525252]">
-                    <div className="w-4 h-4 rounded-full bg-[#FAF9F6] border border-[#E8E6E0] flex items-center justify-center shrink-0">
-                      <Check size={10} className="text-[#525252]" />
-                    </div>
-                    <span>{feature}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-6 mt-8 border-t border-[#E8E6E0] flex items-center gap-2 text-[11px] text-[#737373]">
-              <ShieldCheck size={14} className="text-[#22C55E]" />
-              <span>Zero credit card required to get started</span>
-            </div>
-          </div>
-
-          {/* Pro plan */}
-          <div className="rounded-3xl p-7 sm:p-10 bg-[#171717] text-white flex flex-col justify-between relative overflow-hidden shadow-2xl border border-white/10 group">
-            {/* Ambient Lighting - Sunset Orange */}
-            <div className="absolute top-0 right-0 w-72 h-72 bg-[#FF5500]/20 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="relative z-10">
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono font-bold text-white/60 uppercase tracking-wider">
-                      Pro Plan
-                    </span>
-                    <span className="px-2.5 py-0.5 bg-[#FF5500] text-white rounded-full text-[10px] font-black uppercase tracking-wider">
-                      FULL OWNERSHIP
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl sm:text-5xl font-black text-white">
-                      ${billing === 'monthly' ? monthlyPrice : Math.floor(yearlyPrice / 12)}
-                    </span>
-                    <span className="text-white/60 text-xs sm:text-sm">/ month</span>
-                  </div>
-                  {billing === 'yearly' && (
-                    <p className="text-xs text-[#FF5500] font-semibold mt-1">
-                      ${yearlyPrice} billed annually (Save $69/year)
-                    </p>
-                  )}
-                </div>
-                <div className="w-11 h-11 rounded-2xl bg-[#FF5500]/15 border border-[#FF5500]/30 flex items-center justify-center shadow-xs">
-                  <Sparkles size={20} className="text-[#FF5500]" />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleSelectPlan('pro')}
-                disabled={loadingPlan === 'pro'}
-                className="w-full py-3.5 px-4 rounded-full text-xs sm:text-sm font-bold bg-[#FF5500] hover:bg-[#E04800] text-white transition-all shadow-lg shadow-[#FF5500]/25 flex items-center justify-center gap-2 mb-8 cursor-pointer disabled:opacity-75"
-              >
-                {loadingPlan === 'pro' ? (
-                  <Loader2 size={15} className="animate-spin text-white" />
-                ) : (
-                  <>
-                    <span>Unlock Pro & Download Code</span>
-                    <ArrowRight size={14} />
-                  </>
-                )}
-              </button>
-
-              <div className="space-y-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-white/60 block mb-3">
-                  Everything in Free, plus:
-                </span>
-                {PRO_FEATURES.map((feature) => (
-                  <div key={feature} className="flex items-center gap-3 text-xs sm:text-sm text-white/90">
-                    <div className="w-4 h-4 rounded-full bg-[#FF5500]/20 border border-[#FF5500]/40 flex items-center justify-center shrink-0">
-                      <Check size={10} className="text-[#FF5500]" />
-                    </div>
-                    <span className={feature.includes('source code') ? 'font-bold text-[#FF5500]' : ''}>
-                      {feature}
-                    </span>
-                    {feature.includes('source code') && (
-                      <Download size={13} className="text-[#FF5500] ml-auto shrink-0" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-6 mt-8 border-t border-white/10 flex items-center justify-between text-[11px] text-white/60 relative z-10">
-              <span className="flex items-center gap-1.5">
-                <Zap size={13} className="text-[#FF5500]" />
-                Instant activation
-              </span>
-              <span>Cancel online anytime</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Aesthetic FAQ Section */}
-        <div id="faq" className="pt-16 border-t border-[#E8E6E0]">
-          <div className="text-center mb-10">
-            <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#8A8A8A] block mb-2">
-              Common Questions
+        {/* Neo-brutalist Billing Toggle */}
+        <div className="mt-8 inline-flex items-center rounded-2xl border-[3px] border-ink bg-card p-1.5 shadow-brutal">
+          <button
+            type="button"
+            onClick={() => setBilling('monthly')}
+            className={`rounded-xl px-4 py-2 font-display text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              billing === 'monthly'
+                ? 'bg-pink text-black shadow-brutal-sm'
+                : 'text-muted-foreground hover:text-black'
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => setBilling('yearly')}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 font-display text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              billing === 'yearly'
+                ? 'bg-pink text-black shadow-brutal-sm'
+                : 'text-muted-foreground hover:text-black'
+            }`}
+          >
+            <span>Yearly</span>
+            <span className="rounded-md border border-ink bg-mint px-2 py-0.5 font-mono text-[10px] font-black text-black">
+              Save 30%
             </span>
-            <h3 className="text-3xl sm:text-4xl font-black text-[#171717] tracking-tight">
-              Frequently Asked Questions
-            </h3>
+          </button>
+        </div>
+      </div>
+
+      {/* Pricing Cards Grid */}
+      <div className="grid gap-8 lg:grid-cols-2 max-w-4xl mx-auto">
+        {/* Free Card */}
+        <div className="rounded-3xl border-[4px] border-ink bg-card p-8 sm:p-10 shadow-brutal-lg flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs font-black uppercase tracking-wider text-muted-foreground">
+                Starter Tier
+              </span>
+              <span className="rounded-full border-2 border-ink bg-[#fdf2f8] px-3 py-0.5 font-mono text-[11px] font-bold text-black">
+                Free Forever
+              </span>
+            </div>
+
+            <h3 className="mt-3 font-display text-3xl font-black text-ink">Free Plan</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Perfect for exploring templates and launching test landing pages.
+            </p>
+
+            <div className="my-6 pb-6 border-b-[2.5px] border-ink/20">
+              <div className="flex items-baseline gap-1">
+                <span className="font-display text-5xl sm:text-6xl font-black text-ink">$0</span>
+                <span className="font-mono text-sm text-muted-foreground">/ month</span>
+              </div>
+            </div>
+
+            <ul className="space-y-3.5 mb-8">
+              {FREE_FEATURES.map((feature, idx) => (
+                <li key={idx} className="flex items-center gap-3 text-xs sm:text-sm font-mono text-ink">
+                  <span className="h-5 w-5 shrink-0 rounded-full border-2 border-ink bg-mint text-black flex items-center justify-center">
+                    <Check size={12} className="stroke-[3]" />
+                  </span>
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <div className="max-w-3xl mx-auto space-y-3">
-            {FAQS.map((faq, idx) => {
-              const isOpen = openFaq === idx;
-              return (
-                <div
-                  key={faq.q}
-                  className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
-                    isOpen
-                      ? 'bg-white border-[#FF5500]/30 shadow-sm'
-                      : 'bg-white/70 border-[#E8E6E0] hover:bg-white hover:border-[#171717]/15'
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setOpenFaq(isOpen ? null : idx)}
-                    className="w-full p-5 text-left flex items-center justify-between gap-4 cursor-pointer"
-                  >
-                    <span className="font-bold text-sm sm:text-base text-[#171717]">{faq.q}</span>
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors shrink-0 ${
-                        isOpen ? 'bg-[#FF5500] text-white' : 'bg-[#FAF9F6] text-[#737373]'
-                      }`}
-                    >
-                      {isOpen ? <Minus size={14} /> : <Plus size={14} />}
-                    </div>
-                  </button>
-                  {isOpen && (
-                    <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-[#525252] leading-relaxed border-t border-black/5 bg-[#FAF9F6]/40">
-                      {faq.a}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <button
+            type="button"
+            onClick={() => handleSelectPlan('free')}
+            className="brutal-press w-full rounded-2xl border-[3px] border-ink bg-card py-4 font-display text-base font-black text-ink shadow-brutal hover:bg-neutral-100 cursor-pointer"
+          >
+            Start Free
+          </button>
+        </div>
+
+        {/* Pro Card */}
+        <div className="rounded-3xl border-[4px] border-ink bg-card p-8 sm:p-10 shadow-brutal-xl relative flex flex-col justify-between ring-2 ring-pink/40">
+          {/* Popular Choice Floating Pill */}
+          <div className="absolute -top-4 right-8">
+            <span className="inline-flex items-center gap-1.5 rounded-full border-[2.5px] border-ink bg-yellow px-4 py-1 font-mono text-[11px] font-black uppercase text-black shadow-brutal-sm">
+              <Sparkles size={12} />
+              POPULAR CHOICE
+            </span>
           </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs font-black uppercase tracking-wider text-pink">
+                Production Tier
+              </span>
+              <span className="rounded-full border-2 border-ink bg-pink px-3 py-0.5 font-mono text-[11px] font-black text-black">
+                Full Power
+              </span>
+            </div>
+
+            <h3 className="mt-3 font-display text-3xl font-black text-ink">Pro Creator</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              For ambitious founders, agencies, and businesses ready to launch.
+            </p>
+
+            <div className="my-6 pb-6 border-b-[2.5px] border-ink/20">
+              <div className="flex items-baseline gap-1">
+                <span className="font-display text-5xl sm:text-6xl font-black text-ink">
+                  ${billing === 'monthly' ? monthlyPrice : Math.round(yearlyPrice / 12)}
+                </span>
+                <span className="font-mono text-sm text-muted-foreground">/ month</span>
+              </div>
+              {billing === 'yearly' && (
+                <span className="font-mono text-xs text-mint font-bold mt-1 block">
+                  Billed annually (${yearlyPrice}/yr)
+                </span>
+              )}
+            </div>
+
+            <ul className="space-y-3.5 mb-8">
+              {PRO_FEATURES.map((feature, idx) => (
+                <li key={idx} className="flex items-center gap-3 text-xs sm:text-sm font-mono text-ink">
+                  <span className="h-5 w-5 shrink-0 rounded-full border-2 border-ink bg-pink text-black flex items-center justify-center">
+                    <Check size={12} className="stroke-[3]" />
+                  </span>
+                  <span className={idx < 2 ? 'font-bold' : ''}>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => handleSelectPlan('pro')}
+            className="brutal-press w-full rounded-2xl border-[3px] border-ink bg-pink py-4 font-display text-base font-black text-black shadow-brutal hover:bg-pink/90 cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span>Upgrade to Pro</span>
+            <ArrowUpRight size={18} className="stroke-[3]" />
+          </button>
+        </div>
+      </div>
+
+      {/* FAQ Section */}
+      <div className="mt-24 max-w-3xl mx-auto">
+        <div className="text-center mb-10">
+          <span className="inline-flex items-center gap-2 rounded-full border-[3px] border-ink bg-card px-3.5 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-ink shadow-brutal mb-3">
+            <HelpCircle size={13} />
+            Got Questions?
+          </span>
+          <h3 className="font-display text-3xl sm:text-4xl font-black text-ink">
+            Frequently Asked Questions
+          </h3>
+        </div>
+
+        <div className="space-y-4">
+          {FAQS.map((faq, idx) => (
+            <div
+              key={idx}
+              className="rounded-2xl border-[3px] border-ink bg-card shadow-brutal overflow-hidden transition-all"
+            >
+              <button
+                type="button"
+                onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+                className="w-full flex items-center justify-between p-5 text-left font-display text-base sm:text-lg font-black text-ink cursor-pointer hover:bg-neutral-100 dark:hover:bg-[#1e1e2c] transition-colors"
+              >
+                <span>{faq.q}</span>
+                <span className="h-8 w-8 rounded-xl border-2 border-ink bg-yellow flex items-center justify-center text-black shrink-0 ml-4 shadow-brutal-sm">
+                  {openFaq === idx ? <Minus size={16} /> : <Plus size={16} />}
+                </span>
+              </button>
+
+              {openFaq === idx && (
+                <div className="px-5 pb-5 pt-1 text-xs sm:text-sm font-mono text-muted-foreground leading-relaxed border-t-[2px] border-ink/15">
+                  {faq.a}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </section>

@@ -1,23 +1,29 @@
 import Navbar from '@/components/Navbar';
+import MarqueeTicker from '@/components/MarqueeTicker';
 import Hero from '@/components/Hero';
-import Pricing from '@/components/Pricing';
-import Footer from '@/components/Footer';
+import LiveWorkspaceSection from '@/components/LiveWorkspaceSection';
+import HowItWorks from '@/components/HowItWorks';
 import TemplatesSection from '@/components/TemplatesSection';
 import Testimonials from '@/components/Testimonials';
-import HowItWorks from '@/components/HowItWorks';
+import Pricing from '@/components/Pricing';
 import CTA from '@/components/CTA';
+import Footer from '@/components/Footer';
 
 export default function Home() {
   return (
-    <main className="flex-1 overflow-x-hidden">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <Navbar />
-      <Hero />
-      <HowItWorks />
-      <TemplatesSection />
-      <Testimonials />
-      <Pricing />
-      <CTA />
+      <main className="flex-1 overflow-x-clip">
+        <MarqueeTicker />
+        <Hero />
+        <LiveWorkspaceSection />
+        <HowItWorks />
+        <TemplatesSection />
+        <Testimonials />
+        <Pricing />
+        <CTA />
+      </main>
       <Footer />
-    </main>
+    </div>
   );
 }

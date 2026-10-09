@@ -1,24 +1,26 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const spaceMono = Space_Mono({
+  variable: "--font-space-mono",
   subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Launchly — Dream it. Build it. Launch it.",
-  description: "Discover beautiful website templates, customize them visually, and publish your website in minutes. No coding required.",
-  keywords: ["website builder", "templates", "no-code", "publish website", "SaaS"],
+  title: "Launchly — Websites, templates, visual editor and code on one screen",
+  description: "Browse curated templates, customize every pixel visually, and export clean Next.js 15 source code — all without context switching.",
+  keywords: ["website builder", "templates", "no-code", "publish website", "SaaS", "neo-brutalism", "Next.js 15"],
   openGraph: {
-    title: "Launchly — Dream it. Build it. Launch it.",
-    description: "Discover beautiful website templates, customize them visually, and publish your website in minutes.",
+    title: "Launchly — Build without context switching",
+    description: "Templates, visual editor, live preview, and Next.js 15 source code on one gamified maker workspace.",
     type: "website",
   },
 };
@@ -31,9 +33,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#FAF9F6] text-[#171717]">
+      <body className="min-h-full flex flex-col bg-[#fdf2f8] dark:bg-[#0d0d14] text-[#000000] dark:text-[#f5f5f7] font-sans selection:bg-[#111111] selection:text-white dark:selection:bg-white dark:selection:text-black">
         {children}
       </body>
     </html>

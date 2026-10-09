@@ -133,7 +133,7 @@ export default function Dashboard() {
                 alt="Launchly Emblem"
                 width={32}
                 height={32}
-                className="w-full h-full object-cover rounded-lg"
+                className="w-full h-full object-contain p-0.5 rounded-lg"
               />
             </div>
             <div className="flex items-center gap-2">

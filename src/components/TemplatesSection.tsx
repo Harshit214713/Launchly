@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Search, ArrowRight, X } from 'lucide-react';
+import { Search, ArrowRight, X, Sparkles, Filter } from 'lucide-react';
 import TemplateCard from './TemplateCard';
 import { TEMPLATES, CATEGORIES } from '@/lib/templates';
 import { Template } from '@/types';
@@ -35,96 +35,87 @@ export default function TemplatesSection() {
   };
 
   return (
-    <section id="templates" className="pt-6 sm:pt-10 pb-20 sm:pb-28 px-4 sm:px-6 bg-[#FAF9F6] overflow-hidden">
+    <section id="templates" className="pt-4 sm:pt-6 pb-6 sm:pb-8 px-4 sm:px-6 bg-background overflow-hidden">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-10 sm:mb-12">
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-[-0.03em] text-[#171717] mb-4">
+        <div className="text-center mb-6 sm:mb-8">
+          <span className="inline-flex items-center gap-2 rounded-full border-[3px] border-ink bg-card px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-ink shadow-brutal mb-3">
+            <Sparkles size={13} />
+            Template Gallery
+          </span>
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black font-display tracking-tight text-ink mb-3">
             Find your starting point.
           </h2>
-          <p className="text-base sm:text-lg text-[#525252] max-w-lg mx-auto">
-            Professionally designed, fully responsive websites for whatever you&rsquo;re building.
+          <p className="text-base sm:text-lg text-muted-foreground max-w-lg mx-auto">
+            Production-ready Next.js 15 designs crafted for speed, aesthetics, and high conversion.
           </p>
         </div>
 
-        {/* Search & Filters Bar */}
-        <div className="bg-white rounded-3xl p-3 sm:p-4 border border-[#E8E6E0] shadow-sm mb-10 space-y-3 sm:space-y-0 sm:flex sm:items-center sm:gap-3">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8A8A8A]" />
-            <input
-              type="text"
-              placeholder="Search by name, style, or industry..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-9 py-2.5 bg-[#FAF9F6] border border-[#E8E6E0] rounded-2xl text-xs sm:text-sm text-[#171717] placeholder:text-[#8A8A8A] focus:outline-none focus:border-[#FF5500] focus:ring-2 focus:ring-[#FF5500]/15 focus:bg-white transition-all"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A8A8A] hover:text-[#FF5500] cursor-pointer"
+        {/* Neo-brutalist Search & Filters Bar */}
+        <div className="bg-card rounded-2xl p-4 sm:p-5 border-[3px] border-ink shadow-brutal mb-8 flex flex-col gap-3 sm:gap-4">
+          {/* Top Row: Search Input + Plan Tier Dropdown */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search templates by name, style, or industry..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-10 py-2.5 sm:py-3 bg-[#fdf2f8] dark:bg-[#171720] border-[2.5px] border-ink rounded-xl text-xs sm:text-sm font-mono font-bold text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-pink transition-all shadow-brutal-sm"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink hover:text-pink cursor-pointer"
+                  aria-label="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Plan filter */}
+            <div className="shrink-0">
+              <select
+                value={filterPlan}
+                onChange={(e) => setFilterPlan(e.target.value as 'all' | 'free' | 'pro')}
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-[#fdf2f8] dark:bg-[#171720] border-[2.5px] border-ink rounded-xl text-xs sm:text-sm font-mono font-bold text-ink focus:outline-none cursor-pointer shadow-brutal-sm"
               >
-                <X size={14} />
-              </button>
-            )}
+                <option value="all">All Tiers (Free & Pro)</option>
+                <option value="free">Free Templates</option>
+                <option value="pro">Pro Designs</option>
+              </select>
+            </div>
           </div>
 
-          {/* Category tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide shrink-0">
+          {/* Bottom Row: Category tabs (Wrapped, clean spacing, no clipping) */}
+          <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t-[2px] border-ink/10 dark:border-white/10">
+            <span className="font-mono text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1 hidden md:inline">
+              CATEGORY:
+            </span>
             {CATEGORIES.map((category) => (
               <button
                 key={category}
                 type="button"
                 onClick={() => setActiveCategory(category)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                className={`brutal-press px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-display font-black uppercase whitespace-nowrap transition-all cursor-pointer border-[2.5px] border-ink ${
                   activeCategory === category
-                    ? 'bg-[#171717] text-white shadow-xs'
-                    : 'bg-[#FAF9F6] text-[#525252] hover:text-[#FF5500] hover:bg-[#F0EEE9]'
+                    ? 'bg-pink text-black shadow-brutal-sm'
+                    : 'bg-card text-ink hover:bg-neutral-100 dark:hover:bg-neutral-800 shadow-brutal-sm'
                 }`}
               >
                 {category}
               </button>
             ))}
           </div>
-
-          {/* Plan filter */}
-          <div className="shrink-0">
-            <select
-              value={filterPlan}
-              onChange={(e) => setFilterPlan(e.target.value as 'all' | 'free' | 'pro')}
-              className="w-full sm:w-auto px-3.5 py-2 bg-[#FAF9F6] border border-[#E8E6E0] rounded-xl text-xs font-semibold text-[#525252] focus:outline-none focus:border-[#FF5500] cursor-pointer"
-            >
-              <option value="all">All Plans</option>
-              <option value="free">Free Only</option>
-              <option value="pro">Pro Only</option>
-            </select>
-          </div>
         </div>
 
-        {/* Results Count & Clear Button */}
-        {(searchQuery || activeCategory !== 'All' || filterPlan !== 'all') && (
-          <div className="flex items-center justify-between text-xs text-[#737373] mb-6">
-            <span>
-              Showing <strong className="text-black">{filteredTemplates.length}</strong> matching template{filteredTemplates.length !== 1 ? 's' : ''}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery('');
-                setActiveCategory('All');
-                setFilterPlan('all');
-              }}
-              className="text-[#FF5500] font-semibold hover:underline cursor-pointer"
-            >
-              Reset filters
-            </button>
-          </div>
-        )}
-
-        {/* Template Cards Grid */}
+        {/* Templates Grid */}
         {filteredTemplates.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredTemplates.map((template) => (
               <TemplateCard
                 key={template.id}
@@ -134,11 +125,11 @@ export default function TemplatesSection() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-20 bg-white rounded-3xl border border-[#E8E6E0] p-8">
-            <div className="text-4xl mb-3">🔍</div>
-            <h3 className="font-bold text-lg text-[#171717] mb-1">No templates found</h3>
-            <p className="text-xs sm:text-sm text-[#8A8A8A] mb-4">
-              Try adjusting your search terms or filter settings
+          <div className="text-center py-20 bg-card rounded-3xl border-[3px] border-ink p-8 shadow-brutal max-w-md mx-auto">
+            <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="font-display text-xl font-black text-ink mb-2">No templates found</h3>
+            <p className="font-mono text-xs text-muted-foreground mb-6">
+              Try adjusting your search terms or category filter.
             </p>
             <button
               type="button"
@@ -147,23 +138,12 @@ export default function TemplatesSection() {
                 setActiveCategory('All');
                 setFilterPlan('all');
               }}
-              className="px-5 py-2.5 rounded-full bg-[#171717] text-white text-xs font-bold hover:bg-[#FF5500] transition-colors cursor-pointer"
+              className="brutal-press px-5 py-2.5 rounded-xl border-[2.5px] border-ink bg-pink font-display text-xs font-black text-black shadow-brutal cursor-pointer"
             >
-              Clear filters
+              Reset Filters
             </button>
           </div>
         )}
-
-        {/* View full gallery CTA */}
-        <div className="text-center mt-12 sm:mt-16">
-          <Link
-            href="/templates"
-            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full text-xs sm:text-sm font-bold bg-white text-[#171717] border border-[#E8E6E0] hover:border-[#FF5500]/40 hover:text-[#FF5500] hover:bg-[#FAF9F6] transition-all shadow-xs group"
-          >
-            <span>Explore All 12+ Templates in Gallery</span>
-            <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-          </Link>
-        </div>
       </div>
     </section>
   );
