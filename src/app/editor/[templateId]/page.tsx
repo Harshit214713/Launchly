@@ -87,7 +87,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           <Link href="/dashboard" className="flex items-center gap-2 group">
             <div className="w-7 h-7 rounded-lg bg-[#0F0F11] overflow-hidden flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
               <NextImage
-                src="/logo-icon.png"
+                src="/brand-logo-clean.png"
                 alt="Launchly Emblem"
                 width={28}
                 height={28}
@@ -96,10 +96,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             </div>
             <div className="hidden sm:block">
               <NextImage
-                src="/logo-text-dark.png"
+                src="/brand-name-light.png"
                 alt="LAUNCHLY"
-                width={744}
-                height={66}
+                width={120}
+                height={18}
                 className="h-3 w-auto object-contain"
               />
               <span className="sr-only">LAUNCHLY</span>

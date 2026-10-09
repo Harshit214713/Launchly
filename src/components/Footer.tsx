@@ -31,7 +31,7 @@ export default function Footer() {
           <Link href="/" className="flex items-center gap-3 group shrink-0">
             <div className="h-10 w-10 rounded-xl border-[2.5px] border-ink bg-white dark:bg-[#161622] p-1.5 shadow-brutal-sm flex items-center justify-center transition-transform group-hover:rotate-6 shrink-0">
               <Image
-                src="/logo-icon.png"
+                src="/brand-logo-clean.png"
                 alt="Launchly"
                 width={32}
                 height={32}
@@ -41,18 +41,18 @@ export default function Footer() {
             <div className="flex flex-col justify-center">
               <div className="flex items-center">
                 <Image
-                  src="/logo-text-dark.png"
+                  src="/brand-name-light.png"
                   alt="LAUNCHLY"
-                  width={118}
-                  height={18}
-                  className="block dark:hidden h-[18px] w-auto object-contain"
+                  width={132}
+                  height={20}
+                  className="block dark:hidden h-5 w-auto object-contain"
                 />
                 <Image
-                  src="/logo-text-white.png"
+                  src="/brand-name-dark.png"
                   alt="LAUNCHLY"
-                  width={118}
-                  height={18}
-                  className="hidden dark:block h-[18px] w-auto object-contain"
+                  width={132}
+                  height={20}
+                  className="hidden dark:block h-5 w-auto object-contain"
                 />
               </div>
               <span className="font-mono text-[9px] font-bold tracking-[0.16em] text-muted-foreground uppercase mt-0.5">
@@ -95,8 +95,8 @@ export default function Footer() {
 
           {/* Status & Socials */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-[#fdf2f8] dark:bg-[#111119] px-3.5 py-1 font-mono text-[11px] font-bold text-ink shadow-brutal-sm">
-              <span className="h-2 w-2 rounded-full bg-mint animate-pulse" />
+            <div className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-[#fdf2f8] dark:bg-[#111119] px-3.5 py-1 font-mono text-[11px] font-bold text-ink shadow-brutal-sm whitespace-nowrap shrink-0">
+              <span className="h-2 w-2 rounded-full bg-mint animate-pulse shrink-0" />
               <span>Systems Normal</span>
             </div>
 

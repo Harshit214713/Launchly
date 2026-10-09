@@ -129,7 +129,7 @@ export default function Dashboard() {
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="w-8 h-8 rounded-xl bg-[#0F0F11] overflow-hidden flex items-center justify-center shadow-sm group-hover:shadow-[0_0_16px_rgba(255,85,0,0.4)] transition-all">
               <Image
-                src="/logo-icon.png"
+                src="/brand-logo-clean.png"
                 alt="Launchly Emblem"
                 width={32}
                 height={32}
@@ -138,10 +138,10 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-2">
               <Image
-                src="/logo-text-dark.png"
+                src="/brand-name-light.png"
                 alt="LAUNCHLY"
-                width={744}
-                height={66}
+                width={130}
+                height={20}
                 className="h-3.5 w-auto object-contain"
               />
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#FF5500]/10 text-[#FF5500]">

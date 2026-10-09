@@ -64,7 +64,7 @@ export default function Navbar() {
         <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
           <div className="h-10 w-10 rounded-xl border-[2.5px] border-black dark:border-white bg-white dark:bg-[#161622] p-1.5 shadow-brutal-sm flex items-center justify-center transition-transform group-hover:rotate-6 shrink-0">
             <Image
-              src="/logo-icon.png"
+              src="/brand-logo-clean.png"
               alt="Launchly"
               width={32}
               height={32}
@@ -75,7 +75,7 @@ export default function Navbar() {
           <div className="flex flex-col justify-center">
             <div className="flex items-center">
               <Image
-                src="/logo-text-dark.png"
+                src="/brand-name-light.png"
                 alt="LAUNCHLY"
                 width={132}
                 height={20}
@@ -83,7 +83,7 @@ export default function Navbar() {
                 priority
               />
               <Image
-                src="/logo-text-white.png"
+                src="/brand-name-dark.png"
                 alt="LAUNCHLY"
                 width={132}
                 height={20}

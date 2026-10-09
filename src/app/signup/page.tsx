@@ -73,7 +73,7 @@ export default function SignupPage() {
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="w-8 h-8 rounded-xl bg-[#0F0F11] overflow-hidden flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform border border-white/10">
               <Image
-                src="/logo-icon.png"
+                src="/brand-logo-clean.png"
                 alt="Launchly Emblem"
                 width={32}
                 height={32}
@@ -81,10 +81,10 @@ export default function SignupPage() {
               />
             </div>
             <Image
-              src="/logo-text-white.png"
+              src="/brand-name-dark.png"
               alt="LAUNCHLY"
-              width={744}
-              height={66}
+              width={140}
+              height={22}
               className="h-4 w-auto object-contain"
             />
             <span className="sr-only">LAUNCHLY</span>

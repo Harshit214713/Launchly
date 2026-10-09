@@ -23,6 +23,11 @@ export const metadata: Metadata = {
     description: "Templates, visual editor, live preview, and Next.js 15 source code on one gamified maker workspace.",
     type: "website",
   },
+  icons: {
+    icon: "/brand-logo-clean.png",
+    shortcut: "/brand-logo-clean.png",
+    apple: "/brand-logo-clean.png",
+  },
 };
 
 export default function RootLayout({
