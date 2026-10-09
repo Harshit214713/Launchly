@@ -1,6 +1,28 @@
 {
-  "name": "launchly-temp",
-  "version": "0.1.0",
+  "name": "launchly",
+  "version": "1.0.0",
+  "description": "Websites, curated templates, visual editor, and clean Next.js 15 source code on one screen.",
+  "author": "Vardaan Saxena",
+  "license": "MIT",
+  "homepage": "https://github.com/simplyvardaan/Launchly#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/simplyvardaan/Launchly.git"
+  },
+  "bugs": {
+    "url": "https://github.com/simplyvardaan/Launchly/issues"
+  },
+  "keywords": [
+    "nextjs",
+    "website-builder",
+    "templates",
+    "visual-editor",
+    "neo-brutalism",
+    "react-19",
+    "tailwind-css",
+    "framer-motion",
+    "open-source"
+  ],
   "private": true,
   "scripts": {
     "dev": "next dev",
