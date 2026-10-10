@@ -2,7 +2,7 @@
 
   <img src="public/brand-logo-clean.png" alt="Launchly Logo" width="110" height="110" />
 
-  # ⚡ Launchly
+  # Launchly
 
   ### **Websites, curated templates, visual editor, and clean Next.js code — all on one screen.**
 
@@ -37,7 +37,7 @@
 ---
 
 <a id="what-is-launchly"></a>
-## ⚡ What is Launchly?
+## What is Launchly?
 
 Traditional website builders trap you in proprietary closed gardens with messy, unmaintainable code exports. Traditional coding requires hours of boilerplate setup before seeing a single button on screen.
 
@@ -50,7 +50,7 @@ Traditional website builders trap you in proprietary closed gardens with messy, 
 ---
 
 <a id="features"></a>
-## 🌟 Key Features
+## Key Features
 
 | Feature | Description |
 |---|---|
@@ -66,7 +66,7 @@ Traditional website builders trap you in proprietary closed gardens with messy, 
 ---
 
 <a id="curated-templates"></a>
-## 🎨 Curated Templates
+## Curated Templates
 
 Launchly comes bundled with ready-to-use, production-grade template architectures:
 
@@ -89,7 +89,7 @@ Launchly comes bundled with ready-to-use, production-grade template architecture
 ---
 
 <a id="live-maker-workspace"></a>
-## 🕹️ Live Maker Workspace
+## Live Maker Workspace
 
 Launchly features an all-in-one interactive playground (`/live` and `/editor/[templateId]`):
 
@@ -106,7 +106,7 @@ graph LR
 ---
 
 <a id="tech-stack"></a>
-## 🛠️ Tech Stack
+## Tech Stack
 
 Launchly is built on the modern React and Next.js ecosystem:
 
@@ -123,7 +123,7 @@ Launchly is built on the modern React and Next.js ecosystem:
 ---
 
 <a id="quick-start"></a>
-## 🚀 Quick Start
+## Quick Start
 
 Get a local instance of Launchly up and running in under two minutes:
 
@@ -161,7 +161,7 @@ Open [**http://localhost:3000**](http://localhost:3000) in your browser to start
 
 ---
 
-## 📜 Available Scripts
+## Available Scripts
 
 | Script | Command | Purpose |
 |---|---|---|
@@ -172,7 +172,7 @@ Open [**http://localhost:3000**](http://localhost:3000) in your browser to start
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```bash
 Launchly/
@@ -220,7 +220,7 @@ Launchly/
 ---
 
 <a id="api-reference"></a>
-## 🔌 API Reference
+## API Reference
 
 Launchly provides built-in REST API endpoints ready to be integrated with databases like PostgreSQL, Prisma, Supabase, or MongoDB:
 
@@ -239,7 +239,7 @@ Launchly provides built-in REST API endpoints ready to be integrated with databa
 
 ---
 
-## 🗺️ Roadmap & Vision
+## Roadmap & Vision
 
 - [x] Curated template catalog across 7 distinct categories
 - [x] Dual-pane Live Maker Workspace with interactive code switcher
@@ -253,7 +253,7 @@ Launchly provides built-in REST API endpoints ready to be integrated with databa
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions make the open-source community an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**!
 
@@ -268,19 +268,19 @@ git push origin feat/awesome-new-template
 
 ---
 
-## 🛡️ Security
+## Security
 
 If you discover a security vulnerability within Launchly, please review our [Security Policy](SECURITY.md) to report it responsibly.
 
 ---
 
-## 📄 License
+## License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
 
 ---
 
-## 💖 Community & Acknowledgements
+## Community & Acknowledgements
 
 - Built with 💖 by [**Vardaan**](https://github.com/simplyvardaan) & [**Samiksha**](https://github.com/Samikshajjw) and our amazing community contributors.
 
