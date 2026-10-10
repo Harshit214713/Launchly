@@ -282,10 +282,9 @@ Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more informa
 
 ## 💖 Community & Acknowledgements
 
-- Built with passion by [**Vardaan Saxena**](https://github.com/simplyvardaan) and our amazing community contributors.
-- Inspired by the aesthetics of [Godly](https://godly.website), [Awwwards](https://www.awwwards.com), and the [Linear](https://linear.app) design system.
-- Fonts by [Space Grotesk](https://fonts.google.com/specimen/Space+Grotesk) and [Space Mono](https://fonts.google.com/specimen/Space+Mono).
+- Built with 💖 by [**Vardaan**](https://github.com/simplyvardaan) & [**Samiksha**](https://github.com/Samikshajjw) and our amazing community contributors.
+
 
 <div align="center">
-  <sub>⭐ If you find Launchly useful, don't forget to star the repository! ⭐</sub>
+  <sub> If you find Launchly useful, don't forget to star the repository! ⭐</sub>
 </div>
