@@ -282,7 +282,7 @@ Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more informa
 
 ## Community & Acknowledgements
 
-- Built with 💖 by [**Vardaan**](https://github.com/simplyvardaan) & [**Samiksha**](https://github.com/Samikshajjw) and our amazing community contributors.
+- Built with 💖 by [**Vardaan**](https://github.com/simplyvardaan) & [**Samiksha**](https://github.com/Samikshajjw)
 
 
 <div align="center">
