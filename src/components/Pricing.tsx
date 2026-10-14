@@ -2,15 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import PaymentModal from './PaymentModal';
 import { 
   Check, 
   Sparkles, 
   ArrowUpRight, 
   Plus,
-  Minus,
-  ShieldCheck,
-  Zap,
-  HelpCircle
+  Minus
 } from 'lucide-react';
 
 const FREE_FEATURES = [
@@ -61,22 +59,23 @@ export default function Pricing() {
   const router = useRouter();
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const monthlyPrice = 19;
   const yearlyPrice = Math.floor(monthlyPrice * 12 * 0.7);
 
   const handleSelectPlan = (plan: 'free' | 'pro') => {
-    router.push(plan === 'pro' ? '/signup?plan=pro' : '/signup');
+    if (plan === 'pro') {
+      setShowPaymentModal(true);
+    } else {
+      router.push('/signup');
+    }
   };
 
   return (
     <section id="pricing" className="mx-auto w-[min(1200px,calc(100%-32px))] py-8 sm:py-10">
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto mb-8">
-        <span className="inline-flex items-center gap-2 rounded-full border-[3px] border-ink bg-yellow px-4 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-black shadow-brutal mb-4">
-          <Zap size={13} className="fill-black" />
-          Transparent Pricing
-        </span>
         <h2 className="font-display text-4xl sm:text-5xl md:text-6xl font-black text-ink leading-tight">
           Ship fast, pay fair.
         </h2>
@@ -163,14 +162,6 @@ export default function Pricing() {
 
         {/* Pro Card */}
         <div className="rounded-3xl border-[4px] border-ink bg-card p-8 sm:p-10 shadow-brutal-xl relative flex flex-col justify-between ring-2 ring-pink/40">
-          {/* Popular Choice Floating Pill */}
-          <div className="absolute -top-4 right-8">
-            <span className="inline-flex items-center gap-1.5 rounded-full border-[2.5px] border-ink bg-yellow px-4 py-1 font-mono text-[11px] font-black uppercase text-black shadow-brutal-sm">
-              <Sparkles size={12} />
-              POPULAR CHOICE
-            </span>
-          </div>
-
           <div>
             <div className="flex items-center justify-between">
               <span className="font-mono text-xs font-black uppercase tracking-wider text-pink">
@@ -226,10 +217,6 @@ export default function Pricing() {
       {/* FAQ Section */}
       <div className="mt-24 max-w-3xl mx-auto">
         <div className="text-center mb-10">
-          <span className="inline-flex items-center gap-2 rounded-full border-[3px] border-ink bg-card px-3.5 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-ink shadow-brutal mb-3">
-            <HelpCircle size={13} />
-            Got Questions?
-          </span>
           <h3 className="font-display text-3xl sm:text-4xl font-black text-ink">
             Frequently Asked Questions
           </h3>
@@ -261,6 +248,16 @@ export default function Pricing() {
           ))}
         </div>
       </div>
+
+      {/* Official QR Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        itemName="Launchly Pro Creator"
+        price={billing === 'monthly' ? `$${monthlyPrice}/mo` : `$${yearlyPrice}/yr`}
+        planId="pro"
+        billingCycle={billing}
+      />
     </section>
   );
 }

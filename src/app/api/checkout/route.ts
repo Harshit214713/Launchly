@@ -20,8 +20,8 @@ export async function POST(request: Request) {
       amount: price,
       currency: 'USD',
       templateId,
-      checkoutUrl: `/dashboard?payment_success=true&session_id=${sessionId}&plan=${plan}`,
-      message: `Checkout session created for Launchly ${plan.toUpperCase()} (${billing}).`,
+      checkoutUrl: `/checkout?plan=${plan}&billing=${billing}&session_id=${sessionId}`,
+      message: `Please scan the official QR code to complete payment for Launchly ${plan.toUpperCase()} (${billing}).`,
     });
   } catch (error) {
     return NextResponse.json(

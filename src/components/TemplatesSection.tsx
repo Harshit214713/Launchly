@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Search, ArrowRight, X, Sparkles, Filter } from 'lucide-react';
+import { Search, ArrowRight, X, Filter } from 'lucide-react';
 import TemplateCard from './TemplateCard';
 import { TEMPLATES, CATEGORIES } from '@/lib/templates';
 import { Template } from '@/types';
@@ -39,10 +39,6 @@ export default function TemplatesSection() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
-          <span className="inline-flex items-center gap-2 rounded-full border-[3px] border-ink bg-card px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-ink shadow-brutal mb-3">
-            <Sparkles size={13} />
-            Template Gallery
-          </span>
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-black font-display tracking-tight text-ink mb-3">
             Find your starting point.
           </h2>
@@ -92,7 +88,7 @@ export default function TemplatesSection() {
           </div>
 
           {/* Bottom Row: Category tabs (Wrapped, clean spacing, no clipping) */}
-          <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t-[2px] border-ink/10 dark:border-white/10">
+          <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t-[2px] border-ink/10 dark:border-[#222232]">
             <span className="font-mono text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1 hidden md:inline">
               CATEGORY:
             </span>

@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     const { email, password } = await request.json();
 
-    const result = verifyUser(email, password);
+    const result = await verifyUser(email, password);
     if (!result.success || !result.user) {
       return NextResponse.json(result, { status: 401 });
     }

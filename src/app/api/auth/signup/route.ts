@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     const { name, email, password, plan = 'free' } = await request.json();
 
-    const result = createUser(name, email, password, plan);
+    const result = await createUser(name, email, password, plan);
     if (!result.success || !result.user) {
       return NextResponse.json(result, { status: 400 });
     }

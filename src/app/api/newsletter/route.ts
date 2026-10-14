@@ -13,14 +13,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = addSubscriber(email, source);
+    const result = await addSubscriber(email, source);
     if (!result.success) {
       return NextResponse.json(result, { status: 400 });
     }
 
+    const total = await getSubscribersCount();
     return NextResponse.json({
       ...result,
-      totalSubscribers: getSubscribersCount(),
+      totalSubscribers: total,
     });
   } catch (error) {
     return NextResponse.json(

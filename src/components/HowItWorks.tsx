@@ -41,10 +41,7 @@ export default function HowItWorks() {
     <section id="how-it-works" className="mx-auto w-[min(1200px,calc(100%-32px))] py-10 sm:py-12">
       {/* Header */}
       <div className="max-w-2xl mb-8">
-        <span className="inline-flex items-center rounded-full border-[3px] border-ink bg-card px-3.5 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-ink shadow-brutal">
-          Workflow
-        </span>
-        <h2 className="mt-4 font-display text-4xl font-black leading-[1.05] sm:text-5xl text-ink">
+        <h2 className="font-display text-4xl font-black leading-[1.05] sm:text-5xl text-ink">
           How Launchly works in 3 steps.
         </h2>
         <p className="mt-3 text-base text-muted-foreground">

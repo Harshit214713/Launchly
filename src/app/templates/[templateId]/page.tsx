@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 import { notFound } from 'next/navigation';
+import PaymentModal from '@/components/PaymentModal';
 
 const COLOR_PALETTES = [
   { name: 'Original', color: '' },
@@ -47,6 +48,7 @@ export default function TemplatePreviewPage({
   const [activePalette, setActivePalette] = useState(0);
   const [activeSection, setActiveSection] = useState('home');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const currentAccent = COLOR_PALETTES[activePalette].color || template.accent;
@@ -423,24 +425,46 @@ export default function TemplatePreviewPage({
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <Link
-                href={`/editor/${template.id}`}
-                className="flex-1 py-2.5 px-4 rounded-xl text-xs font-bold text-center bg-[#FF5500] text-white hover:bg-[#E04800] transition-colors"
-              >
-                Customize & Export ($49)
-              </Link>
+            <div className="flex flex-col gap-2.5">
               <button
                 type="button"
-                onClick={() => setShowExportModal(false)}
-                className="py-2.5 px-4 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 text-white transition-colors cursor-pointer"
+                onClick={() => {
+                  setShowExportModal(false);
+                  setShowPaymentModal(true);
+                }}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-center bg-[#FF5500] text-white hover:bg-[#E04800] transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
-                Cancel
+                <Download size={14} />
+                <span>Pay & Download Source Code ($49)</span>
               </button>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/editor/${template.id}`}
+                  className="flex-1 py-2 px-3 rounded-xl text-xs font-medium text-center bg-white/10 hover:bg-white/15 text-white transition-colors"
+                >
+                  Edit in Studio First
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="py-2 px-3 rounded-xl text-xs font-medium bg-white/5 hover:bg-white/10 text-white/70 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Official QR Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        itemName={`${template.name} Source Code`}
+        price="$49"
+        planId={`template-${template.id}`}
+      />
     </div>
   );
 }

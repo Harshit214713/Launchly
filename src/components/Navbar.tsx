@@ -58,11 +58,11 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b-[3px] border-black dark:border-white bg-[#fdf2f8]/95 dark:bg-[#0b0b12]/95 backdrop-blur-md shadow-sm dark:shadow-[0_4px_24px_rgba(0,0,0,0.8)]">
+    <header className="sticky top-0 z-50 w-full border-b-[3px] border-black dark:border-[#222232] bg-[#fdf2f8]/95 dark:bg-[#0b0b12]/95 backdrop-blur-md shadow-sm dark:shadow-[0_4px_24px_rgba(0,0,0,0.8)]">
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         {/* Brand Logo & Title - Using 1st pic as logo icon & 2nd ss as wordmark */}
         <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
-          <div className="h-10 w-10 rounded-xl border-[2.5px] border-black dark:border-white bg-white dark:bg-[#161622] p-1.5 shadow-brutal-sm flex items-center justify-center transition-transform group-hover:rotate-6 shrink-0">
+          <div className="h-10 w-10 rounded-xl border-[2.5px] border-black dark:border-[#222232] bg-white dark:bg-[#161622] p-1.5 shadow-brutal-sm flex items-center justify-center transition-transform group-hover:rotate-6 shrink-0">
             <Image
               src="/brand-logo-clean.png"
               alt="Launchly"
@@ -130,12 +130,30 @@ export default function Navbar() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* GitHub Repo Link (Desktop & Tablet) */}
+          <a
+            href="https://github.com/simplyvardaan/Launchly"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Launchly GitHub Repository"
+            className="brutal-press hidden sm:flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border-[2.5px] border-black bg-white dark:bg-[#161622] text-black shadow-brutal-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer p-1.5"
+            title="Star Launchly on GitHub"
+          >
+            <Image
+              src="/github-logo.png"
+              alt="GitHub"
+              width={24}
+              height={24}
+              className="w-full h-full object-contain"
+            />
+          </a>
+
           {/* Dark Mode Switcher */}
           <button
             type="button"
             onClick={toggleDarkMode}
             aria-label="Toggle dark mode"
-            className="brutal-press flex h-10 w-10 items-center justify-center rounded-xl border-[2.5px] border-black bg-yellow text-black shadow-brutal-sm cursor-pointer"
+            className="brutal-press flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border-[2.5px] border-black bg-yellow text-black shadow-brutal-sm cursor-pointer"
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
@@ -144,7 +162,7 @@ export default function Navbar() {
           {user ? (
             <Link
               href="/dashboard"
-              className="brutal-press h-10 flex items-center gap-2 rounded-xl border-[2.5px] border-black bg-white px-3 sm:px-4 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm"
+              className="brutal-press h-9 sm:h-10 flex items-center gap-2 rounded-xl border-[2.5px] border-black bg-white px-3 sm:px-4 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm"
             >
               <span className="h-6 w-6 rounded-full border-2 border-black bg-mint text-black text-[10px] font-black flex items-center justify-center">
                 {user.avatar || user.name.charAt(0)}
@@ -155,16 +173,16 @@ export default function Navbar() {
             <>
               <Link
                 href="/login"
-                className="brutal-press hidden sm:inline-flex h-10 items-center rounded-xl border-[2.5px] border-black bg-white px-4 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm hover:bg-neutral-50"
+                className="brutal-press hidden md:inline-flex h-10 items-center rounded-xl border-[2.5px] border-black bg-white px-4 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm hover:bg-neutral-50"
               >
                 Sign in
               </Link>
               <Link
                 href="/signup"
-                className="brutal-press h-10 inline-flex items-center gap-1.5 rounded-xl border-[2.5px] border-black bg-pink px-4 sm:px-5 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm"
+                className="brutal-press hidden sm:inline-flex h-9 sm:h-10 items-center gap-1.5 rounded-xl border-[2.5px] border-black bg-pink px-3.5 sm:px-5 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm"
               >
                 <span>Start free</span>
-                <ArrowUpRight className="h-4 w-4 stroke-[3]" />
+                <ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 stroke-[3]" />
               </Link>
             </>
           )}
@@ -173,7 +191,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden brutal-press flex h-10 w-10 items-center justify-center rounded-xl border-[2.5px] border-black bg-white text-black shadow-brutal-sm cursor-pointer"
+            className="lg:hidden brutal-press flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border-[2.5px] border-black bg-white text-black shadow-brutal-sm cursor-pointer"
             aria-label="Toggle menu"
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -183,7 +201,7 @@ export default function Navbar() {
 
       {/* Mobile Drawer */}
       {mobileOpen && (
-        <div className="lg:hidden border-t-[3px] border-black dark:border-white/20 bg-white dark:bg-[#0d0d14] p-4 space-y-2 animate-in fade-in">
+        <div className="lg:hidden border-t-[3px] border-black dark:border-[#222232] bg-white dark:bg-[#0d0d14] p-4 space-y-2 animate-in fade-in">
           <Link
             href="/templates"
             onClick={() => setMobileOpen(false)}
@@ -228,6 +246,21 @@ export default function Navbar() {
               Start Free
             </Link>
           </div>
+          <a
+            href="https://github.com/simplyvardaan/Launchly"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 rounded-xl border-[2px] border-black bg-white dark:bg-[#161622] px-4 py-2 font-display text-xs font-black text-black dark:text-white shadow-brutal-sm hover:bg-neutral-50"
+          >
+            <Image
+              src="/github-logo.png"
+              alt="GitHub"
+              width={16}
+              height={16}
+              className="w-4 h-4 object-contain"
+            />
+            <span>Star Launchly on GitHub</span>
+          </a>
         </div>
       )}
     </header>

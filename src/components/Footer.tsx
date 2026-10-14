@@ -26,7 +26,7 @@ export default function Footer() {
     <footer className="bg-card border-t-[3px] border-ink py-8 sm:py-10 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Main Tier */}
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-6 pb-6 border-b-2 border-ink/10 dark:border-white/10">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6 pb-6 border-b-2 border-ink/10 dark:border-[#222232]">
           {/* Brand */}
           <Link href="/" className="flex items-center gap-3 group shrink-0">
             <div className="h-10 w-10 rounded-xl border-[2.5px] border-ink bg-white dark:bg-[#161622] p-1.5 shadow-brutal-sm flex items-center justify-center transition-transform group-hover:rotate-6 shrink-0">
@@ -95,11 +95,6 @@ export default function Footer() {
 
           {/* Status & Socials */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-[#fdf2f8] dark:bg-[#111119] px-3.5 py-1 font-mono text-[11px] font-bold text-ink shadow-brutal-sm whitespace-nowrap shrink-0">
-              <span className="h-2 w-2 rounded-full bg-mint animate-pulse shrink-0" />
-              <span>Systems Normal</span>
-            </div>
-
             <div className="flex items-center gap-2">
               <a
                 href="https://twitter.com/launchly"
@@ -113,13 +108,19 @@ export default function Footer() {
                 </svg>
               </a>
               <a
-                href="https://github.com/launchly"
+                href="https://github.com/simplyvardaan/Launchly"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="GitHub"
-                className="brutal-press h-8 w-8 rounded-xl border-2 border-ink bg-card flex items-center justify-center text-ink shadow-brutal-sm hover:bg-mint cursor-pointer"
+                className="brutal-press h-8 w-8 rounded-xl border-2 border-ink bg-card flex items-center justify-center text-ink shadow-brutal-sm hover:bg-neutral-100 cursor-pointer p-1.5 overflow-hidden"
               >
-                <GitBranch size={14} className="stroke-[2.5]" />
+                <Image
+                  src="/github-logo.png"
+                  alt="GitHub"
+                  width={20}
+                  height={20}
+                  className="w-full h-full object-contain"
+                />
               </a>
             </div>
           </div>
@@ -128,13 +129,6 @@ export default function Footer() {
         {/* Bottom Tier: Copyright & Meta */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left font-mono text-xs text-muted-foreground">
           <p>© 2026 Launchly, Inc. All rights reserved.</p>
-          <p className="flex flex-wrap items-center justify-center gap-3">
-            <span>Built for Next.js 15</span>
-            <span>•</span>
-            <span>Zero Context Switching</span>
-            <span>•</span>
-            <span className="text-ink font-bold">100% Production Ready</span>
-          </p>
         </div>
       </div>
     </footer>

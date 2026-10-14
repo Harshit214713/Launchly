@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Star, Sparkles } from 'lucide-react';
+import { Star } from 'lucide-react';
 
 const TESTIMONIALS = [
   {
@@ -79,10 +79,6 @@ export default function Testimonials() {
     <section className="mx-auto w-[min(1200px,calc(100%-32px))] py-8 sm:py-10">
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto mb-6">
-        <span className="inline-flex items-center gap-2 rounded-full border-[3px] border-ink bg-card px-3.5 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-ink shadow-brutal mb-4">
-          <Sparkles size={13} />
-          Wall of Love
-        </span>
         <h2 className="font-display text-4xl sm:text-5xl font-black text-ink leading-tight">
           Joined by thousands of happy makers.
         </h2>
