@@ -512,18 +512,6 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            {/* User Account Quick Pill */}
-            {user && (
-              <button
-                type="button"
-                onClick={() => setProfileModalOpen(true)}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#181824] font-mono text-xs font-bold text-ink cursor-pointer hover:border-pink transition-colors"
-                title="View Profile Details"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="truncate max-w-[120px]">{user.name.split(' ')[0]}</span>
-              </button>
-            )}
 
             {/* Dark / Light Mode Toggle Button */}
             <button
