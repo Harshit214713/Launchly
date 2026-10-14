@@ -402,47 +402,35 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* Usage Meter or Pro Upgrade */}
-          <div className="my-4">
-            {isPro ? (
-              <div className="p-3.5 rounded-2xl border-2 border-black dark:border-[#262638] bg-mint dark:bg-[#14261e] shadow-brutal-xs text-black dark:text-white">
-                <div className="flex items-center gap-1.5 text-xs font-black uppercase font-display mb-1 text-black dark:text-mint">
-                  <CheckCircle2 size={14} className="stroke-[2.5]" />
-                  <span>Pro Plan Active</span>
-                </div>
-                <p className="font-mono text-[11px] leading-snug">
-                  Unlimited websites, zero watermarks & edge deployments unlocked.
-                </p>
+          {/* Pro Upgrade for free users only */}
+          {!isPro && (
+            <div className="my-4 p-3.5 rounded-2xl border-2 border-black dark:border-[#262638] bg-yellow dark:bg-[#1c1c28] shadow-brutal-xs text-black dark:text-white">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-mono text-[10px] font-black uppercase text-black dark:text-yellow">
+                  Free Tier Quota
+                </span>
+                <span className="font-mono text-[10px] font-bold">
+                  {totalSites}/3 Sites
+                </span>
               </div>
-            ) : (
-              <div className="p-3.5 rounded-2xl border-2 border-black dark:border-[#262638] bg-yellow dark:bg-[#1c1c28] shadow-brutal-xs text-black dark:text-white">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-mono text-[10px] font-black uppercase text-black dark:text-yellow">
-                    Free Tier Quota
-                  </span>
-                  <span className="font-mono text-[10px] font-bold">
-                    {totalSites}/3 Sites
-                  </span>
-                </div>
-                
-                {/* Visual Progress Bar */}
-                <div className="h-2 rounded-full border border-black bg-white dark:bg-black overflow-hidden mb-3">
-                  <div 
-                    className="h-full bg-pink transition-all" 
-                    style={{ width: `${usagePercentage}%` }}
-                  />
-                </div>
+              
+              {/* Visual Progress Bar */}
+              <div className="h-2 rounded-full border border-black bg-white dark:bg-black overflow-hidden mb-3">
+                <div 
+                  className="h-full bg-pink transition-all" 
+                  style={{ width: `${usagePercentage}%` }}
+                />
+              </div>
 
-                <Link
-                  href="/#pricing"
-                  className="brutal-press w-full inline-flex items-center justify-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-pink/90 transition-all"
-                >
-                  <Sparkles size={13} className="mr-1" />
-                  Upgrade to Pro
-                </Link>
-              </div>
-            )}
-          </div>
+              <Link
+                href="/#pricing"
+                className="brutal-press w-full inline-flex items-center justify-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-pink/90 transition-all"
+              >
+                <Sparkles size={13} className="mr-1" />
+                Upgrade to Pro
+              </Link>
+            </div>
+          )}
         </nav>
 
         {/* Real-time User Profile Bottom Dock */}
@@ -589,29 +577,9 @@ export default function Dashboard() {
                 {user ? `${greetingTime}, ${user.name}!` : 'Your Web Projects'}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-2 mt-1.5 font-mono text-xs text-neutral-600 dark:text-neutral-400">
-                {user && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleCopyEmail}
-                      className="inline-flex items-center gap-1 hover:text-pink transition-colors cursor-pointer"
-                      title="Click to copy email address"
-                    >
-                      <Mail size={12} />
-                      <span>{user.email}</span>
-                      {copiedEmail ? (
-                        <Check size={11} className="text-mint stroke-[3]" />
-                      ) : (
-                        <Copy size={11} />
-                      )}
-                    </button>
-                  </>
-                )}
-                {!user && (
-                  <span>Manage your edge deployments, customize in Studio, and monitor live visitor counts.</span>
-                )}
-              </div>
+              <p className="font-mono text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 mt-1">
+                Manage your edge deployments, customize in Studio, and monitor live visitor counts.
+              </p>
             </div>
 
             <div className="flex items-center gap-2 self-start sm:self-auto">
