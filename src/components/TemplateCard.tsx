@@ -406,6 +406,41 @@ function TemplatePreviewCanvas({ template }: { template: Template }) {
     )
   };
 
+  if (template.thumbnail && template.thumbnail.startsWith('http')) {
+    return (
+      <div className="h-full relative overflow-hidden bg-[#0A0A0E] select-none group">
+        <img
+          src={template.thumbnail}
+          alt={template.name}
+          className="w-full h-full object-cover opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="px-2 py-0.5 rounded-full border border-black bg-pink text-black font-mono text-[9px] font-black uppercase shadow-xs">
+              ✦ FULL-STACK
+            </span>
+            <span className="font-mono text-[9px] font-black uppercase text-white px-2 py-0.5 rounded-md bg-black/70 border border-white/20 backdrop-blur-xs">
+              {template.category}
+            </span>
+          </div>
+
+          <div>
+            <div className="font-display font-black text-lg text-white tracking-tight drop-shadow-md">
+              {template.name}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+              {template.techStack?.slice(0, 3).map((tech, i) => (
+                <span key={i} className="text-[9px] font-mono font-bold text-white/90 bg-black/50 px-2 py-0.5 rounded-md border border-white/15 backdrop-blur-xs">
+                  {tech}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full">
       {previews[template.id] || (
