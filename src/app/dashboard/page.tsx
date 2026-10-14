@@ -343,27 +343,6 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Personalized Account Badge */}
-        {user && (
-          <div className="px-4 pt-4 pb-2">
-            <div className="p-2.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#12121c] flex items-center justify-between shadow-brutal-xs">
-              <div className="min-w-0 pr-1">
-                <span className="font-mono text-[9px] font-black uppercase text-neutral-500 block">
-                  ACCOUNT
-                </span>
-                <span className="font-display text-xs font-black text-black dark:text-white truncate block">
-                  {user.name}
-                </span>
-              </div>
-              <span className={cn(
-                "px-2 py-0.5 rounded-md font-mono text-[9px] font-black uppercase border border-black shrink-0",
-                isPro ? "bg-yellow text-black" : "bg-pink text-black"
-              )}>
-                {isPro ? "PRO" : "FREE"}
-              </span>
-            </div>
-          </div>
-        )}
 
         {/* Navigation Menu */}
         <nav className="flex-1 p-4 flex flex-col justify-between overflow-y-auto">
@@ -447,8 +426,16 @@ export default function Dashboard() {
                   {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-display text-xs font-black text-black dark:text-white truncate">
-                    {user.name}
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-display text-xs font-black text-black dark:text-white truncate">
+                      {user.name}
+                    </span>
+                    <span className={cn(
+                      "px-1.5 py-0.5 rounded-md font-mono text-[9px] font-black uppercase border border-black shrink-0 leading-none",
+                      isPro ? "bg-yellow text-black" : "bg-pink text-black"
+                    )}>
+                      {isPro ? "PRO" : "FREE"}
+                    </span>
                   </div>
                   <div className="font-mono text-[10px] text-neutral-500 break-all leading-tight mt-0.5 select-text">
                     {user.email}
