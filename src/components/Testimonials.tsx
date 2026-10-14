@@ -5,51 +5,56 @@ import { Star } from 'lucide-react';
 
 const TESTIMONIALS = [
   {
-    name: 'Sarah Chen',
-    role: 'Freelance Designer',
+    name: 'Tanisha Mehindritta',
+    role: 'Product & Brand Designer',
     category: 'Designers',
-    avatar: 'SC',
+    avatar: 'TM',
     avatarBg: 'bg-lilac',
+    image: '/testimonials/tanisha.png',
     quote: "I launched my client's portfolio in under an hour. The templates are gorgeous and the editor is a dream to use. I've recommended Launchly to every designer in my network.",
     stars: 5,
     highlight: 'Launched in < 1 hour',
   },
   {
-    name: 'Marcus Rodriguez',
-    role: 'Startup Founder',
+    name: 'Divyam Jain',
+    role: 'Founding Engineer',
     category: 'Founders',
-    avatar: 'MR',
+    avatar: 'DJ',
     avatarBg: 'bg-yellow',
+    image: '/testimonials/divyam.png',
     quote: "We went from idea to live product page in a single afternoon. The SaaS template was exactly what we needed, and the source code export saved us 3 weeks of dev time.",
     stars: 5,
     highlight: 'Saved 3 weeks of dev time',
   },
   {
-    name: 'Priya Patel',
-    role: 'Content Creator',
+    name: 'Parivisha Midha',
+    role: 'Creative Director & Creator',
     category: 'Creators',
-    avatar: 'PP',
+    avatar: 'PM',
     avatarBg: 'bg-mint',
+    image: '/testimonials/parivisha.jpg',
     quote: "Completely non-technical but always wanted a beautiful website. Launchly made it possible without touching a single line of code. The results look high-end and super fast.",
     stars: 5,
     highlight: 'Zero code required',
   },
   {
-    name: 'James Whitfield',
-    role: 'Agency Owner',
+    name: 'Gourav Mandal',
+    role: 'Full-Stack Developer & Agency Lead',
     category: 'Agencies',
-    avatar: 'JW',
+    avatar: 'GM',
     avatarBg: 'bg-pink',
+    image: '/testimonials/gourav.png',
     quote: "We use Launchly to rapidly prototype client websites before handing off the source code. It has dramatically accelerated our pipeline and clients love the live previews.",
     stars: 5,
     highlight: 'Agency workflow 3x faster',
   },
   {
-    name: 'Aiko Tanaka',
-    role: 'Photographer',
+    name: 'Samiksha Jhunjhunwala',
+    role: 'Photographer & Visual Artist',
     category: 'Creators',
-    avatar: 'AT',
+    avatar: 'SJ',
     avatarBg: 'bg-sky',
+    image: '/testimonials/samiksha.png',
     quote: "The photo portfolio template is breathtaking. My clients consistently ask what agency built my site — they always assume it was custom coded from scratch.",
     stars: 5,
     highlight: 'Looks custom built',
@@ -93,11 +98,10 @@ export default function Testimonials() {
               key={cat}
               type="button"
               onClick={() => setSelectedCategory(cat)}
-              className={`brutal-press rounded-xl border-[2.5px] border-ink px-3.5 py-1.5 font-display text-xs font-black uppercase transition-all cursor-pointer ${
-                selectedCategory === cat
-                  ? 'bg-pink text-black shadow-brutal-sm'
-                  : 'bg-card text-ink hover:bg-neutral-100 shadow-brutal-sm'
-              }`}
+              className={`brutal-press rounded-xl border-[2.5px] border-ink px-3.5 py-1.5 font-display text-xs font-black uppercase transition-all cursor-pointer ${selectedCategory === cat
+                ? 'bg-pink text-black shadow-brutal-sm'
+                : 'bg-card text-ink hover:bg-neutral-100 shadow-brutal-sm'
+                }`}
             >
               {cat}
             </button>
@@ -134,11 +138,19 @@ export default function Testimonials() {
 
             {/* Author */}
             <div className="flex items-center gap-3 pt-4 border-t-[2px] border-ink/15">
-              <div
-                className={`h-10 w-10 rounded-xl border-2 border-ink ${item.avatarBg} font-mono font-black text-black flex items-center justify-center text-xs shadow-brutal-sm`}
-              >
-                {item.avatar}
-              </div>
+              {'image' in item && item.image ? (
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className="h-11 w-11 rounded-xl border-2 border-ink object-cover shadow-brutal-sm shrink-0"
+                />
+              ) : (
+                <div
+                  className={`h-11 w-11 rounded-xl border-2 border-ink ${item.avatarBg} font-mono font-black text-black flex items-center justify-center text-xs shadow-brutal-sm shrink-0`}
+                >
+                  {item.avatar}
+                </div>
+              )}
               <div>
                 <h4 className="font-display font-black text-sm text-ink leading-tight">
                   {item.name}

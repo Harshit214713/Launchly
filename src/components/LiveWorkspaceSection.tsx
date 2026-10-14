@@ -385,30 +385,6 @@ export default function HeroSection() {
                 </div>
               </div>
             </div>
-
-            {/* Bottom info banner & width presets */}
-            <div className="relative z-10 mt-4 flex items-center justify-between font-mono text-[10px] sm:text-[11px] font-bold text-muted-foreground flex-wrap gap-2">
-              <span>Preview Mode: Hot-Reload</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-pink">
-                  {isDragging ? `Width: ${Math.round(splitWidth)}%` : '● Drag handle to resize:'}
-                </span>
-                <div className="hidden sm:inline-flex items-center gap-1">
-                  {[35, 50, 65].map((pct) => (
-                    <button
-                      key={pct}
-                      type="button"
-                      onClick={() => setSplitWidth(pct)}
-                      className={`px-1.5 py-0.5 rounded border border-ink font-mono text-[9px] cursor-pointer transition-colors ${
-                        Math.round(splitWidth) === pct ? 'bg-pink text-black' : 'bg-card text-ink hover:bg-yellow'
-                      }`}
-                    >
-                      {pct}%
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Interactive Resizer Bar with Vertical Black Line & Pink Pill Handle matching Screenshot 2 */}

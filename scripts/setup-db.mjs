@@ -8,10 +8,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Use non-pooling direct connection
-const rawUrl = 
-  process.env.POSTGRES_URL_NON_POOLING || 
-  "postgres://postgres.ciyujgkhytxgolxkukay:8GVWk9BVbR50PhQz@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require";
+// Use non-pooling direct connection from environment variables
+const rawUrl = process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL;
+
+if (!rawUrl) {
+  console.error('Error: POSTGRES_URL_NON_POOLING or DATABASE_URL environment variable is required.');
+  process.exit(1);
+}
 
 const parsed = new URL(rawUrl);
 parsed.search = ''; // Strip search query parameters

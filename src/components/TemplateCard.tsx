@@ -403,6 +403,301 @@ function TemplatePreviewCanvas({ template }: { template: Template }) {
           <span className="font-bold text-[#C2783B]">$22.00 SUBSCRIBE →</span>
         </div>
       </div>
+    ),
+
+    'prism-studio': (
+      <div className="h-full relative overflow-hidden bg-[#0D0B18] text-white p-5 flex flex-col justify-between select-none">
+        {/* Violet ambient glow */}
+        <div className="absolute top-0 right-0 w-56 h-40 bg-[#A855F7]/25 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-pink-500/15 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="flex items-center justify-between border-b border-white/10 pb-2 relative z-10">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#A855F7] animate-pulse" />
+            <span className="font-mono text-xs font-bold text-white">PRISM.3D // WEBGL</span>
+          </div>
+          <span className="text-[9px] font-mono bg-[#A855F7]/20 text-[#A855F7] border border-[#A855F7]/40 px-2 py-0.5 rounded-full font-bold">
+            60 FPS SPATIAL
+          </span>
+        </div>
+
+        <div className="my-auto py-2 relative z-10">
+          <span className="text-[9px] font-mono text-[#A855F7] uppercase tracking-wider block mb-1">Procedural Shader Engine</span>
+          <h4 className="text-xl sm:text-2xl font-black text-white leading-tight mb-2">
+            Render at the speed of thought.
+          </h4>
+          <div className="flex items-center gap-1.5">
+            <div className="px-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-[10px] font-mono text-white/90">
+              PBR Raytracing
+            </div>
+            <div className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono text-purple-300">
+              Subdivision Nodes
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between text-[9px] font-mono text-white/60 pt-2 border-t border-white/10 relative z-10">
+          <span>REAL-TIME SHADER GRAPH</span>
+          <span className="text-[#A855F7] font-bold">EXPORT SPLINE ↗</span>
+        </div>
+      </div>
+    ),
+
+    'monolith-db': (
+      <div className="h-full relative overflow-hidden bg-[#0B0E14] text-white p-5 flex flex-col justify-between select-none">
+        {/* Blue tech glow */}
+        <div className="absolute top-1/3 left-1/4 w-48 h-32 bg-[#3B82F6]/20 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="flex items-center justify-between border-b border-white/10 pb-2 relative z-10">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded bg-[#3B82F6]" />
+            <span className="font-mono text-xs font-bold text-white">MONOLITH // SQL</span>
+          </div>
+          <span className="text-[9px] font-mono bg-blue-500/15 text-blue-400 px-2 py-0.5 rounded font-bold">
+            ACID REPLICATED
+          </span>
+        </div>
+
+        <div className="my-auto py-2 relative z-10">
+          <div className="p-2.5 rounded-xl bg-black/60 border border-white/10 font-mono text-[11px] mb-2 text-neutral-300">
+            <span className="text-blue-400">SELECT</span> * <span className="text-blue-400">FROM</span> cluster.nodes <span className="text-blue-400">WHERE</span> latency &lt; <span className="text-yellow">1ms</span>;
+          </div>
+          <div className="flex items-center justify-between text-[10px] font-mono text-white/70">
+            <span>TPS: 450,000/s</span>
+            <span className="text-blue-400 font-bold">99.999% SLA</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between text-[9px] font-mono text-white/50 pt-2 border-t border-white/10 relative z-10">
+          <span>DISTRIBUTED HTAP</span>
+          <span className="text-[#3B82F6] font-bold">CONNECT CLUSTER →</span>
+        </div>
+      </div>
+    ),
+
+    'vortex-games': (
+      <div className="h-full relative overflow-hidden bg-[#0B0813] text-white p-5 flex flex-col justify-between select-none">
+        <div className="absolute top-0 right-0 w-64 h-40 bg-[#EC4899]/25 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex items-center justify-between border-b border-white/10 pb-2 relative z-10">
+          <span className="font-mono text-xs font-bold tracking-widest text-[#EC4899]">VORTEX // UE5</span>
+          <span className="text-[9px] font-mono bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full font-bold">
+            4K 144HZ
+          </span>
+        </div>
+
+        <div className="my-auto py-2 relative z-10">
+          <span className="text-[9px] font-mono text-[#EC4899] uppercase tracking-wider block mb-1">Cyberpunk Action RPG</span>
+          <h4 className="text-xl sm:text-2xl font-black text-white leading-tight mb-2">
+            Hyper-reality awaits in Neo-Shinjuku.
+          </h4>
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-1 rounded-lg bg-white/10 text-[10px] font-mono font-bold text-white">
+              Watch Trailer ▶
+            </span>
+            <span className="text-[10px] font-mono text-white/50">Early Beta Access</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between text-[9px] font-mono text-white/50 pt-2 border-t border-white/10 relative z-10">
+          <span>RAYTRACED AUDIO</span>
+          <span className="text-[#EC4899] font-bold">PLAY DEMO ↗</span>
+        </div>
+      </div>
+    ),
+
+    'kinfolk-arch': (
+      <div className="h-full relative overflow-hidden bg-[#F6F4EE] text-[#171717] p-5 flex flex-col justify-between select-none">
+        <div className="flex items-center justify-between border-b border-black/10 pb-2">
+          <span className="font-serif font-bold text-sm tracking-widest">KINFOLK ARCHITECTS</span>
+          <span className="text-[9px] font-mono uppercase text-[#737373] tracking-widest">KYOTO / 2026</span>
+        </div>
+
+        <div className="my-auto py-2">
+          <span className="text-[9px] font-mono uppercase tracking-widest text-[#8A8A8A] block mb-1">Residential Monograph</span>
+          <h4 className="text-2xl font-serif font-bold text-[#171717] leading-tight mb-2">
+            Simplicity as Sanctuary.
+          </h4>
+          <p className="text-[11px] text-[#737373] leading-relaxed line-clamp-2">
+            Wabi-sabi timber residences integrated with seasonal alpine light.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between text-[9px] font-mono text-[#8A8A8A] pt-2 border-t border-black/10">
+          <span>SELECTED BLUEPRINTS</span>
+          <span className="font-bold text-[#171717]">VIEW MONOGRAPH →</span>
+        </div>
+      </div>
+    ),
+
+    'kuro-omakase': (
+      <div className="h-full relative overflow-hidden bg-[#0C0A09] text-white p-5 flex flex-col justify-between select-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-32 bg-[#D97706]/15 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="flex items-center justify-between border-b border-white/10 pb-2 relative z-10">
+          <span className="font-serif font-bold text-sm text-[#D97706] tracking-wide">KURO // 伝統</span>
+          <span className="text-[9px] font-mono text-neutral-400">MICHELIN ★★</span>
+        </div>
+
+        <div className="my-auto py-2 relative z-10">
+          <span className="text-[9px] font-mono text-[#D97706] uppercase tracking-widest block mb-1">18-Course Omakase</span>
+          <h4 className="text-xl sm:text-2xl font-serif font-bold text-white leading-tight mb-2">
+            The Poetry of Seasonal Seafood.
+          </h4>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="px-2 py-0.5 rounded bg-white/10 text-[9px] font-mono text-neutral-300">Wild Bluefin</span>
+            <span className="px-2 py-0.5 rounded bg-white/10 text-[9px] font-mono text-neutral-300">Hokkaido Uni</span>
+            <span className="px-2 py-0.5 rounded bg-white/10 text-[9px] font-mono text-neutral-300">Wagyu A5</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between text-[9px] font-mono text-white/50 pt-2 border-t border-white/10 relative z-10">
+          <span>PRIVATE SALON</span>
+          <span className="text-[#D97706] font-bold">RESERVE TABLE ↗</span>
+        </div>
+      </div>
+    ),
+
+    'valkyrie-audio': (
+      <div className="h-full relative overflow-hidden bg-[#090D12] text-white p-5 flex flex-col justify-between select-none">
+        <div className="absolute top-0 right-1/4 w-52 h-32 bg-[#06B6D4]/20 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="flex items-center justify-between border-b border-white/10 pb-2 relative z-10">
+          <span className="font-mono text-xs font-bold text-[#06B6D4]">VALKYRIE // DSP</span>
+          <span className="text-[9px] font-mono bg-cyan-500/15 text-cyan-300 px-2 py-0.5 rounded font-bold">96kHz / 32-BIT</span>
+        </div>
+
+        <div className="my-auto py-2 relative z-10">
+          <h4 className="text-xl font-black text-white leading-tight mb-2">
+            Analog Ladder Resonance.
+          </h4>
+          {/* Oscilloscope wave visual */}
+          <div className="h-8 w-full bg-cyan-950/40 border border-cyan-500/30 rounded-lg p-1 flex items-center justify-center">
+            <svg viewBox="0 0 100 20" className="w-full h-full stroke-cyan-400 fill-none stroke-[1.5]">
+              <path d="M 0,10 Q 12,0 25,10 T 50,10 T 75,10 T 100,10" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between text-[9px] font-mono text-white/50 pt-2 border-t border-white/10 relative z-10">
+          <span>MODULAR SYNTHESIS</span>
+          <span className="text-[#06B6D4] font-bold">SAMPLE PATCHES →</span>
+        </div>
+      </div>
+    ),
+
+    'pulse-rollup': (
+      <div className="h-full relative overflow-hidden bg-[#070E08] text-white p-5 flex flex-col justify-between select-none">
+        <div className="absolute top-0 left-1/3 w-48 h-32 bg-[#84CC16]/20 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="flex items-center justify-between border-b border-white/10 pb-2 relative z-10">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#84CC16]" />
+            <span className="font-mono text-xs font-bold text-[#84CC16]">PULSE // ZK</span>
+          </div>
+          <span className="text-[9px] font-mono text-[#84CC16] bg-lime-500/15 px-2 py-0.5 rounded font-bold">120K TPS</span>
+        </div>
+
+        <div className="my-auto py-2 relative z-10">
+          <span className="text-[9px] font-mono text-lime-400 uppercase tracking-widest block mb-1">Zero-Knowledge Rollup</span>
+          <h4 className="text-xl font-black text-white leading-tight mb-2">
+            Instant Finality. Zero Gas Friction.
+          </h4>
+          <div className="flex items-center gap-2 text-[10px] font-mono text-white/70">
+            <span>Avg Fee: &lt;$0.001</span>
+            <span>•</span>
+            <span className="text-[#84CC16]">Proof Time: 1.2s</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between text-[9px] font-mono text-white/50 pt-2 border-t border-white/10 relative z-10">
+          <span>ETHEREUM L2</span>
+          <span className="text-[#84CC16] font-bold">OPEN BRIDGE ↗</span>
+        </div>
+      </div>
+    ),
+
+    'hyperion-vc': (
+      <div className="h-full relative overflow-hidden bg-[#0F0A0D] text-white p-5 flex flex-col justify-between select-none">
+        <div className="absolute top-0 right-0 w-48 h-36 bg-[#E11D48]/20 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="flex items-center justify-between border-b border-white/10 pb-2 relative z-10">
+          <span className="font-bold text-xs tracking-wider text-white">HYPERION CAPITAL</span>
+          <span className="text-[9px] font-mono bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded font-bold">$650M FUND III</span>
+        </div>
+
+        <div className="my-auto py-2 relative z-10">
+          <span className="text-[9px] font-mono text-[#E11D48] uppercase tracking-widest block mb-1">Deeptech & Frontier AI</span>
+          <h4 className="text-xl sm:text-2xl font-black text-white leading-tight mb-2">
+            Backing the improbable builders.
+          </h4>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="px-2 py-0.5 rounded bg-white/10 text-[9px] font-mono text-neutral-300">Quantum</span>
+            <span className="px-2 py-0.5 rounded bg-white/10 text-[9px] font-mono text-neutral-300">Humanoids</span>
+            <span className="px-2 py-0.5 rounded bg-white/10 text-[9px] font-mono text-neutral-300">Fusion</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between text-[9px] font-mono text-white/50 pt-2 border-t border-white/10 relative z-10">
+          <span>PORTFOLIO ORBIT</span>
+          <span className="text-[#E11D48] font-bold">PITCH PARTNERS →</span>
+        </div>
+      </div>
+    ),
+
+    'lumina-saas': (
+      <div className="h-full relative overflow-hidden bg-[#FAFAF9] text-[#171717] p-5 flex flex-col justify-between select-none">
+        <div className="flex items-center justify-between border-b border-black/10 pb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded bg-[#6366F1]" />
+            <span className="font-bold text-xs">Lumina Workspace</span>
+          </div>
+          <span className="text-[9px] font-mono bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded font-bold">AI NATIVE</span>
+        </div>
+
+        <div className="my-auto py-2">
+          <span className="text-[9px] font-mono uppercase text-[#6366F1] font-bold block mb-1">Connected Knowledge Graph</span>
+          <h4 className="text-xl font-bold text-[#171717] leading-tight mb-2">
+            Where product squads think together.
+          </h4>
+          <div className="p-2 rounded-xl bg-white border border-black/10 text-[10px] font-mono text-[#525252] flex items-center justify-between shadow-2xs">
+            <span>[[Q3 Strategy Roadmap]] → [[Agent Inference]]</span>
+            <span className="text-[#6366F1] font-bold">⌘K</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between text-[9px] font-mono text-[#8A8A8A] pt-2 border-t border-black/10">
+          <span>BIDIRECTIONAL BACKLINKS</span>
+          <span className="font-bold text-[#6366F1]">TRY WORKSPACE →</span>
+        </div>
+      </div>
+    ),
+
+    'zeno-store': (
+      <div className="h-full relative overflow-hidden bg-[#F5F3EF] text-[#171717] p-5 flex flex-col justify-between select-none">
+        <div className="flex items-center justify-between border-b border-black/10 pb-2">
+          <span className="font-serif italic font-bold text-sm tracking-wide">Zeno Objects</span>
+          <span className="text-[9px] font-mono text-[#92400E] font-bold uppercase">ARCHIVE 08</span>
+        </div>
+
+        <div className="my-auto py-2 grid grid-cols-2 gap-2">
+          <div className="bg-white p-2.5 rounded-xl border border-black/5 flex flex-col justify-between h-26">
+            <span className="text-[8px] font-mono text-[#8A8A8A]">01 // CERAMICS</span>
+            <div className="text-xs font-semibold text-[#171717]">Vase No. 42</div>
+            <span className="text-xs font-mono font-bold text-[#92400E]">$185</span>
+          </div>
+          <div className="bg-[#1C1917] text-white p-2.5 rounded-xl flex flex-col justify-between h-26">
+            <span className="text-[8px] font-mono text-white/50">02 // OAK CHAIR</span>
+            <div className="text-xs font-semibold text-white">Nordic Stool</div>
+            <span className="text-xs font-mono font-bold text-[#F5F3EF]">$340</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between text-[9px] font-mono text-[#8A8A8A] pt-2 border-t border-black/10">
+          <span>COPENHAGEN DESIGN</span>
+          <span className="font-bold text-[#171717]">BAG (2 ITEMS) →</span>
+        </div>
+      </div>
     )
   };
 
@@ -444,9 +739,18 @@ function TemplatePreviewCanvas({ template }: { template: Template }) {
   return (
     <div className="w-full h-full">
       {previews[template.id] || (
-        <div className="h-full flex items-center justify-center p-6" style={{ background: template.bgColor }}>
-          <div className="font-black text-2xl tracking-tight" style={{ color: template.textColor }}>
-            {template.name}
+        <div className="h-full flex flex-col justify-between p-5 select-none" style={{ background: template.bgColor || '#0D0B18', color: template.textColor || '#FFFFFF' }}>
+          <div className="flex items-center justify-between border-b border-white/10 pb-2">
+            <span className="font-mono text-xs font-bold">{template.name}</span>
+            <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-white/10">{template.category}</span>
+          </div>
+          <div className="my-auto py-2">
+            <h4 className="text-xl font-black leading-tight mb-2">{template.name}</h4>
+            <p className="text-xs opacity-75 line-clamp-2">{template.description}</p>
+          </div>
+          <div className="text-[9px] font-mono opacity-60 pt-2 border-t border-white/10 flex justify-between">
+            <span>NEXT.JS 15</span>
+            <span>EXPLORE ↗</span>
           </div>
         </div>
       )}
@@ -472,7 +776,7 @@ export default function TemplateCard({ template, onCustomize }: TemplateCardProp
         <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-3 p-4">
           <Link
             href={`/templates/${template.id}`}
-            className="brutal-press flex items-center gap-1.5 px-4 py-2 bg-card text-ink border-[2.5px] border-ink rounded-xl text-xs font-display font-black shadow-brutal-sm hover:bg-[#faf5ff]"
+            className="brutal-press flex items-center gap-1.5 px-4 py-2 bg-card text-ink border-[2.5px] border-ink rounded-xl text-xs font-display font-black shadow-brutal-sm hover:bg-[#faf5ff] cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           >
             <Eye size={14} />
@@ -481,7 +785,7 @@ export default function TemplateCard({ template, onCustomize }: TemplateCardProp
 
           <Link
             href={`/editor/${template.id}`}
-            className="brutal-press flex items-center gap-1.5 px-4 py-2 bg-pink text-black border-[2.5px] border-ink rounded-xl text-xs font-display font-black shadow-brutal-sm hover:bg-pink/90"
+            className="brutal-press flex items-center gap-1.5 px-4 py-2 bg-pink text-black border-[2.5px] border-ink rounded-xl text-xs font-display font-black shadow-brutal-sm hover:bg-yellow cursor-pointer"
             onClick={(e) => {
               if (onCustomize) {
                 e.preventDefault();
@@ -499,23 +803,28 @@ export default function TemplateCard({ template, onCustomize }: TemplateCardProp
       <div className="p-5 sm:p-6 flex flex-col justify-between flex-1">
         <div>
           {/* Top row: Name & Badges */}
-          <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-start justify-between gap-2 mb-2">
             <Link
               href={`/templates/${template.id}`}
-              className="font-display font-black text-lg text-ink tracking-tight hover:text-pink transition-colors"
+              className="font-display font-black text-lg text-ink tracking-tight hover:text-pink transition-colors line-clamp-1"
             >
               {template.name}
             </Link>
 
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-yellow text-black border-2 border-ink">
+              {template.badge && (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-black uppercase bg-yellow text-black border border-ink shadow-2xs">
+                  {template.badge}
+                </span>
+              )}
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-mint text-black border-2 border-ink">
                 {template.category}
               </span>
               <span
                 className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border-2 border-ink ${
                   template.isPro
-                    ? 'bg-pink text-black'
-                    : 'bg-mint text-black'
+                    ? 'bg-yellow text-black'
+                    : 'bg-pink text-black'
                 }`}
               >
                 {template.isPro ? 'Pro' : 'Free'}
@@ -529,12 +838,12 @@ export default function TemplateCard({ template, onCustomize }: TemplateCardProp
           </p>
         </div>
 
-        {/* Bottom row: Tech tags & action */}
-        <div className="pt-3 border-t-[2px] border-ink/20 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground font-bold">
-            <span>Next.js 15</span>
-            <span>✦</span>
-            <span>Tailwind v4</span>
+        {/* Bottom row: Review rating and action */}
+        <div className="pt-3 border-t-[2px] border-ink/20 flex items-center justify-between font-mono text-[11px]">
+          <div className="flex items-center gap-1 text-ink font-bold">
+            <span className="text-yellow font-black">★</span>
+            <span>{template.rating || '4.99'}</span>
+            <span className="text-muted-foreground">({template.reviewsCount || '150'})</span>
           </div>
 
           <Link

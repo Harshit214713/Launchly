@@ -136,7 +136,8 @@ export default function Dashboard() {
   );
 
   const handleCopyUrl = (id: string, subdomain: string) => {
-    navigator.clipboard?.writeText(`https://${subdomain}.launchly.site`);
+    const liveUrl = typeof window !== 'undefined' ? `${window.location.origin}/live/${subdomain}` : `/live/${subdomain}`;
+    navigator.clipboard?.writeText(liveUrl);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -529,8 +530,9 @@ export default function Dashboard() {
           {!user && !loading && (
             <div className="mb-6 p-4 rounded-2xl border-[2.5px] border-black dark:border-[#262638] bg-yellow dark:bg-[#1a1a26] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-brutal">
               <div>
-                <div className="font-display text-sm font-black text-black dark:text-white uppercase">
-                  ⚡ Guest Session Active
+                <div className="font-display text-sm font-black text-black dark:text-white uppercase flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-black dark:bg-white animate-pulse" />
+                  <span>Guest Session Active</span>
                 </div>
                 <div className="font-mono text-xs text-neutral-800 dark:text-neutral-300 mt-0.5">
                   Sign in to your registered account to manage your saved websites, view analytics, and export source code.
@@ -897,37 +899,85 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {TEMPLATES.slice(0, 4).map((tmpl) => (
-                <Link
-                  key={tmpl.id}
-                  href={`/editor/${tmpl.id}`}
-                  className="group rounded-2xl overflow-hidden border-2 border-black dark:border-[#262638] hover:shadow-brutal-sm transition-all bg-card flex flex-col justify-between"
-                >
-                  <div 
-                    className="h-28 relative flex items-center justify-center p-3 border-b-2 border-black dark:border-[#262638]" 
-                    style={{ backgroundColor: tmpl.bgColor }}
+              {TEMPLATES.slice(0, 4).map((tmpl) => {
+                const isDark = tmpl.bgColor?.startsWith('#0') || tmpl.bgColor?.startsWith('#1') || tmpl.textColor === '#FFFFFF';
+
+                return (
+                  <Link
+                    key={tmpl.id}
+                    href={`/editor/${tmpl.id}`}
+                    className="group rounded-2xl overflow-hidden border-2 border-black dark:border-[#262638] hover:shadow-brutal-sm transition-all bg-card flex flex-col justify-between hover:-translate-y-0.5"
                   >
-                    <div className="font-display font-black text-xs text-center text-white/90 drop-shadow-sm">
-                      {tmpl.name}
+                    <div 
+                      className="h-32 relative flex flex-col justify-between p-3.5 border-b-2 border-black dark:border-[#262638] overflow-hidden" 
+                      style={{ 
+                        backgroundColor: isDark ? '#0e0f17' : (tmpl.bgColor || '#FAF9F6'),
+                      }}
+                    >
+                      {/* Ambient Accent Glow for Dark Templates */}
+                      {isDark && (
+                        <div 
+                          className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-2xl opacity-25 pointer-events-none"
+                          style={{ backgroundColor: tmpl.accent || '#FF5500' }}
+                        />
+                      )}
+
+                      {/* Top micro badges */}
+                      <div className="flex items-center justify-between relative z-10">
+                        <span 
+                          className="font-mono text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-black/30 bg-white/20 dark:bg-black/40 backdrop-blur-xs"
+                          style={{ color: isDark ? '#FFFFFF' : '#171717' }}
+                        >
+                          {tmpl.category}
+                        </span>
+                        <span className={cn(
+                          "font-mono text-[9px] font-black uppercase px-1.5 py-0.5 rounded border border-black shadow-2xs",
+                          tmpl.isPro ? "bg-yellow text-black" : "bg-mint text-black"
+                        )}>
+                          {tmpl.isPro ? "PRO" : "FREE"}
+                        </span>
+                      </div>
+
+                      {/* Center headline */}
+                      <div className="my-auto relative z-10 py-1">
+                        <div 
+                          className="font-display font-black text-sm tracking-tight leading-tight line-clamp-1"
+                          style={{ color: isDark ? '#FFFFFF' : '#171717' }}
+                        >
+                          {tmpl.name}
+                        </div>
+                        <div 
+                          className="font-mono text-[10px] opacity-70 line-clamp-1 mt-0.5"
+                          style={{ color: isDark ? '#E2E8F0' : '#525252' }}
+                        >
+                          {tmpl.tags?.slice(0, 2).map(t => `#${t}`).join(' ')}
+                        </div>
+                      </div>
+
+                      {/* Hover action overlay */}
+                      <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20 backdrop-blur-2xs">
+                        <span className="brutal-press bg-pink text-black text-[11px] font-display font-black uppercase tracking-wider px-3 py-1.5 rounded-xl border border-black shadow-brutal-xs flex items-center gap-1">
+                          Use Template →
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="brutal-press bg-pink text-black text-[11px] font-display font-black uppercase tracking-wider px-3 py-1 rounded-xl border border-black shadow-brutal-xs">
-                        Use Template →
+                    <div className="p-3 bg-card dark:bg-[#12121a] flex items-center justify-between">
+                      <div>
+                        <div className="font-display font-black text-xs text-black dark:text-white truncate">
+                          {tmpl.name}
+                        </div>
+                        <div className="font-mono text-[10px] text-pink font-bold uppercase mt-0.5">
+                          {tmpl.category}
+                        </div>
+                      </div>
+                      <span className="font-mono text-[10px] font-bold text-neutral-400 group-hover:text-pink transition-colors">
+                        Launch ↗
                       </span>
                     </div>
-                  </div>
-
-                  <div className="p-3 bg-card dark:bg-[#12121a]">
-                    <div className="font-display font-black text-xs text-black dark:text-white truncate">
-                      {tmpl.name}
-                    </div>
-                    <div className="font-mono text-[10px] text-pink font-bold uppercase mt-0.5">
-                      {tmpl.category}
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </div>

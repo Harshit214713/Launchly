@@ -177,13 +177,9 @@ export default function TemplatesPageContent() {
       )}
 
       {/* Neo-Brutal Hero */}
-      <div className="bg-[#fdf2f8] dark:bg-[#0b0b12] border-b-[3px] border-ink py-16 px-6">
+      <div className="bg-[#fdf2f8] dark:bg-[#0b0b12] border-b-[3px] border-ink py-14 sm:py-16 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow border-[2.5px] border-ink font-mono text-xs font-black uppercase text-black mb-5 shadow-brutal-sm">
-              <Sparkles size={13} />
-              <span>Full-Stack Next.js 15 & Aesthetic Templates</span>
-            </div>
             <h1 className="text-4xl sm:text-6xl font-black font-display tracking-tight text-ink mb-4">
               Aesthetic Full-Stack Themes.
             </h1>
@@ -231,79 +227,78 @@ export default function TemplatesPageContent() {
       </div>
 
       {/* Sticky Filter Bar */}
-      <div className="sticky top-16 z-40 bg-card/95 backdrop-blur border-b-[3px] border-ink px-6 py-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
-            {/* Search */}
-            <div className="relative flex-1 max-w-md">
-              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink" />
-              <input
-                type="text"
-                placeholder={activeTab === 'external' ? "Search creative design themes via API…" : "Search templates by niche or keyword…"}
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (e.target.value) setActiveCategory('All');
-                }}
-                className="w-full pl-10 pr-9 py-2.5 bg-background border-[2.5px] border-ink rounded-xl font-mono text-xs sm:text-sm font-bold text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-sm"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ink hover:text-pink cursor-pointer"
-                >
-                  <X size={15} />
-                </button>
-              )}
-            </div>
+      <div className="sticky top-16 z-40 bg-card/95 backdrop-blur border-b-[3px] border-ink px-4 sm:px-6 py-3.5 space-y-3">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          {/* Search */}
+          <div className="relative flex-1 max-w-lg">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink" />
+            <input
+              type="text"
+              placeholder={activeTab === 'external' ? "Search creative design themes via API…" : "Search templates by niche or keyword…"}
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (e.target.value) setActiveCategory('All');
+              }}
+              className="w-full pl-10 pr-9 py-2.5 bg-background border-[2.5px] border-ink rounded-xl font-mono text-xs sm:text-sm font-bold text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink hover:text-pink cursor-pointer"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
 
-            {/* Categories */}
-            <div className="flex items-center gap-2 overflow-x-auto flex-1 scrollbar-hide">
-              {CATEGORIES.map((cat) => (
+          {/* Right Controls */}
+          <div className="flex items-center gap-2.5 shrink-0 justify-end">
+            <select
+              value={showPro === null ? 'all' : showPro ? 'pro' : 'free'}
+              className="h-10 px-3 bg-background border-[2.5px] border-ink rounded-xl font-mono text-xs font-bold text-ink focus:outline-none cursor-pointer shadow-brutal-xs"
+              onChange={(e) => setShowPro(e.target.value === 'all' ? null : e.target.value === 'pro')}
+            >
+              <option value="all">All tiers</option>
+              <option value="free">Free only</option>
+              <option value="pro">Pro only</option>
+            </select>
+
+            <div className="flex items-center border-[2.5px] border-ink rounded-xl p-1 bg-background shadow-brutal-xs">
+              {[
+                { icon: Grid3X3, mode: 'grid' as const },
+                { icon: LayoutList, mode: 'list' as const },
+              ].map(({ icon: Icon, mode }) => (
                 <button
-                  key={cat}
-                  onClick={() => { setActiveCategory(cat); setSearchQuery(''); }}
-                  className={`brutal-press px-4 py-2 rounded-xl text-xs font-display font-black uppercase whitespace-nowrap transition-all flex-shrink-0 cursor-pointer border-[2.5px] border-ink ${
-                    activeCategory === cat && !searchQuery
-                      ? 'bg-pink text-black shadow-brutal-sm'
-                      : 'bg-card text-ink hover:bg-neutral-100 shadow-brutal-sm'
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    viewMode === mode ? 'bg-yellow text-black font-black' : 'text-muted-foreground hover:text-ink'
                   }`}
                 >
-                  {cat}
+                  <Icon size={15} />
                 </button>
               ))}
             </div>
-
-            {/* Right Controls */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <select
-                className="px-3 py-2 bg-background border-[2.5px] border-ink rounded-xl font-mono text-xs font-bold text-ink focus:outline-none cursor-pointer shadow-brutal-sm"
-                onChange={(e) => setShowPro(e.target.value === 'all' ? null : e.target.value === 'pro')}
-              >
-                <option value="all">All tiers</option>
-                <option value="free">Free only</option>
-                <option value="pro">Pro only</option>
-              </select>
-
-              <div className="flex items-center border-[2.5px] border-ink rounded-xl p-0.5 bg-card shadow-brutal-sm">
-                {[
-                  { icon: Grid3X3, mode: 'grid' as const },
-                  { icon: LayoutList, mode: 'list' as const },
-                ].map(({ icon: Icon, mode }) => (
-                  <button
-                    key={mode}
-                    onClick={() => setViewMode(mode)}
-                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                      viewMode === mode ? 'bg-yellow text-black' : 'text-muted-foreground hover:text-ink'
-                    }`}
-                  >
-                    <Icon size={16} />
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
+        </div>
+
+        {/* Categories Bar - wraps cleanly, no scrollbar */}
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-2 no-scrollbar">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => { setActiveCategory(cat); setSearchQuery(''); }}
+              className={`brutal-press px-3.5 py-1.5 rounded-xl text-xs font-display font-black uppercase whitespace-nowrap transition-all shrink-0 cursor-pointer border-[2.5px] border-ink shadow-brutal-xs ${
+                activeCategory === cat && !searchQuery
+                  ? 'bg-pink text-black'
+                  : 'bg-card text-ink hover:bg-neutral-100 dark:hover:bg-[#1b1b28]'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
       </div>
 

@@ -328,12 +328,39 @@ export async function publishSite(
   try {
     const { data: existing } = await supabaseAdmin
       .from('sites')
-      .select('id')
+      .select('id, user_id')
       .eq('subdomain', cleanSubdomain)
       .maybeSingle();
 
     if (existing) {
-      return { success: false, message: `Subdomain "${cleanSubdomain}.launchly.site" is already taken. Try another name.` };
+      if (userId && existing.user_id && existing.user_id !== userId) {
+        return { success: false, message: `Subdomain "${cleanSubdomain}.launchly.site" is already taken. Try another name.` };
+      }
+
+      await supabaseAdmin.from('sites').update({
+        template_id: templateId,
+        name: siteName || 'My Launchly Website',
+        status: 'live',
+        site_data: siteData,
+        updated_at: now
+      }).eq('id', existing.id);
+
+      const cacheIdx = sitesCache.findIndex(s => s.subdomain === cleanSubdomain);
+      const updatedRecord: SiteRecord = {
+        ...newSite,
+        id: existing.id,
+      };
+      if (cacheIdx !== -1) {
+        sitesCache[cacheIdx] = updatedRecord;
+      } else {
+        sitesCache.unshift(updatedRecord);
+      }
+
+      return {
+        success: true,
+        message: `Your site is updated live at https://${cleanSubdomain}.launchly.site!`,
+        site: updatedRecord,
+      };
     }
 
     await supabaseAdmin.from('sites').insert({

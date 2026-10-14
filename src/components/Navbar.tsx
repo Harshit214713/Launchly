@@ -58,11 +58,11 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b-[3px] border-black dark:border-[#222232] bg-[#fdf2f8]/95 dark:bg-[#0b0b12]/95 backdrop-blur-md shadow-sm dark:shadow-[0_4px_24px_rgba(0,0,0,0.8)]">
+    <header className="sticky top-0 z-50 w-full border-b-[2.5px] border-black dark:border-[#222230] bg-[#FAF8F5]/90 dark:bg-[#09090F]/90 backdrop-blur-md shadow-xs dark:shadow-[0_4px_24px_rgba(0,0,0,0.8)] transition-colors">
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        {/* Brand Logo & Title - Using 1st pic as logo icon & 2nd ss as wordmark */}
+        {/* Brand Logo & Title */}
         <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
-          <div className="h-10 w-10 rounded-xl border-[2.5px] border-black dark:border-[#222232] bg-white dark:bg-[#161622] p-1.5 shadow-brutal-sm flex items-center justify-center transition-transform group-hover:rotate-6 shrink-0">
+          <div className="h-10 w-10 rounded-xl border-[2.5px] border-black dark:border-[#2A2A3C] bg-white dark:bg-[#161622] p-1.5 shadow-brutal-sm flex items-center justify-center transition-transform group-hover:rotate-6 shrink-0">
             <Image
               src="/brand-logo-clean.png"
               alt="Launchly"
@@ -98,31 +98,31 @@ export default function Navbar() {
         </Link>
 
         {/* Center Nav Links (Desktop) */}
-        <div className="hidden lg:flex items-center gap-2.5">
+        <div className="hidden lg:flex items-center gap-2">
           <Link
             href="/templates"
-            className="brutal-press h-10 inline-flex items-center rounded-xl border-[2.5px] border-black bg-white px-4 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm hover:bg-yellow transition-colors"
+            className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-white dark:bg-[#161622] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F6] shadow-brutal-sm hover:bg-yellow hover:text-black dark:hover:bg-yellow dark:hover:text-black dark:hover:border-black transition-colors"
           >
             Templates
           </Link>
           <a
             href="#live-workspace"
             onClick={(e) => handleScrollTo(e, 'live-workspace')}
-            className="brutal-press h-10 inline-flex items-center rounded-xl border-[2.5px] border-black bg-white px-4 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm hover:bg-mint transition-colors"
+            className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-white dark:bg-[#161622] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F6] shadow-brutal-sm hover:bg-mint hover:text-black dark:hover:bg-mint dark:hover:text-black dark:hover:border-black transition-colors"
           >
             Live Studio
           </a>
           <a
             href="#how-it-works"
             onClick={(e) => handleScrollTo(e, 'how-it-works')}
-            className="brutal-press h-10 inline-flex items-center rounded-xl border-[2.5px] border-black bg-white px-4 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm hover:bg-lilac transition-colors"
+            className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-white dark:bg-[#161622] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F6] shadow-brutal-sm hover:bg-lilac hover:text-black dark:hover:bg-lilac dark:hover:text-black dark:hover:border-black transition-colors"
           >
             How it works
           </a>
           <a
             href="#pricing"
             onClick={(e) => handleScrollTo(e, 'pricing')}
-            className="brutal-press h-10 inline-flex items-center rounded-xl border-[2.5px] border-black bg-white px-4 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm hover:bg-pink transition-colors"
+            className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-white dark:bg-[#161622] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F6] shadow-brutal-sm hover:bg-pink hover:text-black dark:hover:bg-pink dark:hover:text-black dark:hover:border-black transition-colors"
           >
             Pricing
           </a>
@@ -136,7 +136,7 @@ export default function Navbar() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Launchly GitHub Repository"
-            className="brutal-press hidden sm:flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border-[2.5px] border-black bg-white dark:bg-[#161622] text-black shadow-brutal-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer p-1.5"
+            className="brutal-press hidden sm:flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-white dark:bg-[#161622] text-black shadow-brutal-sm hover:bg-neutral-100 dark:hover:bg-[#202030] transition-colors cursor-pointer p-1.5"
             title="Star Launchly on GitHub"
           >
             <Image
@@ -153,7 +153,7 @@ export default function Navbar() {
             type="button"
             onClick={toggleDarkMode}
             aria-label="Toggle dark mode"
-            className="brutal-press flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border-[2.5px] border-black bg-yellow text-black shadow-brutal-sm cursor-pointer"
+            className="brutal-press flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border-2 border-black dark:border-[#2E2E44] bg-yellow dark:bg-[#1C1C2A] text-black dark:text-yellow shadow-brutal-sm cursor-pointer transition-colors"
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
@@ -162,9 +162,9 @@ export default function Navbar() {
           {user ? (
             <Link
               href="/dashboard"
-              className="brutal-press h-9 sm:h-10 flex items-center gap-2 rounded-xl border-[2.5px] border-black bg-white px-3 sm:px-4 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm"
+              className="brutal-press h-9 sm:h-10 flex items-center gap-2 rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-white dark:bg-[#161622] px-3 sm:px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F6] shadow-brutal-sm hover:bg-neutral-50 dark:hover:bg-[#202030] transition-colors"
             >
-              <span className="h-6 w-6 rounded-full border-2 border-black bg-mint text-black text-[10px] font-black flex items-center justify-center">
+              <span className="h-6 w-6 rounded-full border border-black bg-mint text-black text-[10px] font-black flex items-center justify-center">
                 {user.avatar || user.name.charAt(0)}
               </span>
               <span className="hidden sm:inline">Studio</span>
@@ -173,13 +173,13 @@ export default function Navbar() {
             <>
               <Link
                 href="/login"
-                className="brutal-press hidden md:inline-flex h-10 items-center rounded-xl border-[2.5px] border-black bg-white px-4 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm hover:bg-neutral-50"
+                className="brutal-press hidden md:inline-flex h-10 items-center rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-white dark:bg-[#161622] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F6] shadow-brutal-sm hover:bg-neutral-50 dark:hover:bg-[#202030] transition-colors"
               >
                 Sign in
               </Link>
               <Link
                 href="/signup"
-                className="brutal-press hidden sm:inline-flex h-9 sm:h-10 items-center gap-1.5 rounded-xl border-[2.5px] border-black bg-pink px-3.5 sm:px-5 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm"
+                className="brutal-press hidden sm:inline-flex h-9 sm:h-10 items-center gap-1.5 rounded-xl border-2 border-black bg-pink px-3.5 sm:px-5 font-display text-xs sm:text-sm font-black text-black shadow-brutal-sm hover:bg-pink/90 transition-colors"
               >
                 <span>Start free</span>
                 <ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 stroke-[3]" />
@@ -191,7 +191,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden brutal-press flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border-[2.5px] border-black bg-white text-black shadow-brutal-sm cursor-pointer"
+            className="lg:hidden brutal-press flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-white dark:bg-[#161622] text-black dark:text-[#F4F4F6] shadow-brutal-sm cursor-pointer"
             aria-label="Toggle menu"
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -201,47 +201,47 @@ export default function Navbar() {
 
       {/* Mobile Drawer */}
       {mobileOpen && (
-        <div className="lg:hidden border-t-[3px] border-black dark:border-[#222232] bg-white dark:bg-[#0d0d14] p-4 space-y-2 animate-in fade-in">
+        <div className="lg:hidden border-t-2 border-black dark:border-[#222232] bg-white dark:bg-[#0d0d14] p-4 space-y-2 animate-in fade-in transition-colors">
           <Link
             href="/templates"
             onClick={() => setMobileOpen(false)}
-            className="block rounded-xl border-[2px] border-black bg-[#fdf2f8] px-4 py-2.5 font-display text-sm font-black text-black shadow-brutal-sm"
+            className="block rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-[#FAF8F5] dark:bg-[#161622] px-4 py-2.5 font-display text-sm font-black text-black dark:text-[#F4F4F6] shadow-brutal-sm"
           >
             Browse Templates
           </Link>
           <a
             href="#live-workspace"
             onClick={(e) => handleScrollTo(e, 'live-workspace')}
-            className="block rounded-xl border-[2px] border-black bg-mint/20 px-4 py-2.5 font-display text-sm font-black text-black shadow-brutal-sm"
+            className="block rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-mint/20 dark:bg-[#122622] px-4 py-2.5 font-display text-sm font-black text-black dark:text-[#F4F4F6] shadow-brutal-sm"
           >
             Try Live Studio
           </a>
           <a
             href="#how-it-works"
             onClick={(e) => handleScrollTo(e, 'how-it-works')}
-            className="block rounded-xl border-[2px] border-black bg-lilac/30 px-4 py-2.5 font-display text-sm font-black text-black shadow-brutal-sm"
+            className="block rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-lilac/30 dark:bg-[#1F1C2E] px-4 py-2.5 font-display text-sm font-black text-black dark:text-[#F4F4F6] shadow-brutal-sm"
           >
             How It Works
           </a>
           <a
             href="#pricing"
             onClick={(e) => handleScrollTo(e, 'pricing')}
-            className="block rounded-xl border-[2px] border-black bg-yellow/30 px-4 py-2.5 font-display text-sm font-black text-black shadow-brutal-sm"
+            className="block rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-yellow/30 dark:bg-[#262414] px-4 py-2.5 font-display text-sm font-black text-black dark:text-[#F4F4F6] shadow-brutal-sm"
           >
-            Pricing & Plans
+            Pricing &amp; Plans
           </a>
           <div className="pt-2 grid grid-cols-2 gap-2">
             <Link
               href="/login"
               onClick={() => setMobileOpen(false)}
-              className="text-center rounded-xl border-[2px] border-black bg-white py-2 font-display text-sm font-black text-black shadow-brutal-sm"
+              className="text-center rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-white dark:bg-[#161622] py-2 font-display text-sm font-black text-black dark:text-[#F4F4F6] shadow-brutal-sm"
             >
               Sign In
             </Link>
             <Link
               href="/signup"
               onClick={() => setMobileOpen(false)}
-              className="text-center rounded-xl border-[2px] border-black bg-pink py-2 font-display text-sm font-black text-black shadow-brutal-sm"
+              className="text-center rounded-xl border-2 border-black bg-pink py-2 font-display text-sm font-black text-black shadow-brutal-sm"
             >
               Start Free
             </Link>
@@ -250,7 +250,7 @@ export default function Navbar() {
             href="https://github.com/simplyvardaan/Launchly"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 rounded-xl border-[2px] border-black bg-white dark:bg-[#161622] px-4 py-2 font-display text-xs font-black text-black dark:text-white shadow-brutal-sm hover:bg-neutral-50"
+            className="flex items-center justify-center gap-2 rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-white dark:bg-[#161622] px-4 py-2 font-display text-xs font-black text-black dark:text-white shadow-brutal-sm hover:bg-neutral-50 dark:hover:bg-[#202030]"
           >
             <Image
               src="/github-logo.png"

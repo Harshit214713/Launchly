@@ -5,8 +5,15 @@ import { getSitesForUser, getAllSites, deleteSite } from '@/lib/db';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const requestedSubdomain = searchParams.get('subdomain');
     const requestedUserId = searchParams.get('userId');
     const showAll = searchParams.get('all') === 'true';
+
+    if (requestedSubdomain) {
+      const allSites = await getAllSites();
+      const site = allSites.find(s => s.subdomain.toLowerCase() === requestedSubdomain.toLowerCase());
+      return NextResponse.json({ success: true, site, found: !!site });
+    }
 
     if (showAll) {
       const sites = await getAllSites();

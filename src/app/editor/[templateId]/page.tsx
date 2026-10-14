@@ -5,16 +5,18 @@ import Link from 'next/link';
 import NextImage from 'next/image';
 import {
   Undo2, Redo2, Monitor, Tablet, Smartphone, Save, Globe,
-  ChevronDown, Layers, Type, Image, Palette, Settings,
+  Layers, Type, Image as ImageIcon, Palette, Settings,
   Plus, Trash2, GripVertical, ChevronRight, Eye, X,
   Bold, Italic, AlignLeft, AlignCenter, AlignRight,
-  Check, Loader2
+  Check, Loader2, Wand2, ArrowUpRight, Star,
+  SlidersHorizontal, Layout
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
-type LeftPanel = 'pages' | 'sections' | 'elements' | 'styles' | 'assets';
+type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'assets';
+type MobileTab = 'canvas' | 'sections' | 'styles' | 'inspector';
 
 const DEVICE_WIDTHS = {
   desktop: '100%',
@@ -43,25 +45,125 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   const [deviceMode, setDeviceMode] = useState<DeviceMode>('desktop');
   const [leftPanel, setLeftPanel] = useState<LeftPanel>('sections');
+  const [mobileTab, setMobileTab] = useState<MobileTab>('canvas');
   const [sections, setSections] = useState<Section[]>(DEFAULT_SECTIONS);
   const [selectedSection, setSelectedSection] = useState<string | null>('hero');
   const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [showAiModal, setShowAiModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // AI Prompt State
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiStep, setAiStep] = useState('');
+
+  // Design tokens & content state
   const [theme, setTheme] = useState({
-    primaryColor: template.accent,
-    bgColor: template.bgColor,
-    fontFamily: 'Geist',
-    borderRadius: '12px',
+    primaryColor: template.accent || '#FF5588',
+    bgColor: template.bgColor || '#0F0F11',
+    textColor: template.textColor || '#FFFFFF',
+    fontFamily: 'Inter, sans-serif',
+    borderRadius: '16px',
   });
-  const [siteTitle, setSiteTitle] = useState('My Website');
+  const [siteTitle, setSiteTitle] = useState(template.name || 'My Website');
+
+  // Bespoke content state (can be updated via AI)
+  const [heroContent, setHeroContent] = useState({
+    badge: `${template.category} // ${template.badge || 'PRO'}`,
+    title: template.name,
+    description: template.description,
+    ctaPrimary: 'Launch Experience',
+    ctaSecondary: 'Documentation',
+    stat1Label: 'RUNTIME VELOCITY',
+    stat1Value: '4.2M Tokens/s',
+    stat2Label: 'ZERO-SHOT BENCHMARK',
+    stat2Value: '99.98% SLA',
+  });
+
+  const [featuresContent, setFeaturesContent] = useState([
+    { title: 'Deterministic Edge', desc: 'Global sub-millisecond propagation with zero cold starts across 300+ edge nodes.' },
+    { title: 'Neural Reasoning', desc: 'Integrated multi-agent execution pipeline with instant structured telemetry.' },
+    { title: 'Zero Friction', desc: 'Production-ready Next.js 15 App Router architecture with full TypeScript safety.' },
+  ]);
+
+  const [testimonialsContent, setTestimonialsContent] = useState([
+    { quote: 'Shipped our client flagship in less than 3 hours. The aesthetic level is completely unmatched.', name: 'Tanisha M.', role: 'Lead Product Designer' },
+    { quote: 'The cleanest Next.js export in the industry. Saved our startup weeks of frontend scaffolding.', name: 'Divyam J.', role: 'Founding Engineer' }
+  ]);
+
+  const [ctaContent, setCtaContent] = useState({
+    title: 'Start building today.',
+    desc: 'Export full production Next.js source code anytime. Zero lock-in.',
+    buttonText: 'Claim Workspace →',
+  });
 
   const handleSave = async () => {
     setSaving(true);
-    await new Promise(r => setTimeout(r, 1000));
+    try {
+      const payload = {
+        siteName: siteTitle,
+        templateId: template.id,
+        theme,
+        heroContent,
+        featuresContent,
+        testimonialsContent,
+        ctaContent,
+      };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`launchly_site_${template.id}`, JSON.stringify(payload));
+        localStorage.setItem(`launchly_site_${siteTitle.toLowerCase().replace(/\s+/g, '-')}`, JSON.stringify(payload));
+      }
+    } catch {}
+    await new Promise(r => setTimeout(r, 600));
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleAiGenerate = async (promptToUse?: string) => {
+    const prompt = (promptToUse || aiPrompt).trim();
+    if (!prompt) return;
+
+    setAiGenerating(true);
+    setAiStep('Analyzing aesthetic direction...');
+
+    try {
+      setTimeout(() => setAiStep('Synthesizing color palette & typography tokens...'), 500);
+      setTimeout(() => setAiStep('Drafting high-converting copy & telemetry...'), 1100);
+
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, templateId: template.id }),
+      });
+      const data = await res.json();
+
+      if (data.success && data.design) {
+        const d = data.design;
+        setSiteTitle(d.siteTitle);
+        setTheme({
+          primaryColor: d.theme.primaryColor,
+          bgColor: d.theme.bgColor,
+          textColor: d.theme.textColor,
+          fontFamily: d.theme.fontFamily,
+          borderRadius: d.theme.borderRadius,
+        });
+        setHeroContent(d.hero);
+        if (d.features?.length) setFeaturesContent(d.features);
+        if (d.testimonials?.length) setTestimonialsContent(d.testimonials);
+        if (d.cta) setCtaContent(d.cta);
+      }
+    } catch {
+      // Graceful fallback
+    } finally {
+      setAiStep('Applying design to canvas...');
+      setTimeout(() => {
+        setAiGenerating(false);
+        setAiStep('');
+        setShowAiModal(false);
+      }, 600);
+    }
   };
 
   const addSection = (type: string) => {
@@ -71,6 +173,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       type,
     };
     setSections(prev => [...prev, newSection]);
+    setSelectedSection(newSection.id);
   };
 
   const removeSection = (id: string) => {
@@ -79,242 +182,265 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#FAF9F6] overflow-hidden">
-      {/* Top toolbar */}
-      <header className="h-14 bg-white border-b border-[#E8E6E0] flex items-center justify-between px-4 z-50 flex-shrink-0">
-        {/* Left: Logo + Undo/Redo */}
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="flex items-center gap-2 group">
-            <div className="w-7 h-7 rounded-lg bg-[#0F0F11] overflow-hidden flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+    <div className="h-screen flex flex-col bg-[#FAF9F6] text-[#0F0F11] overflow-hidden select-none">
+      {/* Neo-brutalist Top Toolbar - Fully Responsive */}
+      <header className="h-14 sm:h-16 bg-white border-b-[3px] border-black flex items-center justify-between px-2.5 sm:px-5 z-50 shrink-0 shadow-[0_2px_0_#000]">
+        {/* Left: Logo, Site Name */}
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          <Link href="/dashboard" className="flex items-center gap-1.5 group shrink-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-black border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_#000] group-hover:scale-105 transition-transform">
               <NextImage
                 src="/brand-logo-clean.png"
                 alt="Launchly Emblem"
-                width={28}
-                height={28}
-                className="w-full h-full object-contain p-0.5 rounded-md"
+                width={26}
+                height={26}
+                className="w-full h-full object-contain p-0.5 rounded-lg"
               />
-            </div>
-            <div className="hidden sm:block">
-              <NextImage
-                src="/brand-name-light.png"
-                alt="LAUNCHLY"
-                width={120}
-                height={18}
-                className="h-3 w-auto object-contain"
-              />
-              <span className="sr-only">LAUNCHLY</span>
             </div>
           </Link>
 
-          <div className="w-px h-6 bg-[#E8E6E0]" />
-
-          {/* Site name */}
-          <input
-            type="text"
-            value={siteTitle}
-            onChange={(e) => setSiteTitle(e.target.value)}
-            className="text-sm font-medium text-[#171717] bg-transparent border-none outline-none focus:bg-[#F5F4F0] px-2 py-1 rounded-lg transition-colors max-w-32"
-          />
-
-          <div className="w-px h-6 bg-[#E8E6E0]" />
-
-          {/* Undo/Redo */}
-          <div className="flex items-center gap-1">
-            <button className="p-2 rounded-lg hover:bg-[#F5F4F0] text-[#525252] hover:text-[#171717] transition-colors" title="Undo">
-              <Undo2 size={15} />
-            </button>
-            <button className="p-2 rounded-lg hover:bg-[#F5F4F0] text-[#525252] hover:text-[#171717] transition-colors" title="Redo">
-              <Redo2 size={15} />
-            </button>
+          {/* Site Name Pill */}
+          <div className="flex items-center gap-1 rounded-xl border-2 border-black bg-[#FAF9F6] px-2 py-1 shadow-[1.5px_1.5px_0px_#000] max-w-[120px] sm:max-w-[200px]">
+            <input
+              type="text"
+              value={siteTitle}
+              onChange={(e) => setSiteTitle(e.target.value)}
+              className="font-mono text-xs sm:text-sm font-bold text-black bg-transparent border-none outline-none w-full focus:ring-0 truncate"
+              title="Click to rename website"
+            />
           </div>
+
+          {/* AI Designer Button */}
+          <button
+            type="button"
+            onClick={() => setShowAiModal(true)}
+            className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border-2 border-black bg-yellow hover:bg-yellow/90 font-mono text-[11px] sm:text-xs font-black text-black shadow-[2px_2px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer shrink-0"
+          >
+            <Wand2 size={13} className="stroke-[2.5]" />
+            <span className="hidden xs:inline">AI</span>
+            <span className="hidden sm:inline">Designer</span>
+          </button>
         </div>
 
-        {/* Center: Device preview */}
-        <div className="flex items-center gap-1 bg-[#F5F4F0] rounded-xl p-1">
+        {/* Center: Device Switcher (Desktop only) */}
+        <div className="hidden md:flex items-center gap-1 rounded-2xl border-2 border-black bg-[#FFFDF8] p-1 shadow-[2px_2px_0px_#000]">
           {([
-            { mode: 'desktop' as const, icon: Monitor },
-            { mode: 'tablet' as const, icon: Tablet },
-            { mode: 'mobile' as const, icon: Smartphone },
-          ]).map(({ mode, icon: Icon }) => (
+            { mode: 'desktop' as const, icon: Monitor, label: 'Desktop' },
+            { mode: 'tablet' as const, icon: Tablet, label: 'Tablet' },
+            { mode: 'mobile' as const, icon: Smartphone, label: 'Mobile' },
+          ]).map(({ mode, icon: Icon, label }) => (
             <button
               key={mode}
               onClick={() => setDeviceMode(mode)}
               className={cn(
-                'p-2 rounded-lg transition-all',
-                deviceMode === mode ? 'bg-white shadow-sm text-[#FF5500]' : 'text-[#ACACAC] hover:text-[#525252]'
+                'px-2.5 py-1 rounded-xl font-mono text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer',
+                deviceMode === mode
+                  ? 'bg-yellow text-black border-2 border-black shadow-[1.5px_1.5px_0px_#000]'
+                  : 'text-neutral-500 hover:text-black border-2 border-transparent'
               )}
-              title={mode.charAt(0).toUpperCase() + mode.slice(1)}
+              title={label}
             >
-              <Icon size={15} />
+              <Icon size={14} className="stroke-[2.5]" />
+              <span>{label}</span>
             </button>
           ))}
         </div>
 
-        {/* Right: Preview/Save/Publish */}
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/templates/${template.id}`}
-            target="_blank"
-            className="flex items-center gap-1.5 px-3 py-2 text-sm text-[#525252] hover:text-[#171717] hover:bg-[#F5F4F0] rounded-lg transition-all"
+        {/* Right: Save & Publish */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              const subdomain = siteTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || template.id;
+              const payload = {
+                siteName: siteTitle,
+                templateId: template.id,
+                theme,
+                heroContent,
+                featuresContent,
+                testimonialsContent,
+                ctaContent,
+              };
+              if (typeof window !== 'undefined') {
+                try {
+                  localStorage.setItem(`launchly_site_${template.id}`, JSON.stringify(payload));
+                  localStorage.setItem(`launchly_site_${subdomain}`, JSON.stringify(payload));
+                } catch {}
+                window.open(`/live/${subdomain}`, '_blank');
+              }
+            }}
+            className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-white hover:bg-yellow font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer"
+            title="Preview live site"
           >
-            <Eye size={14} />
-            Preview
-          </Link>
+            <Eye size={13} className="stroke-[2.5]" />
+            <span>Preview</span>
+          </button>
 
           <button
             onClick={handleSave}
             disabled={saving}
             className={cn(
-              'flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all',
-              saved
-                ? 'bg-[#22C55E]/10 text-[#22C55E]'
-                : 'bg-[#F5F4F0] text-[#525252] hover:bg-[#E8E6E0] hover:text-[#171717]'
+              'inline-flex items-center gap-1 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl border-2 border-black font-mono text-xs font-bold transition-all cursor-pointer shadow-[2px_2px_0px_#000]',
+              saved ? 'bg-mint text-black' : 'bg-white hover:bg-mint text-black'
             )}
+            title="Save changes"
           >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : <Save size={14} />}
-            {saving ? 'Saving...' : saved ? 'Saved' : 'Save'}
+            {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <Check size={13} className="stroke-[3]" /> : <Save size={13} className="stroke-[2.5]" />}
+            <span className="hidden sm:inline">{saving ? 'Saving…' : saved ? 'Saved!' : 'Save'}</span>
           </button>
 
           <button
             onClick={() => setShowPublishDialog(true)}
-            className="px-5 py-2 rounded-xl text-sm font-bold bg-[#FF5500] hover:bg-[#E04800] text-white shadow-sm hover:shadow-md hover:shadow-[#FF5500]/25 transition-all flex items-center gap-1.5 cursor-pointer"
+            className="inline-flex items-center gap-1 px-3 sm:px-5 py-1 sm:py-1.5 rounded-xl border-2 border-black bg-pink hover:bg-pink/90 font-display text-xs sm:text-sm font-black text-black shadow-[2.5px_2.5px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
           >
-            <Globe size={14} />
-            Publish
+            <Globe size={13} className="stroke-[2.5]" />
+            <span>Publish</span>
           </button>
         </div>
       </header>
 
-      {/* Main editor area */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar icons */}
-        <div className="w-14 bg-white border-r border-[#E8E6E0] flex flex-col items-center py-3 gap-1 z-40">
+      {/* Main Studio Body */}
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Leftmost Tool Icon Rail (Hidden on mobile < md) */}
+        <div className="hidden md:flex w-14 bg-white border-r-[3px] border-black flex-col items-center py-4 gap-2 z-40 shrink-0">
           {([
-            { id: 'pages', icon: Layers, label: 'Pages' },
             { id: 'sections', icon: Layers, label: 'Sections' },
-            { id: 'elements', icon: Type, label: 'Elements' },
+            { id: 'ai', icon: Wand2, label: 'AI Generator' },
             { id: 'styles', icon: Palette, label: 'Styles' },
-            { id: 'assets', icon: Image, label: 'Assets' },
+            { id: 'elements', icon: Type, label: 'Elements' },
+            { id: 'pages', icon: ChevronRight, label: 'Pages' },
+            { id: 'assets', icon: ImageIcon, label: 'Assets' },
           ] as { id: LeftPanel; icon: typeof Layers; label: string }[]).map(({ id, icon: Icon, label }) => (
             <button
               key={id}
-              onClick={() => setLeftPanel(id)}
+              onClick={() => {
+                if (id === 'ai') setShowAiModal(true);
+                else setLeftPanel(id);
+              }}
               title={label}
               className={cn(
-                'w-10 h-10 rounded-xl flex items-center justify-center transition-all',
+                'w-10 h-10 rounded-xl border-2 transition-all flex items-center justify-center cursor-pointer',
                 leftPanel === id
-                  ? 'bg-[#171717] text-white'
-                  : 'text-[#ACACAC] hover:text-[#525252] hover:bg-[#F5F4F0]'
+                  ? 'bg-yellow text-black border-black shadow-[2px_2px_0px_#000]'
+                  : 'bg-transparent text-neutral-400 hover:text-black border-transparent hover:border-black/20'
               )}
             >
-              <Icon size={16} />
+              <Icon size={17} className="stroke-[2.5]" />
             </button>
           ))}
-
           <div className="flex-1" />
-
-          <button title="Settings" className="w-10 h-10 rounded-xl flex items-center justify-center text-[#ACACAC] hover:text-[#525252] hover:bg-[#F5F4F0] transition-all">
-            <Settings size={16} />
+          <button
+            title="Studio Settings"
+            className="w-10 h-10 rounded-xl border-2 border-transparent hover:border-black/20 flex items-center justify-center text-neutral-400 hover:text-black transition-all cursor-pointer"
+          >
+            <Settings size={17} className="stroke-[2.5]" />
           </button>
         </div>
 
-        {/* Left panel content */}
-        <div className="w-56 bg-white border-r border-[#E8E6E0] flex flex-col z-30 overflow-hidden">
-          <div className="p-4 border-b border-[#E8E6E0]">
-            <div className="text-xs font-semibold text-[#171717] uppercase tracking-wider">
-              {leftPanel.charAt(0).toUpperCase() + leftPanel.slice(1)}
+        {/* Left Sub-Drawer: Desktop persistent / Mobile full-screen when active */}
+        <div
+          className={cn(
+            'bg-[#FAF9F6] border-r-[3px] border-black flex flex-col z-30 shrink-0 overflow-hidden transition-all',
+            'w-60 hidden md:flex', // Desktop default
+            // Mobile full screen overlay when tab selected
+            mobileTab === 'sections' && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white',
+            mobileTab === 'styles' && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white'
+          )}
+        >
+          <div className="p-3.5 border-b-[2px] border-black bg-white flex items-center justify-between">
+            <div className="font-mono text-xs font-black uppercase text-black tracking-wider flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-pink" />
+              <span>{mobileTab !== 'canvas' ? mobileTab : leftPanel}</span>
             </div>
+            {/* Close button on mobile */}
+            <button
+              onClick={() => setMobileTab('canvas')}
+              className="md:hidden px-2 py-0.5 rounded-lg border border-black bg-yellow font-mono text-[10px] font-bold text-black"
+            >
+              Done ✕
+            </button>
+            <span className="hidden md:inline font-mono text-[10px] text-neutral-400">
+              {sections.length} blocks
+            </span>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
-            {leftPanel === 'sections' && (
-              <div className="p-3">
-                <div className="space-y-1">
+          <div className="flex-1 overflow-y-auto p-3 space-y-4">
+            {(leftPanel === 'sections' || mobileTab === 'sections') && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
                   {sections.map((section) => (
                     <div
                       key={section.id}
-                      onClick={() => setSelectedSection(section.id)}
+                      onClick={() => {
+                        setSelectedSection(section.id);
+                        if (mobileTab === 'sections') setMobileTab('canvas');
+                      }}
                       className={cn(
-                        'group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all',
+                        'group flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-all',
                         selectedSection === section.id
-                          ? 'bg-[#171717] text-white'
-                          : 'text-[#525252] hover:bg-[#F5F4F0] hover:text-[#171717]'
+                          ? 'border-black bg-pink text-black shadow-[2.5px_2.5px_0px_#000] font-bold'
+                          : 'border-black/15 bg-white hover:border-black hover:bg-neutral-50 text-neutral-800 shadow-xs'
                       )}
                     >
-                      <GripVertical size={12} className="opacity-40 flex-shrink-0" />
-                      <span className="text-sm flex-1">{section.name}</span>
+                      <GripVertical size={13} className="opacity-40 shrink-0" />
+                      <span className="font-mono text-xs flex-1 truncate">{section.name}</span>
                       <button
+                        type="button"
                         onClick={(e) => { e.stopPropagation(); removeSection(section.id); }}
-                        className={cn(
-                          'opacity-0 group-hover:opacity-100 p-0.5 rounded transition-all',
-                          selectedSection === section.id ? 'hover:bg-white/20' : 'hover:bg-[#E8E6E0]'
-                        )}
+                        className="opacity-60 hover:opacity-100 p-1 rounded-md transition-all cursor-pointer hover:bg-black/10 text-neutral-600"
+                        title="Delete section"
                       >
-                        <Trash2 size={11} />
+                        <Trash2 size={12} />
                       </button>
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-[#E8E6E0]">
-                  <div className="text-xs font-medium text-[#8A8A8A] mb-2">Add section</div>
-                  {['Hero', 'Features', 'Testimonials', 'Gallery', 'Pricing', 'CTA', 'Contact'].map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => addSection(type.toLowerCase())}
-                      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-[#525252] hover:bg-[#F5F4F0] hover:text-[#171717] transition-all"
-                    >
-                      <Plus size={12} />
-                      {type}
-                    </button>
-                  ))}
+                <div className="pt-3 border-t-2 border-black/10">
+                  <div className="font-mono text-[10px] font-bold uppercase text-neutral-500 tracking-wider mb-2">
+                    + Add Block
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {['Hero', 'Features', 'Testimonials', 'Gallery', 'Pricing', 'CTA', 'Contact'].map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => {
+                          addSection(type.toLowerCase());
+                          if (mobileTab === 'sections') setMobileTab('canvas');
+                        }}
+                        className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-black bg-white hover:bg-yellow font-mono text-[11px] font-bold text-black shadow-[1.5px_1.5px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
+                      >
+                        <Plus size={11} className="stroke-[3]" />
+                        <span>{type}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
 
-            {leftPanel === 'pages' && (
-              <div className="p-3">
-                {(template.pages || ['Home', 'About', 'Contact']).map((page, i) => (
-                  <div
-                    key={page}
-                    className={cn(
-                      'flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer text-sm transition-all',
-                      i === 0
-                        ? 'bg-[#171717] text-white'
-                        : 'text-[#525252] hover:bg-[#F5F4F0]'
-                    )}
-                  >
-                    <ChevronRight size={12} className="opacity-40" />
-                    {page}
-                    {i === 0 && <span className="ml-auto text-[9px] bg-white/20 px-1.5 py-0.5 rounded-full">Home</span>}
-                  </div>
-                ))}
-                <button className="flex items-center gap-2 w-full mt-3 px-3 py-2 text-sm text-[#525252] hover:text-[#171717] border border-dashed border-[#E8E6E0] rounded-lg hover:border-[#FF5500]/50 transition-all">
-                  <Plus size={12} />
-                  Add page
-                </button>
-              </div>
-            )}
-
-            {leftPanel === 'styles' && (
-              <div className="p-4 space-y-6">
+            {(leftPanel === 'styles' || mobileTab === 'styles') && (
+              <div className="space-y-4">
                 <div>
-                  <div className="text-xs font-medium text-[#8A8A8A] mb-2 uppercase tracking-wide">Colors</div>
+                  <div className="font-mono text-[10px] font-bold uppercase text-neutral-500 tracking-wider mb-2">
+                    Brand Palette
+                  </div>
                   <div className="space-y-2">
                     {[
-                      { label: 'Primary', key: 'primaryColor' },
+                      { label: 'Accent', key: 'primaryColor' },
                       { label: 'Background', key: 'bgColor' },
                     ].map(({ label, key }) => (
-                      <div key={key} className="flex items-center justify-between">
-                        <span className="text-sm text-[#525252]">{label}</span>
+                      <div key={key} className="flex items-center justify-between rounded-xl border border-black/20 bg-white p-2">
+                        <span className="font-mono text-xs font-medium text-neutral-700">{label}</span>
                         <div className="flex items-center gap-2">
                           <input
                             type="color"
                             value={theme[key as keyof typeof theme] || '#000000'}
                             onChange={(e) => setTheme(prev => ({ ...prev, [key]: e.target.value }))}
-                            className="w-8 h-8 rounded-lg border border-[#E8E6E0] cursor-pointer p-0.5"
+                            className="w-7 h-7 rounded-lg border border-black cursor-pointer p-0.5"
                           />
-                          <span className="text-xs font-mono text-[#8A8A8A]">
+                          <span className="font-mono text-[11px] font-bold text-black">
                             {theme[key as keyof typeof theme]}
                           </span>
                         </div>
@@ -324,240 +450,497 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 </div>
 
                 <div>
-                  <div className="text-xs font-medium text-[#8A8A8A] mb-2 uppercase tracking-wide">Typography</div>
-                  <select className="w-full px-3 py-2 bg-[#F5F4F0] rounded-lg text-sm text-[#525252] border-none outline-none focus:ring-2 focus:ring-[#FF5500]/20">
-                    {['Geist', 'Inter', 'Playfair Display', 'Space Grotesk', 'DM Sans'].map(f => (
-                      <option key={f}>{f}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <div className="text-xs font-medium text-[#8A8A8A] mb-2 uppercase tracking-wide">Border Radius</div>
-                  <div className="flex gap-2">
-                    {['4px', '8px', '12px', '20px', '9999px'].map((r) => (
+                  <div className="font-mono text-[10px] font-bold uppercase text-neutral-500 tracking-wider mb-2">
+                    Preset Swatches
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {['#FF5588', '#FFDD00', '#00E599', '#9966FF', '#00F0FF', '#0F0F11'].map((c) => (
                       <button
-                        key={r}
-                        onClick={() => setTheme(prev => ({ ...prev, borderRadius: r }))}
-                        className={cn(
-                          'flex-1 py-2 text-xs rounded transition-all border',
-                          theme.borderRadius === r
-                            ? 'border-[#171717] bg-[#171717] text-white'
-                            : 'border-[#E8E6E0] text-[#525252] hover:border-[#171717]'
-                        )}
-                        style={{ borderRadius: r }}
-                      >
-                        {r.replace('px', '')}
-                      </button>
+                        key={c}
+                        type="button"
+                        onClick={() => setTheme(prev => ({ ...prev, primaryColor: c }))}
+                        style={{ backgroundColor: c }}
+                        className={`w-7 h-7 rounded-md border-2 border-black transition-transform cursor-pointer ${
+                          theme.primaryColor === c ? 'scale-125 ring-2 ring-black' : 'hover:scale-110'
+                        }`}
+                      />
                     ))}
                   </div>
                 </div>
               </div>
             )}
-
-            {leftPanel === 'elements' && (
-              <div className="p-3 grid grid-cols-2 gap-2">
-                {['Text', 'Image', 'Button', 'Video', 'Form', 'Divider', 'Icon', 'Grid'].map((el) => (
-                  <button
-                    key={el}
-                    className="flex flex-col items-center gap-1.5 p-3 border border-[#E8E6E0] rounded-xl text-xs text-[#525252] hover:border-[#FF5500]/50 hover:text-[#171717] hover:bg-[#FAFAF8] transition-all"
-                  >
-                    <div className="w-8 h-6 bg-[#F0EEE9] rounded" />
-                    {el}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {leftPanel === 'assets' && (
-              <div className="p-4">
-                <button className="w-full border-2 border-dashed border-[#E8E6E0] rounded-xl p-6 flex flex-col items-center gap-2 text-[#8A8A8A] hover:border-[#FF5500]/50 hover:text-[#525252] transition-all">
-                  <Image size={20} />
-                  <div className="text-xs">Upload images</div>
-                </button>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {[1, 2, 3, 4].map(i => (
-                    <div key={i} className="aspect-square bg-[#F0EEE9] rounded-lg" />
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Canvas */}
-        <div className="flex-1 bg-[#E8E6E0] overflow-auto flex items-start justify-center p-6">
+        {/* Center Canvas Viewport - 100% visible on mobile, responsive everywhere */}
+        <div className="flex-1 bg-[#EBE7DF] overflow-auto flex items-start justify-center p-2 sm:p-6 lg:p-8 relative w-full">
+          {/* Subtle architectural dot grid */}
           <div
-            className="bg-white shadow-2xl transition-all duration-500 overflow-hidden"
+            className="absolute inset-0 opacity-40 pointer-events-none"
             style={{
-              width: DEVICE_WIDTHS[deviceMode],
-              minHeight: '100%',
-              borderRadius: deviceMode !== 'desktop' ? '16px' : '8px',
+              backgroundImage: 'radial-gradient(#000000 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
+            }}
+          />
+
+          {/* Browser Frame */}
+          <div
+            className="relative z-10 bg-white rounded-2xl border-[3px] sm:border-[3.5px] border-black shadow-[6px_6px_0px_#000] sm:shadow-[10px_10px_0px_#000] transition-all duration-300 overflow-hidden flex flex-col w-full max-w-full"
+            style={{
+              width: typeof window !== 'undefined' && window.innerWidth < 768 ? '100%' : DEVICE_WIDTHS[deviceMode],
+              minHeight: '800px',
             }}
           >
-            {/* Simulated website content */}
-            <CanvasContent template={template} sections={sections} selectedSection={selectedSection} theme={theme} />
+            {/* Top Browser Bar */}
+            <div className="h-9 sm:h-10 bg-[#FAF9F6] border-b-[2px] sm:border-b-[2.5px] border-black px-3 sm:px-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-black bg-[#FF5F56]" />
+                <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-black bg-[#FFBD2E]" />
+                <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-black bg-[#27C93F]" />
+              </div>
+              <div className="flex items-center gap-1.5 rounded-lg border border-black/20 bg-white px-2.5 py-0.5 font-mono text-[10px] sm:text-[11px] text-neutral-600 truncate max-w-[200px] sm:max-w-xs">
+                <span className="text-mint font-bold">●</span>
+                <span className="truncate">https://{siteTitle.toLowerCase().replace(/\s+/g, '-')}.launchly.site</span>
+              </div>
+              <span className="hidden sm:inline font-mono text-[10px] font-black uppercase text-neutral-400">
+                {deviceMode}
+              </span>
+            </div>
+
+            {/* Editable Content Frame */}
+            <div className="flex-1 overflow-y-auto">
+              <CanvasContent
+                sections={sections}
+                selectedSection={selectedSection}
+                theme={theme}
+                siteTitle={siteTitle}
+                heroContent={heroContent}
+                featuresContent={featuresContent}
+                testimonialsContent={testimonialsContent}
+                ctaContent={ctaContent}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Right sidebar - Properties */}
-        <div className="w-72 bg-white border-l border-[#E8E6E0] flex flex-col z-30 overflow-hidden">
-          <div className="p-4 border-b border-[#E8E6E0] flex items-center justify-between">
-            <div className="text-xs font-semibold text-[#171717] uppercase tracking-wider">
-              {selectedSection ? `${sections.find(s => s.id === selectedSection)?.name || ''} Properties` : 'Properties'}
+        {/* Right Inspector: Desktop sidebar / Mobile full-screen when active */}
+        <div
+          className={cn(
+            'bg-white border-l-[3px] border-black flex flex-col z-30 shrink-0 overflow-hidden',
+            'w-72 hidden lg:flex', // Desktop default
+            // Mobile full screen overlay when tab selected
+            mobileTab === 'inspector' && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white'
+          )}
+        >
+          <div className="p-3.5 border-b-[2px] border-black bg-[#FAF9F6] flex items-center justify-between">
+            <div className="font-mono text-xs font-black uppercase text-black tracking-wider">
+              <span>{selectedSection ? `${sections.find(s => s.id === selectedSection)?.name || ''} Properties` : 'Inspector'}</span>
             </div>
+            {/* Close button on mobile */}
+            <button
+              onClick={() => setMobileTab('canvas')}
+              className="lg:hidden px-2 py-0.5 rounded-lg border border-black bg-yellow font-mono text-[10px] font-bold text-black"
+            >
+              Done ✕
+            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-5">
             {selectedSection ? (
               <SectionProperties
                 sectionId={selectedSection}
                 sections={sections}
                 theme={theme}
+                setTheme={setTheme}
               />
             ) : (
-              <div className="text-sm text-[#8A8A8A] text-center py-8">
-                Select a section to edit its properties
+              <div className="text-center py-10 font-mono text-xs text-neutral-400">
+                Click any section on the canvas to inspect properties.
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Publish dialog */}
+      {/* Mobile Bottom Navigation Bar (Hidden on desktop) */}
+      <nav className="md:hidden h-14 bg-white border-t-[3px] border-black flex items-center justify-around px-1 z-50 shrink-0 shadow-[0_-2px_0_#000]">
+        {[
+          { id: 'canvas' as const, label: 'Canvas', icon: Layout },
+          { id: 'sections' as const, label: 'Blocks', icon: Layers },
+          { id: 'styles' as const, label: 'Styles', icon: Palette },
+          { id: 'inspector' as const, label: 'Inspect', icon: SlidersHorizontal },
+        ].map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setMobileTab(id)}
+            className={cn(
+              'flex flex-col items-center justify-center py-1 px-3 rounded-xl font-mono text-[10px] font-bold transition-all cursor-pointer',
+              mobileTab === id
+                ? 'bg-yellow text-black border-2 border-black shadow-xs font-black'
+                : 'text-neutral-500 hover:text-black'
+            )}
+          >
+            <Icon size={16} className="stroke-[2.5]" />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* AI Prompt Modal */}
+      {showAiModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[110] flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl p-5 sm:p-8 max-w-lg w-full shadow-[10px_10px_0px_#000] relative border-[3.5px] border-black max-h-[92vh] overflow-y-auto">
+            <button
+              onClick={() => !aiGenerating && setShowAiModal(false)}
+              disabled={aiGenerating}
+              className="absolute top-4 right-4 p-1.5 rounded-xl border-2 border-black bg-white hover:bg-yellow shadow-[2px_2px_0px_#000] cursor-pointer transition-all disabled:opacity-50"
+            >
+              <X size={14} className="stroke-[2.5]" />
+            </button>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl border-2 border-black bg-yellow flex items-center justify-center text-black shadow-[2px_2px_0px_#000]">
+                  <Wand2 size={20} className="stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="font-display font-black text-lg sm:text-xl text-black leading-tight">
+                    AI Design Studio
+                  </h3>
+                  <p className="font-mono text-xs text-neutral-500">
+                    Describe your website — AI will redesign the canvas live
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-mono text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">
+                  Your Creative Prompt
+                </label>
+                <textarea
+                  rows={3}
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="e.g. A futuristic Web3 AI copilot with neon cyan glow, high-converting stats, and dark brutalist telemetry..."
+                  disabled={aiGenerating}
+                  className="w-full p-3 rounded-2xl border-2 border-black bg-[#FAF9F6] font-mono text-xs text-black placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-yellow shadow-inner resize-none"
+                />
+              </div>
+
+              {/* Quick Prompt Pills */}
+              <div>
+                <span className="font-mono text-[10px] font-bold uppercase text-neutral-400 block mb-1.5">
+                  Or pick a curated design aesthetic:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: 'Cyberpunk & Web3 L2', prompt: 'Futuristic Web3 Layer-2 with neon cyan accents, dark telemetry radar, and zero-knowledge compute' },
+                    { label: 'Autonomous AI Copilot', prompt: 'High-scale multi-agent cognitive engine with neon pink glow, streaming metrics, and dark mode' },
+                    { label: 'Kyoto Architecture', prompt: 'Wabi-sabi architectural monograph with warm cream background, deep serif typography, and natural proportions' },
+                    { label: 'Limited EDC Capsule', prompt: 'Brutalist everyday carry commerce drop with yellow accents, titanium gear, and countdown timer' },
+                  ].map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      disabled={aiGenerating}
+                      onClick={() => {
+                        setAiPrompt(p.prompt);
+                        handleAiGenerate(p.prompt);
+                      }}
+                      className="px-2 py-1 rounded-xl border border-black bg-white hover:bg-yellow font-mono text-[10px] sm:text-[11px] font-bold text-black shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {aiGenerating && (
+                <div className="p-3 rounded-2xl border-2 border-black bg-yellow/40 flex items-center gap-3 animate-pulse">
+                  <Loader2 size={16} className="animate-spin text-black stroke-[3]" />
+                  <span className="font-mono text-xs font-bold text-black">
+                    {aiStep || 'Synthesizing bespoke design tokens...'}
+                  </span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleAiGenerate()}
+                disabled={aiGenerating || !aiPrompt.trim()}
+                className="w-full justify-center py-2.5 sm:py-3 rounded-2xl border-2 border-black bg-pink hover:bg-pink/90 font-display text-xs sm:text-sm font-black text-black shadow-[3px_3px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {aiGenerating ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin text-black" />
+                    <span>Redesigning Live Canvas…</span>
+                  </>
+                ) : (
+                  <>
+                    <Wand2 size={16} className="stroke-[2.5]" />
+                    <span>Generate Bespoke Website Design →</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pro Account Domain Publishing Modal */}
       {showPublishDialog && (
         <PublishDialog
           onClose={() => setShowPublishDialog(false)}
           siteName={siteTitle}
           templateId={template.id}
+          sitePayload={{
+            siteName: siteTitle,
+            templateId: template.id,
+            theme,
+            heroContent,
+            featuresContent,
+            testimonialsContent,
+            ctaContent,
+          }}
         />
       )}
     </div>
   );
 }
 
-function CanvasContent({ template, sections, selectedSection, theme }: {
-  template: typeof TEMPLATES[0];
+function CanvasContent({
+  sections,
+  selectedSection,
+  theme,
+  siteTitle,
+  heroContent,
+  featuresContent,
+  testimonialsContent,
+  ctaContent,
+}: {
   sections: Section[];
   selectedSection: string | null;
-  theme: { primaryColor: string; bgColor: string; fontFamily: string; borderRadius: string };
+  theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
+  siteTitle: string;
+  heroContent: any;
+  featuresContent: any[];
+  testimonialsContent: any[];
+  ctaContent: any;
 }) {
-  const tmpl = template;
-  
   return (
-    <div style={{ fontFamily: theme.fontFamily }}>
+    <div style={{ fontFamily: theme.fontFamily }} className="min-h-full flex flex-col">
       {sections.map((section) => (
         <SectionRenderer
           key={section.id}
           section={section}
           isSelected={selectedSection === section.id}
-          template={tmpl}
           theme={theme}
+          siteTitle={siteTitle}
+          heroContent={heroContent}
+          featuresContent={featuresContent}
+          testimonialsContent={testimonialsContent}
+          ctaContent={ctaContent}
         />
       ))}
     </div>
   );
 }
 
-function SectionRenderer({ section, isSelected, template, theme }: {
+function SectionRenderer({
+  section,
+  isSelected,
+  theme,
+  siteTitle,
+  heroContent,
+  featuresContent,
+  testimonialsContent,
+  ctaContent,
+}: {
   section: Section;
   isSelected: boolean;
-  template: typeof TEMPLATES[0];
-  theme: { primaryColor: string; bgColor: string; fontFamily: string; borderRadius: string };
+  theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
+  siteTitle: string;
+  heroContent: any;
+  featuresContent: any[];
+  testimonialsContent: any[];
+  ctaContent: any;
 }) {
   return (
     <div
       className={cn(
         'relative group cursor-pointer transition-all',
-        isSelected && 'outline-2 outline-[#FF5500] outline'
+        isSelected && 'outline-[3px] outline-pink outline-offset-[-3px] shadow-[inset_0_0_0_2px_#000]'
       )}
     >
-      {/* Section label */}
-      {isSelected && (
-        <div className="absolute -top-6 left-0 bg-[#FF5500] text-white text-xs font-semibold px-2 py-1 rounded-t-md z-10 shadow-xs">
-          {section.name}
-        </div>
-      )}
-
-      {/* Actual section content */}
+      {/* Navigation Block */}
       {section.type === 'nav' && (
-        <div className="flex items-center justify-between px-8 py-4 border-b" style={{ borderColor: '#E8E6E0' }}>
-          <div className="font-bold text-[#171717]">Logo</div>
-          <div className="flex gap-6">
-            {['Home', 'About', 'Work', 'Contact'].map(item => (
-              <div key={item} className="text-sm text-[#525252]">{item}</div>
+        <nav className="flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 border-black/10 bg-white/80 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <div
+              style={{ backgroundColor: theme.primaryColor }}
+              className="w-7 h-7 rounded-lg border-2 border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-display font-black text-xs text-black"
+            >
+              {siteTitle.charAt(0)}
+            </div>
+            <span className="font-display font-black text-sm sm:text-base text-ink tracking-tight">
+              {siteTitle}
+            </span>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-6 font-mono text-xs font-bold text-neutral-700">
+            {['Home', 'Features', 'Showcase', 'Pricing'].map(item => (
+              <span key={item} className="hover:text-black hover:underline cursor-pointer">
+                {item}
+              </span>
             ))}
           </div>
-          <div className="px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ background: theme.primaryColor, borderRadius: theme.borderRadius }}>
-            Get started
-          </div>
-        </div>
+
+          <button
+            type="button"
+            style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
+            className="px-3 sm:px-4 py-1.5 rounded-xl border-2 border-black font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] cursor-pointer"
+          >
+            Get Started
+          </button>
+        </nav>
       )}
 
+      {/* Hero Block */}
       {section.type === 'hero' && (
-        <div className="py-24 px-8 text-center" style={{ background: template.bgColor }}>
-          <div className="text-sm mb-4 px-3 py-1.5 rounded-full inline-block"
-               style={{ color: theme.primaryColor, background: `${theme.primaryColor}15` }}>
-            ✦ New platform launch
-          </div>
-          <div className="text-5xl font-bold leading-tight mb-4 contenteditable" style={{ color: template.textColor }}
-               contentEditable suppressContentEditableWarning>
-            Your headline<br />goes right here.
-          </div>
-          <div className="text-lg mb-8 max-w-lg mx-auto" style={{ color: template.textColor, opacity: 0.7 }}
-               contentEditable suppressContentEditableWarning>
-            Supporting copy that explains your value proposition clearly.
-          </div>
-          <div className="flex items-center justify-center gap-4">
-            <div className="px-6 py-3 rounded-lg font-semibold text-[#171717]"
-                 style={{ background: theme.primaryColor, borderRadius: theme.borderRadius }}>
-              Get started free
+        <div
+          className="py-12 sm:py-24 px-4 sm:px-12 text-center relative overflow-hidden"
+          style={{ background: theme.bgColor, color: theme.textColor }}
+        >
+          {/* Subtle Ambient Glow */}
+          <div
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-[120px] opacity-25 pointer-events-none"
+            style={{ backgroundColor: theme.primaryColor }}
+          />
+
+          <div className="relative z-10 max-w-2xl mx-auto space-y-3 sm:space-y-4">
+            {/* Category Pill */}
+            <div
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-black font-mono text-[10px] sm:text-[11px] font-black uppercase text-black shadow-[2px_2px_0px_#000]"
+              style={{ backgroundColor: theme.primaryColor }}
+            >
+              <span>{heroContent.badge}</span>
             </div>
-            <div className="px-6 py-3 rounded-lg border font-medium" style={{ borderColor: `${template.textColor}30`, color: template.textColor, borderRadius: theme.borderRadius }}>
-              Learn more
+
+            {/* Editable Headline */}
+            <h1
+              className="font-display text-2xl sm:text-5xl font-black tracking-tight leading-tight outline-none focus:ring-2 focus:ring-pink rounded-lg p-1"
+              contentEditable
+              suppressContentEditableWarning
+            >
+              {heroContent.title}
+            </h1>
+
+            {/* Editable Description */}
+            <p
+              className="font-mono text-xs sm:text-sm opacity-80 max-w-lg mx-auto leading-relaxed outline-none focus:ring-2 focus:ring-pink rounded-lg p-1"
+              contentEditable
+              suppressContentEditableWarning
+            >
+              {heroContent.description}
+            </p>
+
+            {/* Action Buttons */}
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
+              <button
+                type="button"
+                style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
+                className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-black font-display text-xs sm:text-sm font-black text-black shadow-[2.5px_2.5px_0px_#000] flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>{heroContent.ctaPrimary}</span>
+                <ArrowUpRight size={14} className="stroke-[3]" />
+              </button>
+              <button
+                type="button"
+                className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl border-2 border-current bg-white/10 hover:bg-white/20 font-mono text-xs sm:text-sm font-bold transition-all cursor-pointer"
+              >
+                {heroContent.ctaSecondary}
+              </button>
+            </div>
+
+            {/* Live Telemetry Radar Pills */}
+            <div className="pt-4 sm:pt-6 grid grid-cols-2 gap-2 sm:gap-3 max-w-md mx-auto text-left">
+              <div className="rounded-xl border border-current/20 bg-white/5 p-2.5 sm:p-3 backdrop-blur-sm">
+                <span className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
+                  {heroContent.stat1Label}
+                </span>
+                <span className="font-display text-sm sm:text-base font-black">{heroContent.stat1Value}</span>
+              </div>
+              <div className="rounded-xl border border-current/20 bg-white/5 p-2.5 sm:p-3 backdrop-blur-sm">
+                <span className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
+                  {heroContent.stat2Label}
+                </span>
+                <span className="font-display text-sm sm:text-base font-black">{heroContent.stat2Value}</span>
+              </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* Features Block */}
       {section.type === 'features' && (
-        <div className="py-20 px-8">
-          <div className="text-center mb-12">
-            <div className="text-3xl font-bold text-[#171717] mb-3" contentEditable suppressContentEditableWarning>Why choose us?</div>
-            <div className="text-[#6B6B6B]" contentEditable suppressContentEditableWarning>We&apos;re different from the rest.</div>
+        <div className="py-12 sm:py-16 px-4 sm:px-12 bg-white text-black border-y-2 border-black/10">
+          <div className="text-center max-w-xl mx-auto mb-8 space-y-1">
+            <h2 className="font-display text-xl sm:text-3xl font-black tracking-tight" contentEditable suppressContentEditableWarning>
+              Engineered for hyper-scale precision.
+            </h2>
           </div>
-          <div className="grid grid-cols-3 gap-6">
-            {['Speed', 'Design', 'Scale'].map((f) => (
-              <div key={f} className="p-6 rounded-2xl border border-[#E8E6E0]">
-                <div className="w-10 h-10 rounded-xl mb-4 flex items-center justify-center"
-                     style={{ background: `${theme.primaryColor}15` }}>
-                  <div className="w-4 h-4 rounded" style={{ background: theme.primaryColor }} />
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 max-w-4xl mx-auto">
+            {featuresContent.map((f: any, i: number) => (
+              <div
+                key={i}
+                className="p-4 sm:p-5 rounded-2xl border-2 border-black bg-[#FAF9F6] shadow-[3px_3px_0px_#000] sm:shadow-[4px_4px_0px_#000]"
+              >
+                <div
+                  style={{ backgroundColor: theme.primaryColor }}
+                  className="w-8 h-8 rounded-xl border-2 border-black flex items-center justify-center font-mono font-black text-xs text-black mb-2.5 shadow-[1.5px_1.5px_0px_#000]"
+                >
+                  0{i + 1}
                 </div>
-                <div className="font-semibold text-[#171717] mb-2" contentEditable suppressContentEditableWarning>{f}</div>
-                <div className="text-sm text-[#6B6B6B]" contentEditable suppressContentEditableWarning>Feature description goes here for the {f.toLowerCase()} section.</div>
+                <h3 className="font-display font-black text-sm sm:text-base mb-1" contentEditable suppressContentEditableWarning>
+                  {f.title}
+                </h3>
+                <p className="font-mono text-xs text-neutral-600 leading-relaxed" contentEditable suppressContentEditableWarning>
+                  {f.desc}
+                </p>
               </div>
             ))}
           </div>
         </div>
       )}
 
+      {/* Testimonials Block */}
       {section.type === 'testimonials' && (
-        <div className="py-20 px-8 bg-[#FAF9F6]">
-          <div className="text-center mb-12">
-            <div className="text-3xl font-bold text-[#171717] mb-3">What people say</div>
+        <div className="py-12 sm:py-16 px-4 sm:px-12 bg-[#FFFDF8] text-black">
+          <div className="text-center max-w-xl mx-auto mb-8">
+            <h2 className="font-display text-xl sm:text-3xl font-black">
+              Trusted by world-class teams.
+            </h2>
           </div>
-          <div className="grid grid-cols-2 gap-6">
-            {['A great product that changed how we work.', 'Couldn\'t be happier with the results.'].map((q, i) => (
-              <div key={i} className="p-6 bg-white rounded-2xl border border-[#E8E6E0]">
-                <div className="flex gap-0.5 mb-4">
-                  {[1,2,3,4,5].map(s => <div key={s} className="w-3 h-3 bg-[#FF5500] rounded-full" style={{ background: theme.primaryColor }} />)}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 max-w-3xl mx-auto">
+            {testimonialsContent.map((item: any, idx: number) => (
+              <div key={idx} className="p-4 sm:p-6 rounded-2xl border-2 border-black bg-white shadow-[3px_3px_0px_#000] sm:shadow-[4px_4px_0px_#000] flex flex-col justify-between">
+                <div className="flex gap-1 mb-2.5">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} size={13} className="fill-yellow text-black stroke-[1.5]" />
+                  ))}
                 </div>
-                <div className="text-[#171717] italic mb-4" contentEditable suppressContentEditableWarning>&ldquo;{q}&rdquo;</div>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full" style={{ background: theme.primaryColor }} />
+                <p className="font-mono text-xs sm:text-[13px] leading-relaxed mb-4 text-neutral-800" contentEditable suppressContentEditableWarning>
+                  &ldquo;{item.quote}&rdquo;
+                </p>
+                <div className="pt-3 border-t border-black/10 flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full border border-black bg-lilac flex items-center justify-center font-mono font-bold text-xs">
+                    {item.name.charAt(0)}
+                  </div>
                   <div>
-                    <div className="text-sm font-medium text-[#171717]">Customer Name</div>
-                    <div className="text-xs text-[#8A8A8A]">CEO at Company</div>
+                    <h4 className="font-display font-black text-xs text-black">{item.name}</h4>
+                    <p className="font-mono text-[9px] sm:text-[10px] text-neutral-500">{item.role}</p>
                   </div>
                 </div>
               </div>
@@ -566,130 +949,147 @@ function SectionRenderer({ section, isSelected, template, theme }: {
         </div>
       )}
 
+      {/* CTA Block */}
       {section.type === 'cta' && (
-        <div className="py-20 px-8 bg-[#171717] text-center">
-          <div className="text-3xl font-bold text-white mb-4" contentEditable suppressContentEditableWarning>
-            Ready to get started?
-          </div>
-          <div className="text-[#8A8A8A] mb-8" contentEditable suppressContentEditableWarning>
-            Join thousands of happy customers today.
-          </div>
-          <div className="inline-flex px-8 py-4 rounded-xl font-semibold text-[#171717]"
-               style={{ background: theme.primaryColor, borderRadius: theme.borderRadius }}>
-            Start for free
-          </div>
-        </div>
-      )}
-
-      {section.type === 'footer' && (
-        <div className="py-12 px-8 border-t border-[#E8E6E0]">
-          <div className="flex items-center justify-between">
-            <div className="font-bold text-[#171717]">Logo</div>
-            <div className="flex gap-6">
-              {['Privacy', 'Terms', 'Contact'].map(item => (
-                <div key={item} className="text-sm text-[#8A8A8A]">{item}</div>
-              ))}
+        <div className="py-12 sm:py-16 px-4 sm:px-12 bg-black text-white text-center relative overflow-hidden">
+          <div className="relative z-10 max-w-lg mx-auto space-y-3">
+            <h2 className="font-display text-xl sm:text-3xl font-black" contentEditable suppressContentEditableWarning>
+              {ctaContent.title}
+            </h2>
+            <p className="font-mono text-xs sm:text-sm text-neutral-400" contentEditable suppressContentEditableWarning>
+              {ctaContent.desc}
+            </p>
+            <div className="pt-2">
+              <button
+                type="button"
+                style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
+                className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-white font-display text-xs sm:text-sm font-black text-black shadow-[3px_3px_0px_#FFFFFF] cursor-pointer"
+              >
+                {ctaContent.buttonText}
+              </button>
             </div>
-            <div className="text-sm text-[#8A8A8A]">© 2024 Company</div>
           </div>
         </div>
       )}
 
-      {!['nav', 'hero', 'features', 'testimonials', 'cta', 'footer'].includes(section.type) && (
-        <div className="py-20 px-8 text-center bg-[#F5F4F0]">
-          <div className="text-[#8A8A8A] text-sm">{section.name} Section</div>
-        </div>
-      )}
-
-      {/* Hover indicator */}
-      {!isSelected && (
-        <div className="absolute inset-0 border-2 border-transparent group-hover:border-[#FF5500]/30 pointer-events-none transition-all" />
+      {/* Footer Block */}
+      {section.type === 'footer' && (
+        <footer className="py-6 sm:py-8 px-4 sm:px-12 border-t-2 border-black/10 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 font-mono text-xs text-neutral-600">
+          <div className="flex items-center gap-2 font-bold text-black">
+            <span>{siteTitle}</span>
+            <span>•</span>
+            <span className="text-[10px] text-neutral-400">Powered by Launchly</span>
+          </div>
+          <div className="flex gap-4">
+            <span className="hover:text-black cursor-pointer">Privacy</span>
+            <span className="hover:text-black cursor-pointer">Terms</span>
+            <span className="hover:text-black cursor-pointer">Security</span>
+          </div>
+        </footer>
       )}
     </div>
   );
 }
 
-function SectionProperties({ sectionId, sections, theme }: {
+function SectionProperties({
+  sectionId,
+  sections,
+  theme,
+  setTheme
+}: {
   sectionId: string;
   sections: Section[];
-  theme: object;
+  theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
+  setTheme: React.Dispatch<React.SetStateAction<{ primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string }>>;
 }) {
   const section = sections.find(s => s.id === sectionId);
   if (!section) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Block identity */}
+      <div className="rounded-xl border-2 border-black bg-white p-2.5 shadow-[2px_2px_0px_#000]">
+        <span className="font-mono text-[9px] font-bold text-neutral-400 uppercase block">Active Section</span>
+        <span className="font-display font-black text-sm text-black">{section.name}</span>
+      </div>
+
+      {/* Typography Toolbar */}
       <div>
-        <div className="text-xs font-medium text-[#8A8A8A] uppercase tracking-wide mb-3">Typography</div>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <button className="p-2 rounded-lg border border-[#E8E6E0] hover:border-[#FF5500]/50 transition-all">
-              <Bold size={13} />
-            </button>
-            <button className="p-2 rounded-lg border border-[#E8E6E0] hover:border-[#FF5500]/50 transition-all">
-              <Italic size={13} />
-            </button>
-            <div className="flex-1 h-px bg-[#E8E6E0]" />
-            <button className="p-2 rounded-lg border border-[#E8E6E0] hover:border-[#FF5500]/50 transition-all">
-              <AlignLeft size={13} />
-            </button>
-            <button className="p-2 rounded-lg border border-[#E8E6E0] hover:border-[#FF5500]/50 transition-all">
-              <AlignCenter size={13} />
-            </button>
-            <button className="p-2 rounded-lg border border-[#E8E6E0] hover:border-[#FF5500]/50 transition-all">
-              <AlignRight size={13} />
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-[#8A8A8A]">Size</div>
-            <input type="range" min={12} max={72} defaultValue={16} className="flex-1 accent-[#FF5500]" />
-            <div className="text-xs text-[#8A8A8A] w-8">16px</div>
-          </div>
+        <div className="font-mono text-[10px] font-black uppercase text-neutral-500 tracking-wider mb-1.5">
+          Typography
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button type="button" className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+            <Bold size={13} className="stroke-[3]" />
+          </button>
+          <button type="button" className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+            <Italic size={13} className="stroke-[3]" />
+          </button>
+          <div className="flex-1 h-px bg-black/10" />
+          <button type="button" className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+            <AlignLeft size={13} />
+          </button>
+          <button type="button" className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+            <AlignCenter size={13} />
+          </button>
+          <button type="button" className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+            <AlignRight size={13} />
+          </button>
         </div>
       </div>
 
+      {/* Spacing Controls */}
       <div>
-        <div className="text-xs font-medium text-[#8A8A8A] uppercase tracking-wide mb-3">Spacing</div>
+        <div className="font-mono text-[10px] font-black uppercase text-neutral-500 tracking-wider mb-1.5">
+          Spacing (px)
+        </div>
         <div className="grid grid-cols-2 gap-2">
-          {['Padding top', 'Padding bottom', 'Margin left', 'Margin right'].map((label) => (
-            <div key={label}>
-              <div className="text-xs text-[#8A8A8A] mb-1">{label.split(' ')[1]}</div>
-              <input
-                type="number"
-                defaultValue={48}
-                className="w-full px-2 py-1.5 bg-[#F5F4F0] rounded-lg text-sm text-[#171717] border-none outline-none focus:ring-2 focus:ring-[#FF5500]/20"
-              />
+          {['Top: 48', 'Bottom: 48', 'Left: 32', 'Right: 32'].map((label) => (
+            <div key={label} className="rounded-xl border-2 border-black bg-white p-2 text-center">
+              <span className="font-mono text-xs font-bold text-black">{label}</span>
             </div>
           ))}
         </div>
       </div>
 
+      {/* Theme Accent Color */}
       <div>
-        <div className="text-xs font-medium text-[#8A8A8A] uppercase tracking-wide mb-3">Background</div>
-        <div className="flex items-center gap-3">
-          <input type="color" defaultValue="#FFFFFF" className="w-10 h-10 rounded-xl border border-[#E8E6E0] cursor-pointer p-1" />
+        <div className="font-mono text-[10px] font-black uppercase text-neutral-500 tracking-wider mb-1.5">
+          Section Accent
+        </div>
+        <div className="flex items-center gap-2 rounded-xl border-2 border-black bg-white p-2">
+          <input
+            type="color"
+            value={theme.primaryColor}
+            onChange={(e) => setTheme(prev => ({ ...prev, primaryColor: e.target.value }))}
+            className="w-8 h-8 rounded-lg border border-black cursor-pointer p-0.5"
+          />
           <input
             type="text"
-            defaultValue="#FFFFFF"
-            className="flex-1 px-3 py-2 bg-[#F5F4F0] rounded-lg text-sm font-mono text-[#171717] border-none outline-none focus:ring-2 focus:ring-[#FF5500]/20"
+            value={theme.primaryColor}
+            onChange={(e) => setTheme(prev => ({ ...prev, primaryColor: e.target.value }))}
+            className="flex-1 font-mono text-xs font-bold text-black outline-none uppercase"
           />
         </div>
       </div>
 
+      {/* Border Radius */}
       <div>
-        <div className="text-xs font-medium text-[#8A8A8A] uppercase tracking-wide mb-3">Visibility</div>
-        <div className="flex gap-2">
-          {[
-            { icon: <Monitor size={16} className="mx-auto" />, title: 'Desktop' },
-            { icon: <Tablet size={16} className="mx-auto" />, title: 'Tablet' },
-            { icon: <Smartphone size={16} className="mx-auto" />, title: 'Mobile' },
-          ].map(({ icon, title }) => (
+        <div className="font-mono text-[10px] font-black uppercase text-neutral-500 tracking-wider mb-1.5">
+          Corner Radius
+        </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {['8px', '16px', '24px', '9999px'].map((r) => (
             <button
-              key={title}
-              title={title}
-              className="flex-1 py-2 bg-[#F5F4F0] rounded-lg text-base hover:bg-[#FF5500]/15 transition-all flex items-center justify-center text-neutral-700"
+              key={r}
+              type="button"
+              onClick={() => setTheme(prev => ({ ...prev, borderRadius: r }))}
+              className={cn(
+                'py-1.5 rounded-lg border-2 border-black font-mono text-[10px] font-black cursor-pointer transition-all',
+                theme.borderRadius === r ? 'bg-pink text-black shadow-2xs' : 'bg-white hover:bg-neutral-100'
+              )}
             >
-              {icon}
+              {r === '9999px' ? 'Pill' : r}
             </button>
           ))}
         </div>
@@ -698,14 +1098,49 @@ function SectionProperties({ sectionId, sections, theme }: {
   );
 }
 
-function PublishDialog({ onClose, siteName, templateId }: { onClose: () => void; siteName: string; templateId: string }) {
+// Pro Account Domain Publishing Modal
+function PublishDialog({ 
+  onClose, 
+  siteName, 
+  templateId, 
+  sitePayload 
+}: { 
+  onClose: () => void; 
+  siteName: string; 
+  templateId: string; 
+  sitePayload?: any;
+}) {
   const [step, setStep] = useState<'form' | 'publishing' | 'success'>('form');
   const [subdomain, setSubdomain] = useState(siteName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
   const [publishedUrl, setPublishedUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [copiedDomain, setCopiedDomain] = useState(false);
+
+  const getWorkingUrl = () => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/live/${subdomain}`;
+    }
+    return `/live/${subdomain}`;
+  };
 
   const handlePublish = async () => {
     setStep('publishing');
+    // Save to localStorage immediately so live preview works with 100% fidelity
+    if (typeof window !== 'undefined' && sitePayload) {
+      try {
+        localStorage.setItem(`launchly_site_${subdomain}`, JSON.stringify({
+          ...sitePayload,
+          subdomain,
+          siteName,
+        }));
+        localStorage.setItem(`launchly_site_${templateId}`, JSON.stringify({
+          ...sitePayload,
+          subdomain,
+          siteName,
+        }));
+      } catch {}
+    }
+
     try {
       const res = await fetch('/api/sites/publish', {
         method: 'POST',
@@ -714,6 +1149,7 @@ function PublishDialog({ onClose, siteName, templateId }: { onClose: () => void;
           templateId,
           name: siteName,
           subdomain,
+          siteData: sitePayload,
         }),
       });
       const data = await res.json();
@@ -725,132 +1161,170 @@ function PublishDialog({ onClose, siteName, templateId }: { onClose: () => void;
     } catch {
       setPublishedUrl(`/live/${subdomain}`);
     }
-    await new Promise(r => setTimeout(r, 1200));
+    await new Promise(r => setTimeout(r, 1000));
     setStep('success');
   };
 
-  const handleCopy = () => {
-    const full = typeof window !== 'undefined' ? `${window.location.origin}/live/${subdomain}` : `https://${subdomain}.launchly.site`;
+  const handleCopyWorkingUrl = () => {
+    const full = getWorkingUrl();
     navigator.clipboard?.writeText(full);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCopyCustomDomain = () => {
+    const full = `https://${subdomain}.launchly.site`;
+    navigator.clipboard?.writeText(full);
+    setCopiedDomain(true);
+    setTimeout(() => setCopiedDomain(false), 2000);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-scale-in relative border border-[#E8E6E0]">
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-xl hover:bg-[#F5F4F0] text-[#8A8A8A] hover:text-[#171717] transition-colors cursor-pointer">
-          <X size={16} />
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[110] flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
+      <div className="bg-white rounded-3xl p-5 sm:p-8 max-w-md w-full shadow-[10px_10px_0px_#000] relative border-[3.5px] border-black">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1.5 rounded-xl border-2 border-black bg-white hover:bg-yellow shadow-[2px_2px_0px_#000] cursor-pointer transition-all"
+        >
+          <X size={14} className="stroke-[2.5]" />
         </button>
 
         {step === 'form' && (
-          <>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-[#FFF2EB] text-[#FF5500] flex items-center justify-center shadow-xs">
-                <Globe size={20} />
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl border-2 border-black bg-pink flex items-center justify-center text-black shadow-[2px_2px_0px_#000]">
+                <Globe size={22} className="stroke-[2.5]" />
               </div>
               <div>
-                <div className="font-bold text-[#171717]">Publish your website</div>
-                <div className="text-xs text-[#8A8A8A]">Go live instantly on global edge network</div>
+                <h3 className="font-display font-black text-lg text-black leading-tight">
+                  Launchly Pro Hosting
+                </h3>
+                <p className="font-mono text-xs text-neutral-500">
+                  Deploy live directly on our platform domain
+                </p>
               </div>
             </div>
 
-            <div className="mb-5">
-              <label className="text-xs font-bold text-[#171717] uppercase tracking-wider mb-1.5 block">Website Name</label>
+            {/* Our Platform Domain Notice */}
+            <div className="p-3 rounded-2xl border-2 border-black bg-yellow/20">
+              <div className="font-mono text-[10px] font-black uppercase text-black">
+                🔒 HOSTED ON OUR LAUNCHLY DOMAIN
+              </div>
+              <div className="font-mono text-[11px] text-neutral-700 mt-0.5">
+                Pro accounts are provisioned under <strong>{subdomain}.launchly.site</strong> with instant live edge preview.
+              </div>
+            </div>
+
+            <div>
+              <label className="font-mono text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">
+                Website Name
+              </label>
               <input
                 type="text"
                 value={siteName}
                 readOnly
-                className="w-full px-4 py-2.5 bg-[#FAF9F6] rounded-xl text-sm text-[#171717] border border-[#E8E6E0]"
+                className="w-full px-3.5 py-2 rounded-xl border-2 border-black bg-[#FAF9F6] font-display font-bold text-sm text-black"
               />
             </div>
 
-            <div className="mb-6">
-              <label className="text-xs font-bold text-[#171717] uppercase tracking-wider mb-1.5 block">Choose Subdomain</label>
+            <div>
+              <label className="font-mono text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-1">
+                Subdomain on our domain
+              </label>
               <div className="flex items-center">
                 <input
                   type="text"
                   value={subdomain}
                   onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                  className="flex-1 px-4 py-2.5 bg-white border border-[#E8E6E0] rounded-l-xl text-sm text-[#171717] focus:outline-none focus:border-[#FF5500] focus:ring-2 focus:ring-[#FF5500]/20 font-mono"
+                  className="flex-1 px-3 py-2 bg-white border-2 border-r-0 border-black rounded-l-xl font-mono text-xs font-bold text-black focus:outline-none"
                 />
-                <div className="px-3.5 py-2.5 bg-[#FAF9F6] border border-l-0 border-[#E8E6E0] rounded-r-xl text-xs text-[#8A8A8A] font-mono whitespace-nowrap">
+                <div className="px-3 py-2 bg-yellow border-2 border-black rounded-r-xl font-mono text-xs font-black text-black">
                   .launchly.site
                 </div>
               </div>
-              <div className="mt-2 flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
-                <span className="text-xs text-[#22C55E] font-medium">{subdomain}.launchly.site is available</span>
+              <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] text-mint font-bold">
+                <span className="w-2 h-2 rounded-full bg-mint" />
+                <span>Available for instant edge activation</span>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <button
-                onClick={handlePublish}
-                className="w-full justify-center text-sm py-3.5 font-bold rounded-xl bg-[#FF5500] hover:bg-[#E04800] text-white shadow-md hover:shadow-lg hover:shadow-[#FF5500]/25 transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <Globe size={16} />
-                Publish Live Now
-              </button>
-              <p className="text-[11px] text-center text-[#8A8A8A]">
-                Instant SSL certificate and global CDN deployment included
-              </p>
-            </div>
-          </>
+            <button
+              type="button"
+              onClick={handlePublish}
+              className="w-full justify-center py-3 rounded-2xl border-2 border-black bg-pink hover:bg-yellow font-display text-sm font-black text-black shadow-[4px_4px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <Globe size={16} className="stroke-[2.5]" />
+              <span>Host on Our Domain Now →</span>
+            </button>
+          </div>
         )}
 
         {step === 'publishing' && (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 rounded-full bg-[#FFF2EB] flex items-center justify-center mx-auto mb-4">
-              <Loader2 size={28} className="text-[#FF5500] animate-spin" />
+          <div className="text-center py-8 space-y-3">
+            <div className="w-14 h-14 rounded-2xl border-2 border-black bg-yellow flex items-center justify-center mx-auto shadow-[3px_3px_0px_#000]">
+              <Loader2 size={26} className="animate-spin text-black stroke-[2.5]" />
             </div>
-            <div className="font-bold text-[#171717] text-xl mb-1">Publishing Live...</div>
-            <div className="text-xs text-[#8A8A8A]">Compiling Next.js assets & provisioning edge CDN</div>
-            <div className="mt-6 space-y-2">
-              {['Minifying styles and fonts...', 'Generating edge static bundles...', 'Deploying live routing table...'].map((msg) => (
-                <div key={msg} className="flex items-center justify-center gap-2 text-xs text-[#8A8A8A]">
-                  <Loader2 size={12} className="animate-spin text-[#FF5500]" />
-                  <span>{msg}</span>
-                </div>
-              ))}
-            </div>
+            <h3 className="font-display font-black text-lg text-black">Deploying to launchly.site…</h3>
+            <p className="font-mono text-xs text-neutral-500 max-w-xs mx-auto">
+              Generating Edge SSR bundle, configuring SSL certificates, and pointing DNS to our edge network.
+            </p>
           </div>
         )}
 
         {step === 'success' && (
-          <div className="text-center py-4">
-            <div className="w-16 h-16 rounded-full bg-[#FF5500] text-white flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#FF5500]/25">
-              <Check size={28} strokeWidth={3} />
+          <div className="text-center py-4 space-y-3.5">
+            <div className="w-14 h-14 rounded-2xl border-2 border-black bg-mint flex items-center justify-center mx-auto shadow-[3px_3px_0px_#000]">
+              <Check size={28} className="stroke-[3] text-black" />
             </div>
-            <div className="font-black text-[#171717] text-2xl mb-1">Your Website is Live!</div>
-            <div className="text-xs text-[#8A8A8A] mb-5">Genuinely deployed and accessible worldwide:</div>
+            <h3 className="font-display font-black text-xl text-black">Your Website is Live!</h3>
+            
+            {/* Live Instant Preview Box */}
+            <div className="p-3 rounded-xl border-2 border-black bg-yellow text-left">
+              <span className="font-mono text-[9px] font-black uppercase text-neutral-600 block">
+                ● LIVE URL (INSTANT PREVIEW)
+              </span>
+              <span className="font-mono text-xs font-black text-black truncate block mt-0.5">
+                {getWorkingUrl()}
+              </span>
+            </div>
 
-            <div className="bg-[#FAF9F6] border border-[#E8E6E0] rounded-xl px-4 py-3 mb-6">
-              <div className="font-mono text-sm text-[#FF5500] font-bold">
-                https://{subdomain}.launchly.site
+            {/* Edge Domain Tag */}
+            <div className="p-2.5 rounded-xl border-2 border-black bg-[#FAF9F6] text-left flex items-center justify-between">
+              <div>
+                <span className="font-mono text-[9px] font-bold text-neutral-500 uppercase block">
+                  Production Edge Subdomain
+                </span>
+                <span className="font-mono text-xs font-bold text-black">
+                  https://{subdomain}.launchly.site
+                </span>
               </div>
+              <button
+                type="button"
+                onClick={handleCopyCustomDomain}
+                className="px-2 py-1 rounded-lg border border-black bg-white hover:bg-yellow font-mono text-[10px] font-bold text-black transition-colors cursor-pointer"
+              >
+                {copiedDomain ? '✓' : 'Copy'}
+              </button>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="space-y-2 pt-1">
               <button
-                onClick={() => window.open(publishedUrl || `/live/${subdomain}`, '_blank')}
-                className="w-full justify-center text-sm py-3 rounded-xl bg-[#FF5500] hover:bg-[#E04800] text-white font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                type="button"
+                onClick={() => {
+                  window.open(getWorkingUrl(), '_blank');
+                }}
+                className="w-full py-2.5 rounded-xl border-2 border-black bg-pink hover:bg-yellow font-display text-xs sm:text-sm font-black text-black shadow-[3px_3px_0px_#000] flex items-center justify-center gap-1.5 cursor-pointer transition-all"
               >
-                <span>Visit Live Website</span>
-                <Globe size={14} />
+                <span>Visit Live Website Now</span>
+                <ArrowUpRight size={15} className="stroke-[3]" />
               </button>
+              
               <button
-                onClick={handleCopy}
-                className="w-full justify-center text-xs py-2.5 rounded-xl border border-[#E8E6E0] bg-white hover:bg-[#FAF9F6] text-[#171717] font-semibold transition-colors cursor-pointer flex items-center gap-1.5"
+                type="button"
+                onClick={handleCopyWorkingUrl}
+                className="w-full py-2 rounded-xl border-2 border-black bg-white hover:bg-neutral-100 font-mono text-xs font-bold text-black shadow-xs cursor-pointer transition-colors"
               >
-                {copied ? <Check size={13} className="text-[#22C55E]" /> : null}
-                <span>{copied ? 'Live Link Copied!' : 'Copy Live Website Link'}</span>
-              </button>
-              <button 
-                onClick={onClose} 
-                className="w-full py-2 text-xs text-[#8A8A8A] hover:text-[#171717] transition-colors cursor-pointer"
-              >
-                Back to Studio Editor
+                {copied ? '✓ Live URL Copied!' : 'Copy Live URL'}
               </button>
             </div>
           </div>

@@ -70,7 +70,7 @@ export default function CTA() {
               DISPATCH FEEDBACK
             </h3>
             <p className="font-mono text-[11px] text-muted-foreground mt-0.5">
-              Direct line to admin inbox: <span className="font-bold text-ink">vardaansaxena096@gmail.com</span>
+              Direct line to our engineering &amp; design team
             </p>
           </div>
         </div>
@@ -82,13 +82,13 @@ export default function CTA() {
             </div>
             <div className="inline-flex items-center gap-1 rounded-full border border-black bg-yellow px-2.5 py-0.5 font-mono text-[10px] font-black uppercase text-black">
               <Sparkles size={10} />
-              DISPATCHED TO ADMIN INBOX
+              TRANSMISSION RECORDED
             </div>
             <h4 className="font-display text-lg font-black text-ink">
               Transmission received!
             </h4>
             <p className="font-mono text-xs text-muted-foreground max-w-md mx-auto">
-              Your note has been saved to the database and delivered directly to Vardaan Saxena's Gmail.
+              Your note has been saved to the database and delivered directly to our product team.
             </p>
             <button
               type="button"
@@ -176,10 +176,7 @@ export default function CTA() {
             </div>
 
             {/* Bottom Row */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-1">
-              <span className="font-mono text-[11px] text-muted-foreground self-start sm:self-center">
-                Delivers to <strong className="text-ink">vardaansaxena096@gmail.com</strong>
-              </span>
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-1">
 
               <button
                 type="submit"
