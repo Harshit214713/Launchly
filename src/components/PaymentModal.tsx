@@ -16,7 +16,6 @@ import {
   Check,
   CreditCard,
   Download,
-  Zap,
 } from 'lucide-react';
 
 interface PaymentModalProps {
@@ -49,7 +48,6 @@ export default function PaymentModal({
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
-  const [autoCheckCount, setAutoCheckCount] = useState(0);
 
   // Generate a unique dynamic session order ID for this checkout
   const [orderSessionId] = useState<string>(() => {
@@ -194,8 +192,6 @@ export default function PaymentModal({
           const data = await res.json();
           if (data.verified) {
             handleAutoVerifyPayment();
-          } else {
-            setAutoCheckCount((prev) => prev + 1);
           }
         }
       } catch {}
@@ -440,30 +436,6 @@ Visit: https://launchly.site/dashboard
                     </div>
                   )}
 
-                  {/* Live Radar Listening Indicator */}
-                  <div className="p-3 rounded-2xl border-2 border-black dark:border-[#26283d] bg-neutral-50 dark:bg-[#151522] shadow-brutal-xs flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="relative flex h-3.5 w-3.5 shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border border-black"></span>
-                      </span>
-                      <div className="text-left truncate">
-                        <p className="font-mono text-[11px] font-black uppercase text-black dark:text-white leading-tight flex items-center gap-1.5">
-                          <span>Auto-Detecting Transfer</span>
-                        </p>
-                        <p className="font-mono text-[10px] text-neutral-500 dark:text-neutral-400 mt-0.5 truncate">
-                          {submitting
-                            ? (verifyStep || 'Validating settlement...')
-                            : `Syncing with bank network${autoCheckCount > 0 ? ` (${autoCheckCount}s)` : ''}...`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="px-2 py-0.5 rounded-md border border-black bg-mint text-black font-mono text-[9px] font-black uppercase tracking-wider shrink-0 shadow-2xs">
-                      ACTIVE
-                    </div>
-                  </div>
-
                   {/* Account Email Information */}
                   {payerEmail ? (
                     <div className="px-3 py-1.5 rounded-xl border border-black/20 dark:border-[#26283d] bg-white dark:bg-[#12121c] flex items-center justify-between text-[11px] font-mono">
@@ -482,28 +454,15 @@ Visit: https://launchly.site/dashboard
                     </div>
                   )}
 
-                  {/* Main Action Button: I've Sent Payment • Auto-Verify Now */}
-                  <button
-                    type="button"
-                    onClick={handleAutoVerifyPayment}
-                    disabled={submitting}
-                    className="brutal-press w-full py-3 px-4 rounded-xl border-[2.5px] border-black bg-pink text-black font-display text-xs sm:text-sm font-black uppercase tracking-wider shadow-brutal hover:bg-pink/90 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin text-black" />
-                        <span>{verifyStep || 'Verifying Settlement...'}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Zap size={16} className="fill-yellow stroke-black stroke-[2]" />
-                        <span>I&apos;ve Paid • Auto-Verify &amp; Activate</span>
-                      </>
-                    )}
-                  </button>
+                  {submitting && (
+                    <div className="p-2.5 rounded-xl border-2 border-black bg-neutral-100 dark:bg-[#151522] text-xs font-mono font-bold text-black dark:text-white flex items-center justify-center gap-2 shadow-brutal-xs">
+                      <Loader2 size={15} className="animate-spin text-pink" />
+                      <span>{verifyStep || 'Payment detected! Verifying...'}</span>
+                    </div>
+                  )}
 
                   <p className="text-center font-mono text-[10px] text-neutral-500 dark:text-neutral-400">
-                    Once paid on your phone, tap above or wait for auto-detection to advance.
+                    Once paid on your phone, wait for auto-detection to advance.
                   </p>
                 </div>
               </>
@@ -602,10 +561,7 @@ Visit: https://launchly.site/dashboard
                         <span>{verifyStep || 'Processing payment...'}</span>
                       </>
                     ) : (
-                      <>
-                        <CreditCard size={16} className="stroke-[2.5]" />
-                        <span>Authorize &amp; Upgrade to Pro</span>
-                      </>
+                      <span>Authorize &amp; Upgrade to Pro</span>
                     )}
                   </button>
                 </div>

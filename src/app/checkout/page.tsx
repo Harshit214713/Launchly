@@ -16,7 +16,6 @@ import {
   AlertCircle,
   QrCode,
   ExternalLink,
-  Zap,
 } from 'lucide-react';
 import BrandWordmark from '@/components/BrandWordmark';
 
@@ -341,10 +340,7 @@ export default function CheckoutPage() {
                       <span>{verifyStep || 'Verifying Settlement...'}</span>
                     </>
                   ) : (
-                    <>
-                      <Zap size={17} className="fill-yellow stroke-black stroke-[2]" />
-                      <span>I&apos;ve Paid • Auto-Verify &amp; Activate</span>
-                    </>
+                    <span>I&apos;ve Paid • Auto-Verify &amp; Activate</span>
                   )}
                 </button>
 
