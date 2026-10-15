@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Grid3X3, LayoutList, Sparkles, X, ArrowUpRight, Key, Loader2, Globe, Layers, Check, ExternalLink } from 'lucide-react';
 import TemplateCard from '@/components/TemplateCard';
 import { TEMPLATES, CATEGORIES, getTemplatesByCategory, searchTemplates } from '@/lib/templates';
@@ -8,10 +9,46 @@ import { Template } from '@/types';
 import Link from 'next/link';
 
 export default function TemplatesPageContent() {
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const urlCategory = searchParams.get('category');
+  const urlQuery = searchParams.get('q');
+
+  const [activeCategory, setActiveCategory] = useState(urlCategory || 'All');
+  const [searchQuery, setSearchQuery] = useState(urlQuery || '');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showPro, setShowPro] = useState<boolean | null>(null);
+
+  // Sync state if URL changes externally (e.g. back/forward button)
+  useEffect(() => {
+    if (urlCategory && urlCategory !== activeCategory) {
+      setActiveCategory(urlCategory);
+    }
+    if (urlQuery !== null && urlQuery !== searchQuery) {
+      setSearchQuery(urlQuery);
+    }
+  }, [urlCategory, urlQuery]);
+
+  // Debounced sync to URL
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (activeCategory && activeCategory !== 'All') {
+        params.set('category', activeCategory);
+      }
+      if (searchQuery.trim()) {
+        params.set('q', searchQuery.trim());
+      }
+      const newQuery = params.toString();
+      const currentQuery = searchParams.toString();
+      if (newQuery !== currentQuery) {
+        router.replace(newQuery ? `/templates?${newQuery}` : '/templates', { scroll: false });
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [activeCategory, searchQuery, router, searchParams]);
 
   // External Creative API state
   const [activeTab, setActiveTab] = useState<'curated' | 'external'>('curated');

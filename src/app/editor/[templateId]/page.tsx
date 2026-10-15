@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, use, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import NextImage from 'next/image';
 import {
@@ -9,10 +9,13 @@ import {
   Plus, Trash2, GripVertical, ChevronRight, Eye, X,
   Bold, Italic, AlignLeft, AlignCenter, AlignRight,
   Check, Loader2, Wand2, ArrowUpRight, Star,
-  SlidersHorizontal, Layout
+  SlidersHorizontal, Layout, Download, ZoomIn, ZoomOut,
+  ArrowUp, ArrowDown
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
+import { exportTemplateAsZip } from '@/lib/zipExport';
+import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/contrast';
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
 type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'assets';
@@ -52,6 +55,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [showAiModal, setShowAiModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [zoomScale, setZoomScale] = useState<number>(1);
+  const [exportingZip, setExportingZip] = useState(false);
 
   // AI Prompt State
   const [aiPrompt, setAiPrompt] = useState('');
@@ -97,6 +102,156 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     desc: 'Export full production Next.js source code anytime. Zero lock-in.',
     buttonText: 'Claim Workspace →',
   });
+
+  // Undo / Redo State Stack
+  interface Snapshot {
+    theme: typeof theme;
+    siteTitle: string;
+    heroContent: typeof heroContent;
+    featuresContent: typeof featuresContent;
+    testimonialsContent: typeof testimonialsContent;
+    ctaContent: typeof ctaContent;
+    sections: typeof sections;
+  }
+
+  const [history, setHistory] = useState<Snapshot[]>([]);
+  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+
+  // Initialize history with initial state
+  useEffect(() => {
+    if (history.length === 0) {
+      setHistory([{
+        theme,
+        siteTitle,
+        heroContent,
+        featuresContent,
+        testimonialsContent,
+        ctaContent,
+        sections,
+      }]);
+      setHistoryIndex(0);
+    }
+  }, []);
+
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const prev = history[historyIndex - 1];
+      setTheme(prev.theme);
+      setSiteTitle(prev.siteTitle);
+      setHeroContent(prev.heroContent);
+      setFeaturesContent(prev.featuresContent);
+      setTestimonialsContent(prev.testimonialsContent);
+      setCtaContent(prev.ctaContent);
+      setSections(prev.sections);
+      setHistoryIndex(historyIndex - 1);
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      const next = history[historyIndex + 1];
+      setTheme(next.theme);
+      setSiteTitle(next.siteTitle);
+      setHeroContent(next.heroContent);
+      setFeaturesContent(next.featuresContent);
+      setTestimonialsContent(next.testimonialsContent);
+      setCtaContent(next.ctaContent);
+      setSections(next.sections);
+      setHistoryIndex(historyIndex + 1);
+    }
+  };
+
+  // Keyboard shortcut listener for Ctrl+Z and Ctrl+Y
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          handleRedo();
+        } else {
+          e.preventDefault();
+          handleUndo();
+        }
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [historyIndex, history]);
+
+  // Section Reordering
+  const moveSection = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sections.length) return;
+    const reordered = [...sections];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+    setSections(reordered);
+  };
+
+  // 1-Click ZIP Export
+  const handleExportZip = async () => {
+    setExportingZip(true);
+    try {
+      const blob = await exportTemplateAsZip({
+        siteTitle,
+        templateId: template.id,
+        theme,
+        heroContent,
+        featuresContent,
+        testimonialsContent,
+        ctaContent,
+        sectionOrder: sections.map((s) => s.id),
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${siteTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'launchly-site'}-nextjs.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('ZIP Export Error:', err);
+    } finally {
+      setExportingZip(false);
+    }
+  };
+
+  // Floating Inline Formatting Toolbar State
+  const [toolbarPos, setToolbarPos] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+        setToolbarPos(null);
+        return;
+      }
+      try {
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        if (rect && rect.width > 0 && rect.height > 0) {
+          const canvasEl = document.querySelector('[data-canvas-frame]');
+          if (canvasEl && canvasEl.contains(range.commonAncestorContainer)) {
+            setToolbarPos({
+              x: Math.max(10, rect.left + rect.width / 2 - 110),
+              y: Math.max(10, rect.top - 46),
+            });
+            return;
+          }
+        }
+      } catch {}
+      setToolbarPos(null);
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, []);
+
+  const applyFormat = (command: string, value: string | undefined = undefined) => {
+    document.execCommand(command, false, value);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -220,34 +375,100 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             <span className="hidden xs:inline">AI</span>
             <span className="hidden sm:inline">Designer</span>
           </button>
-        </div>
 
-        {/* Center: Device Switcher (Desktop only) */}
-        <div className="hidden md:flex items-center gap-1 rounded-2xl border-2 border-black bg-[#FFFDF8] p-1 shadow-[2px_2px_0px_#000]">
-          {([
-            { mode: 'desktop' as const, icon: Monitor, label: 'Desktop' },
-            { mode: 'tablet' as const, icon: Tablet, label: 'Tablet' },
-            { mode: 'mobile' as const, icon: Smartphone, label: 'Mobile' },
-          ]).map(({ mode, icon: Icon, label }) => (
+          {/* Undo / Redo Buttons */}
+          <div className="hidden sm:flex items-center gap-1 rounded-xl border-2 border-black bg-[#FAF9F6] p-0.5 shadow-[1.5px_1.5px_0px_#000]">
             <button
-              key={mode}
-              onClick={() => setDeviceMode(mode)}
-              className={cn(
-                'px-2.5 py-1 rounded-xl font-mono text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer',
-                deviceMode === mode
-                  ? 'bg-yellow text-black border-2 border-black shadow-[1.5px_1.5px_0px_#000]'
-                  : 'text-neutral-500 hover:text-black border-2 border-transparent'
-              )}
-              title={label}
+              type="button"
+              onClick={handleUndo}
+              disabled={historyIndex <= 0}
+              className="p-1.5 rounded-lg text-black hover:bg-neutral-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+              title="Undo (Ctrl+Z)"
             >
-              <Icon size={14} className="stroke-[2.5]" />
-              <span>{label}</span>
+              <Undo2 size={13} className="stroke-[2.5]" />
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={handleRedo}
+              disabled={historyIndex >= history.length - 1}
+              className="p-1.5 rounded-lg text-black hover:bg-neutral-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+              title="Redo (Ctrl+Y)"
+            >
+              <Redo2 size={13} className="stroke-[2.5]" />
+            </button>
+          </div>
         </div>
 
-        {/* Right: Save & Publish */}
+        {/* Center: Device Switcher & Zoom Controls (Desktop only) */}
+        <div className="hidden md:flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-2xl border-2 border-black bg-[#FFFDF8] p-1 shadow-[2px_2px_0px_#000]">
+            {([
+              { mode: 'desktop' as const, icon: Monitor, label: 'Desktop' },
+              { mode: 'tablet' as const, icon: Tablet, label: 'Tablet' },
+              { mode: 'mobile' as const, icon: Smartphone, label: 'Mobile' },
+            ]).map(({ mode, icon: Icon, label }) => (
+              <button
+                key={mode}
+                onClick={() => setDeviceMode(mode)}
+                className={cn(
+                  'px-2.5 py-1 rounded-xl font-mono text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer',
+                  deviceMode === mode
+                    ? 'bg-yellow text-black border-2 border-black shadow-[1.5px_1.5px_0px_#000]'
+                    : 'text-neutral-500 hover:text-black border-2 border-transparent'
+                )}
+                title={label}
+              >
+                <Icon size={14} className="stroke-[2.5]" />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Zoom Controls */}
+          <div className="hidden xl:flex items-center gap-1 rounded-xl border-2 border-black bg-[#FFFDF8] px-2 py-1 shadow-[1.5px_1.5px_0px_#000] font-mono text-[11px] font-bold">
+            <button
+              type="button"
+              onClick={() => setZoomScale((prev) => Math.max(0.5, Number((prev - 0.1).toFixed(1))))}
+              className="p-0.5 hover:bg-neutral-200 rounded cursor-pointer text-black"
+              title="Zoom Out"
+            >
+              <ZoomOut size={12} />
+            </button>
+            <span className="min-w-[34px] text-center text-black">{Math.round(zoomScale * 100)}%</span>
+            <button
+              type="button"
+              onClick={() => setZoomScale((prev) => Math.min(1.5, Number((prev + 0.1).toFixed(1))))}
+              className="p-0.5 hover:bg-neutral-200 rounded cursor-pointer text-black"
+              title="Zoom In"
+            >
+              <ZoomIn size={12} />
+            </button>
+            {zoomScale !== 1 && (
+              <button
+                type="button"
+                onClick={() => setZoomScale(1)}
+                className="text-[9px] text-pink font-black uppercase cursor-pointer ml-1"
+                title="Reset zoom"
+              >
+                100%
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Save, Export ZIP & Publish */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleExportZip}
+            disabled={exportingZip}
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-yellow hover:bg-yellow/90 font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer disabled:opacity-50"
+            title="Download Next.js 15 source code as a ZIP archive"
+          >
+            {exportingZip ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} className="stroke-[2.5]" />}
+            <span>{exportingZip ? 'Exporting…' : 'Export .zip'}</span>
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -368,7 +589,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             {(leftPanel === 'sections' || mobileTab === 'sections') && (
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  {sections.map((section) => (
+                  {sections.map((section, idx) => (
                     <div
                       key={section.id}
                       onClick={() => {
@@ -382,7 +603,28 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                           : 'border-black/15 bg-white hover:border-black hover:bg-neutral-50 text-neutral-800 shadow-xs'
                       )}
                     >
-                      <GripVertical size={13} className="opacity-40 shrink-0" />
+                      {/* Section Reorder Controls */}
+                      <div className="flex flex-col gap-0.5 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={(e) => { e.stopPropagation(); moveSection(idx, 'up'); }}
+                          className="hover:text-black disabled:opacity-20 cursor-pointer p-0.5"
+                          title="Move section up"
+                        >
+                          <ArrowUp size={10} className="stroke-[3]" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === sections.length - 1}
+                          onClick={(e) => { e.stopPropagation(); moveSection(idx, 'down'); }}
+                          className="hover:text-black disabled:opacity-20 cursor-pointer p-0.5"
+                          title="Move section down"
+                        >
+                          <ArrowDown size={10} className="stroke-[3]" />
+                        </button>
+                      </div>
+
                       <span className="font-mono text-xs flex-1 truncate">{section.name}</span>
                       <button
                         type="button"
@@ -467,6 +709,39 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                     ))}
                   </div>
                 </div>
+
+                {/* Real-time WCAG Contrast Checker */}
+                {(() => {
+                  const textContrast = getContrastRatio(theme.textColor, theme.bgColor);
+                  const textWcag = getWcagLevel(textContrast);
+                  return (
+                    <div className="p-3 rounded-xl border-2 border-black bg-white shadow-brutal-xs space-y-2 mt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[10px] font-bold uppercase text-neutral-600">
+                          WCAG Contrast
+                        </span>
+                        <span
+                          style={{ backgroundColor: textWcag.color }}
+                          className="px-2 py-0.5 rounded-full border border-black font-mono text-[9px] font-black text-black"
+                        >
+                          {textContrast}:1 ({textWcag.level})
+                        </span>
+                      </div>
+                      <p className="font-mono text-[10px] text-neutral-500 leading-tight">
+                        Readability ratio between base text and canvas background.
+                      </p>
+                      {!textWcag.pass && (
+                        <button
+                          type="button"
+                          onClick={() => setTheme(prev => ({ ...prev, textColor: suggestAccessibleColor(prev.textColor, prev.bgColor) }))}
+                          className="w-full py-1 px-2 rounded-lg border border-black bg-yellow text-black font-mono text-[10px] font-bold hover:bg-pink transition-colors cursor-pointer"
+                        >
+                          Auto-Fix Contrast (to 4.5:1)
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -485,9 +760,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
           {/* Browser Frame */}
           <div
-            className="relative z-10 bg-white rounded-2xl border-[3px] sm:border-[3.5px] border-black shadow-[6px_6px_0px_#000] sm:shadow-[10px_10px_0px_#000] transition-all duration-300 overflow-hidden flex flex-col w-full max-w-full"
+            className="relative z-10 bg-white rounded-2xl border-[3px] sm:border-[3.5px] border-black shadow-[6px_6px_0px_#000] sm:shadow-[10px_10px_0px_#000] transition-all duration-300 overflow-hidden flex flex-col w-full max-w-full origin-top"
             style={{
               width: typeof window !== 'undefined' && window.innerWidth < 768 ? '100%' : DEVICE_WIDTHS[deviceMode],
+              transform: `scale(${zoomScale})`,
               minHeight: '800px',
             }}
           >
@@ -508,7 +784,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             </div>
 
             {/* Editable Content Frame */}
-            <div className="flex-1 overflow-y-auto">
+            <div data-canvas-frame className="flex-1 overflow-y-auto">
               <CanvasContent
                 sections={sections}
                 selectedSection={selectedSection}
@@ -703,6 +979,55 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             ctaContent,
           }}
         />
+      )}
+
+      {/* Floating Inline Formatting Toolbar */}
+      {toolbarPos && (
+        <div
+          style={{ top: toolbarPos.y, left: toolbarPos.x }}
+          className="fixed z-[120] flex items-center gap-1 p-1 bg-white dark:bg-[#181824] rounded-xl border-2 border-black shadow-[3px_3px_0px_#000] animate-in fade-in zoom-in-95"
+        >
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); applyFormat('bold'); }}
+            className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 font-bold text-xs cursor-pointer text-black dark:text-white"
+            title="Bold"
+          >
+            <Bold size={13} className="stroke-[3]" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); applyFormat('italic'); }}
+            className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 font-bold text-xs cursor-pointer text-black dark:text-white"
+            title="Italic"
+          >
+            <Italic size={13} className="stroke-[3]" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); applyFormat('underline'); }}
+            className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 font-mono text-xs font-black underline cursor-pointer text-black dark:text-white"
+            title="Underline"
+          >
+            U
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); applyFormat('hiliteColor', '#FFD600'); }}
+            className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer flex items-center"
+            title="Highlight Yellow"
+          >
+            <span className="w-3.5 h-3.5 rounded-full bg-yellow border border-black inline-block" />
+          </button>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); applyFormat('removeFormat'); }}
+            className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 font-mono text-[10px] font-bold cursor-pointer text-neutral-500 hover:text-black dark:hover:text-white"
+            title="Clear formatting"
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );

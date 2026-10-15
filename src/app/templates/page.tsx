@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -13,7 +14,9 @@ export default function TemplatesPage() {
     <main>
       <Navbar />
       <div className="pt-16">
-        <TemplatesPageContent />
+        <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center font-mono text-xs uppercase tracking-widest text-neutral-500">Loading catalog...</div>}>
+          <TemplatesPageContent />
+        </Suspense>
       </div>
       <Footer />
     </main>
