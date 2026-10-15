@@ -92,7 +92,8 @@ export async function exportTemplateAsZip({
   // 3. README.md
   const readme = `# ${siteTitle}
 
-Exported from [Launchly](https://launchly.site) — Production-ready Next.js 15 App Router website.
+Exported from [Launchly](https://launchly.site) (Template: ${templateId}) — Production-ready Next.js 15 App Router website.
+Configured sections: ${sectionOrder.join(', ')}.
 
 ## Getting Started
 

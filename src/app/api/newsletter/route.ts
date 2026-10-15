@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       ...result,
       totalSubscribers: total,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, message: 'Failed to process subscription. Please try again.' },
       { status: 500 }

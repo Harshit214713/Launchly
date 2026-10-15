@@ -29,7 +29,7 @@ export default function Navbar() {
 
   useEffect(() => {
     if (document.documentElement.classList.contains('dark')) {
-      setIsDark(true);
+      requestAnimationFrame(() => setIsDark(true));
     }
     fetch('/api/auth/me')
       .then((r) => r.json())

@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, use, useEffect, useRef } from 'react';
+import { useState, use, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import NextImage from 'next/image';
 import {
   Undo2, Redo2, Monitor, Tablet, Smartphone, Save, Globe,
   Layers, Type, Image as ImageIcon, Palette, Settings,
-  Plus, Trash2, GripVertical, ChevronRight, Eye, X,
+  Plus, Trash2, ChevronRight, Eye, X,
   Bold, Italic, AlignLeft, AlignCenter, AlignRight,
   Check, Loader2, Wand2, ArrowUpRight, Star,
   SlidersHorizontal, Layout, Download, ZoomIn, ZoomOut,
@@ -114,26 +114,45 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     sections: typeof sections;
   }
 
-  const [history, setHistory] = useState<Snapshot[]>([]);
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  const [history] = useState<Snapshot[]>(() => [{
+    theme: {
+      primaryColor: template.accent || '#FF5588',
+      bgColor: template.bgColor || '#0F0F11',
+      textColor: template.textColor || '#FFFFFF',
+      fontFamily: 'Inter, sans-serif',
+      borderRadius: '16px',
+    },
+    siteTitle: template.name || 'My Website',
+    heroContent: {
+      badge: `${template.category} // ${template.badge || 'PRO'}`,
+      title: template.name,
+      description: template.description,
+      ctaPrimary: 'Launch Experience',
+      ctaSecondary: 'Documentation',
+      stat1Label: 'RUNTIME VELOCITY',
+      stat1Value: '4.2M Tokens/s',
+      stat2Label: 'ZERO-SHOT BENCHMARK',
+      stat2Value: '99.98% SLA',
+    },
+    featuresContent: [
+      { title: 'Deterministic Edge', desc: 'Global sub-millisecond propagation with zero cold starts across 300+ edge nodes.' },
+      { title: 'Neural Reasoning', desc: 'Integrated multi-agent execution pipeline with instant structured telemetry.' },
+      { title: 'Zero Friction', desc: 'Production-ready Next.js 15 App Router architecture with full TypeScript safety.' },
+    ],
+    testimonialsContent: [
+      { quote: 'Shipped our client flagship in less than 3 hours. The aesthetic level is completely unmatched.', name: 'Tanisha M.', role: 'Lead Product Designer' },
+      { quote: 'The cleanest Next.js export in the industry. Saved our startup weeks of frontend scaffolding.', name: 'Divyam J.', role: 'Founding Engineer' }
+    ],
+    ctaContent: {
+      title: 'Start building today.',
+      desc: 'Export full production Next.js source code anytime. Zero lock-in.',
+      buttonText: 'Claim Workspace →',
+    },
+    sections,
+  }]);
+  const [historyIndex, setHistoryIndex] = useState<number>(0);
 
-  // Initialize history with initial state
-  useEffect(() => {
-    if (history.length === 0) {
-      setHistory([{
-        theme,
-        siteTitle,
-        heroContent,
-        featuresContent,
-        testimonialsContent,
-        ctaContent,
-        sections,
-      }]);
-      setHistoryIndex(0);
-    }
-  }, []);
-
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
       const prev = history[historyIndex - 1];
       setTheme(prev.theme);
@@ -145,9 +164,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       setSections(prev.sections);
       setHistoryIndex(historyIndex - 1);
     }
-  };
+  }, [historyIndex, history]);
 
-  const handleRedo = () => {
+  const handleRedo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const next = history[historyIndex + 1];
       setTheme(next.theme);
@@ -159,7 +178,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       setSections(next.sections);
       setHistoryIndex(historyIndex + 1);
     }
-  };
+  }, [historyIndex, history]);
 
   // Keyboard shortcut listener for Ctrl+Z and Ctrl+Y
   useEffect(() => {
@@ -179,7 +198,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [historyIndex, history]);
+  }, [handleUndo, handleRedo]);
 
   // Section Reordering
   const moveSection = (index: number, direction: 'up' | 'down') => {
@@ -322,8 +341,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   };
 
   const addSection = (type: string) => {
+    const sectionIndex = sections.length + 1;
     const newSection: Section = {
-      id: `section-${Date.now()}`,
+      id: `section-${type}-${sectionIndex}`,
       name: type.charAt(0).toUpperCase() + type.slice(1),
       type,
     };
@@ -337,7 +357,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#FAF9F6] text-[#0F0F11] overflow-hidden select-none">
+    <div className="h-screen flex flex-col bg-[#FAF9F6] text-[#0F0F11] overflow-hidden">
       {/* Neo-brutalist Top Toolbar - Fully Responsive */}
       <header className="h-14 sm:h-16 bg-white border-b-[3px] border-black flex items-center justify-between px-2.5 sm:px-5 z-50 shrink-0 shadow-[0_2px_0_#000]">
         {/* Left: Logo, Site Name */}
@@ -1047,10 +1067,10 @@ function CanvasContent({
   selectedSection: string | null;
   theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
   siteTitle: string;
-  heroContent: any;
-  featuresContent: any[];
-  testimonialsContent: any[];
-  ctaContent: any;
+  heroContent: Record<string, string>;
+  featuresContent: Array<{ title: string; desc: string }>;
+  testimonialsContent: Array<{ quote: string; name: string; role: string }>;
+  ctaContent: { title: string; desc: string; buttonText: string };
 }) {
   return (
     <div style={{ fontFamily: theme.fontFamily }} className="min-h-full flex flex-col">
@@ -1085,10 +1105,10 @@ function SectionRenderer({
   isSelected: boolean;
   theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
   siteTitle: string;
-  heroContent: any;
-  featuresContent: any[];
-  testimonialsContent: any[];
-  ctaContent: any;
+  heroContent: Record<string, string>;
+  featuresContent: Array<{ title: string; desc: string }>;
+  testimonialsContent: Array<{ quote: string; name: string; role: string }>;
+  ctaContent: { title: string; desc: string; buttonText: string };
 }) {
   return (
     <div
@@ -1216,7 +1236,7 @@ function SectionRenderer({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 max-w-4xl mx-auto">
-            {featuresContent.map((f: any, i: number) => (
+            {featuresContent.map((f: { title: string; desc: string }, i: number) => (
               <div
                 key={i}
                 className="p-4 sm:p-5 rounded-2xl border-2 border-black bg-[#FAF9F6] shadow-[3px_3px_0px_#000] sm:shadow-[4px_4px_0px_#000]"
@@ -1249,7 +1269,7 @@ function SectionRenderer({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 max-w-3xl mx-auto">
-            {testimonialsContent.map((item: any, idx: number) => (
+            {testimonialsContent.map((item: { quote: string; name: string; role: string }, idx: number) => (
               <div key={idx} className="p-4 sm:p-6 rounded-2xl border-2 border-black bg-white shadow-[3px_3px_0px_#000] sm:shadow-[4px_4px_0px_#000] flex flex-col justify-between">
                 <div className="flex gap-1 mb-2.5">
                   {[...Array(5)].map((_, i) => (
@@ -1433,7 +1453,7 @@ function PublishDialog({
   onClose: () => void; 
   siteName: string; 
   templateId: string; 
-  sitePayload?: any;
+  sitePayload?: Record<string, unknown>;
 }) {
   const [step, setStep] = useState<'form' | 'publishing' | 'success'>('form');
   const [subdomain, setSubdomain] = useState(siteName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
@@ -1442,6 +1462,12 @@ function PublishDialog({
   const [copiedDomain, setCopiedDomain] = useState(false);
 
   const getWorkingUrl = () => {
+    if (publishedUrl) {
+      if (typeof window !== 'undefined' && publishedUrl.startsWith('/')) {
+        return `${window.location.origin}${publishedUrl}`;
+      }
+      return publishedUrl;
+    }
     if (typeof window !== 'undefined') {
       return `${window.location.origin}/live/${subdomain}`;
     }

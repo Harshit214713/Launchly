@@ -63,6 +63,13 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${spaceMono.variable} ${orbitron.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-[#faf8f5] dark:bg-[#0a0b12] text-[#111111] dark:text-[#f4f4f8] font-sans selection:bg-[#111111] selection:text-white dark:selection:bg-white dark:selection:text-black">
         {children}
       </body>

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import QRCode from 'qrcode';
 import {
   X,
@@ -34,7 +34,7 @@ export default function PaymentModal({
   isOpen,
   onClose,
   itemName = 'Launchly Pro Creator',
-  price = '$19',
+  price,
   planId = 'pro',
   billingCycle = 'monthly',
   onPaymentComplete,
@@ -52,10 +52,12 @@ export default function PaymentModal({
   const [error, setError] = useState('');
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
-  const [upiLink, setUpiLink] = useState<string>('');
 
   // Calculate prefilled UPI amount based on selected plan
   const getAmountDetails = () => {
+    if (price) {
+      return { inr: 1499, label: price };
+    }
     if (planId === 'pro') {
       if (billingCycle === 'yearly') {
         return { inr: 11999, label: '₹11,999 / yr ($159)' };
@@ -70,19 +72,20 @@ export default function PaymentModal({
 
   const amountInfo = getAmountDetails();
 
+  const payeeVpa = '7428938113@ptaxis';
+  const payeeName = 'VARDAAN SAXENA';
+  const note = `Launchly ${itemName} (${billingCycle})`;
+
+  // Derived UPI URI with prefilled amount
+  const upiLink = useMemo(() => {
+    return `upi://pay?pa=${payeeVpa}&pn=${encodeURIComponent(payeeName)}&am=${amountInfo.inr}.00&cu=INR&tn=${encodeURIComponent(note)}`;
+  }, [payeeVpa, payeeName, amountInfo.inr, note]);
+
   // Generate dynamic QR code encoding the exact amount in UPI protocol
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !upiLink) return;
 
-    const payeeVpa = '7428938113@ptaxis';
-    const payeeName = 'VARDAAN SAXENA';
-    const note = `Launchly ${itemName} (${billingCycle})`;
-
-    // Standard UPI URI with prefilled amount
-    const upiUri = `upi://pay?pa=${payeeVpa}&pn=${encodeURIComponent(payeeName)}&am=${amountInfo.inr}.00&cu=INR&tn=${encodeURIComponent(note)}`;
-    setUpiLink(upiUri);
-
-    QRCode.toDataURL(upiUri, {
+    QRCode.toDataURL(upiLink, {
       width: 260,
       margin: 1,
       color: {
@@ -95,7 +98,7 @@ export default function PaymentModal({
         console.error('QR code generation error:', err);
         setQrDataUrl('/payment-qr.png');
       });
-  }, [isOpen, itemName, billingCycle, amountInfo.inr]);
+  }, [isOpen, upiLink]);
 
   if (!isOpen) return null;
 
@@ -186,8 +189,9 @@ export default function PaymentModal({
       if (onPaymentComplete) {
         onPaymentComplete(cleanTxn);
       }
-    } catch (err: any) {
-      setError(err?.message || 'Unable to verify payment. Please double-check your UTR.');
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Unable to verify payment. Please double-check your UTR.';
+      setError(errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -314,9 +318,12 @@ Visit: https://launchly.site/dashboard
                 <div className="p-3.5 rounded-2xl border-2 border-black dark:border-[#262638] bg-white dark:bg-[#12121c] flex flex-col items-center justify-center shadow-brutal-sm text-center">
                   <div className="w-38 h-38 sm:w-42 sm:h-42 rounded-xl border-2 border-black bg-white p-2 flex items-center justify-center shadow-inner">
                     {qrDataUrl ? (
-                      <img
+                      <Image
                         src={qrDataUrl}
                         alt="UPI Payment QR Code"
+                        width={160}
+                        height={160}
+                        unoptimized
                         className="w-full h-full object-contain rounded-lg"
                       />
                     ) : (

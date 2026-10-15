@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { recordPayment, findUserByEmail } from '@/lib/db';
+import { recordPayment } from '@/lib/db';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: Request) {
@@ -23,8 +23,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify format: standard UPI UTR is typically 12 numeric digits or alphanumeric ref
-    const isStandardUTR = /^[0-9]{12}$/.test(cleanTxnId);
+    // Verify format: reference number must be at least 8 characters
     const isValidRef = cleanTxnId.length >= 8;
 
     if (!isValidRef) {
@@ -72,10 +71,11 @@ export async function POST(request: Request) {
       payment: result.payment
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Payment verification error:', error);
+    const message = error instanceof Error ? error.message : 'Server error during verification.';
     return NextResponse.json(
-      { success: false, message: error?.message || 'Server error during verification.' },
+      { success: false, message },
       { status: 500 }
     );
   }

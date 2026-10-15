@@ -6,11 +6,7 @@ import {
   Layers, 
   Sparkles, 
   Zap, 
-  Globe, 
-  Sliders, 
-  Download,
-  Palette,
-  ShieldCheck
+  Globe
 } from 'lucide-react';
 
 const FEATURES = [

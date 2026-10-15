@@ -8,8 +8,9 @@ import {
   TrendingUp, Clock, LayoutTemplate, ChevronRight,
   Settings, LogOut, Search, Sparkles, Check, Menu, X,
   Sun, Moon, ArrowRight, Layers, ShieldCheck, User as UserIcon,
-  Loader2, ExternalLink, Calendar, Mail, Zap, CheckCircle2, Crown
+  Loader2, ExternalLink, Mail, Zap, CheckCircle2, Crown
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { TEMPLATES } from '@/lib/templates';
 import { cn, formatDate } from '@/lib/utils';
 import BrandWordmark from '@/components/BrandWordmark';
@@ -35,6 +36,7 @@ interface UserProfile {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const [websites, setWebsites] = useState<WebsiteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -52,15 +54,16 @@ export default function Dashboard() {
   // Compute time of day greeting
   useEffect(() => {
     const hours = new Date().getHours();
-    if (hours < 12) setGreetingTime('Good Morning');
-    else if (hours < 17) setGreetingTime('Good Afternoon');
-    else setGreetingTime('Good Evening');
+    const greeting = hours < 12 ? 'Good Morning' : hours < 17 ? 'Good Afternoon' : 'Good Evening';
+    requestAnimationFrame(() => setGreetingTime(greeting));
   }, []);
 
   // Sync theme with document class
   useEffect(() => {
     const isDarkMode = document.documentElement.classList.contains('dark');
-    setIsDark(isDarkMode);
+    if (isDarkMode) {
+      requestAnimationFrame(() => setIsDark(true));
+    }
   }, []);
 
   const toggleDarkMode = () => {
@@ -105,14 +108,14 @@ export default function Dashboard() {
         if (sitesRes.ok) {
           const sitesData = await sitesRes.json();
           if (mounted && sitesData.success && Array.isArray(sitesData.sites)) {
-            const realSites: WebsiteItem[] = sitesData.sites.map((s: any) => ({
-              id: s.id,
-              name: s.name || 'Untitled Site',
-              templateId: s.templateId || 'neuro-ai',
-              status: s.status || 'live',
-              subdomain: s.subdomain,
-              updatedAt: s.updatedAt || s.createdAt || new Date().toISOString(),
-              createdAt: s.createdAt || new Date().toISOString(),
+            const realSites: WebsiteItem[] = sitesData.sites.map((s: Record<string, unknown>) => ({
+              id: String(s.id),
+              name: String(s.name || 'Untitled Site'),
+              templateId: String(s.templateId || 'neuro-ai'),
+              status: (s.status === 'published' || s.status === 'live' || s.status === 'draft') ? s.status : 'live',
+              subdomain: String(s.subdomain || ''),
+              updatedAt: String(s.updatedAt || s.createdAt || new Date().toISOString()),
+              createdAt: String(s.createdAt || new Date().toISOString()),
               views: typeof s.views === 'number' ? s.views : 1,
             }));
             setWebsites(realSites);
@@ -185,7 +188,7 @@ export default function Dashboard() {
     } catch (err) {
       console.error('[Dashboard] Logout error:', err);
     }
-    window.location.href = '/login';
+    router.push('/login');
   };
 
   // Real-time account calculations

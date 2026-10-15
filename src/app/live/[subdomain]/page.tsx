@@ -116,12 +116,14 @@ export default function LiveWebsitePage({
 
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed.siteName) setSiteTitle(parsed.siteName);
-          if (parsed.theme) setTheme(parsed.theme);
-          if (parsed.heroContent) setHeroContent(parsed.heroContent);
-          if (parsed.featuresContent) setFeaturesContent(parsed.featuresContent);
-          if (parsed.testimonialsContent) setTestimonialsContent(parsed.testimonialsContent);
-          if (parsed.ctaContent) setCtaContent(parsed.ctaContent);
+          requestAnimationFrame(() => {
+            if (parsed.siteName) setSiteTitle(parsed.siteName);
+            if (parsed.theme) setTheme(parsed.theme);
+            if (parsed.heroContent) setHeroContent(parsed.heroContent);
+            if (parsed.featuresContent) setFeaturesContent(parsed.featuresContent);
+            if (parsed.testimonialsContent) setTestimonialsContent(parsed.testimonialsContent);
+            if (parsed.ctaContent) setCtaContent(parsed.ctaContent);
+          });
           return;
         }
       } catch {}
@@ -154,11 +156,6 @@ export default function LiveWebsitePage({
       setTimeout(() => setCopied(false), 2000);
     }
   };
-
-  const isDark = 
-    theme.bgColor.toLowerCase().startsWith('#0') || 
-    theme.bgColor.toLowerCase().startsWith('#1') || 
-    theme.textColor === '#FFFFFF';
 
   return (
     <div 

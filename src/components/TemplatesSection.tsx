@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Search, ArrowRight, X, Filter } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, ArrowRight, X } from 'lucide-react';
 import TemplateCard from './TemplateCard';
 import { TEMPLATES, CATEGORIES } from '@/lib/templates';
 import { Template } from '@/types';
 
 export default function TemplatesSection() {
+  const router = useRouter();
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPlan, setFilterPlan] = useState<'all' | 'free' | 'pro'>('all');
@@ -31,11 +33,11 @@ export default function TemplatesSection() {
   });
 
   const handleCustomize = (template: Template) => {
-    window.location.href = `/editor/${template.id}`;
+    router.push(`/editor/${template.id}`);
   };
 
   return (
-    <section id="templates" className="pt-4 sm:pt-6 pb-6 sm:pb-8 px-4 sm:px-6 bg-background overflow-hidden">
+    <section id="templates" className="scroll-mt-20 pt-4 sm:pt-6 pb-6 sm:pb-8 px-4 sm:px-6 bg-background overflow-hidden">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">

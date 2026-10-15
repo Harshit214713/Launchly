@@ -21,12 +21,7 @@ import {
   Play,
   Terminal,
   Code2,
-  Copy,
-  Zap,
-  CheckCheck,
-  Cpu,
-  Layers,
-  Activity
+  Copy
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 import { notFound } from 'next/navigation';
@@ -349,7 +344,7 @@ export default function TemplatePreviewPage({
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-2 border-black font-mono text-[11px] sm:text-xs font-black uppercase text-black shadow-[2px_2px_0px_#000] mb-5"
                     style={{ backgroundColor: currentAccent }}
                   >
-                    <span>{template.category.toUpperCase()} // {template.badge?.toUpperCase() || 'POPULAR'}</span>
+                    <span>{template.category.toUpperCase()}{' // '}{template.badge?.toUpperCase() || 'POPULAR'}</span>
                   </div>
 
                   <h1 className={`font-display text-4xl sm:text-6xl font-black tracking-tight mb-4 leading-[1.08] ${
@@ -559,7 +554,7 @@ export default function TemplatePreviewPage({
                     {activeSection} View
                   </span>
                   <h3 className={`text-3xl font-black mt-1 capitalize ${isDarkTemplate ? 'text-white' : 'text-black'}`}>
-                    {template.name} // {activeSection}
+                    {template.name}{' // '}{activeSection}
                   </h3>
                   <p className="text-xs text-neutral-400 mt-2 max-w-lg mx-auto">
                     Interactive modular architecture. Click any item to explore simulated telemetry.

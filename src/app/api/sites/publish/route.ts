@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(result);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, message: 'Internal error deploying website.' },
       { status: 500 }

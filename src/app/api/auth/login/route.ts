@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     });
 
     return response;
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, message: 'Server error during login.' },
       { status: 500 }

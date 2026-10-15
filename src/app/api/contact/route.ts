@@ -37,10 +37,11 @@ export async function POST(request: Request) {
       emailDelivered: emailResult.success,
       deliveryMethod: emailResult.method,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Feedback dispatch error:', error);
+    const message = error instanceof Error ? error.message : 'Internal error processing request.';
     return NextResponse.json(
-      { success: false, message: error?.message || 'Internal error processing request.' },
+      { success: false, message },
       { status: 500 }
     );
   }

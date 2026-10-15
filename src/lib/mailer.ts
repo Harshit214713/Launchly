@@ -76,8 +76,8 @@ export async function sendFeedbackEmail({
       });
 
       return { success: true, method: 'smtp' };
-    } catch (err: any) {
-      console.warn('SMTP transport error, falling back to FormSubmit service:', err?.message);
+    } catch (err: unknown) {
+      console.warn('SMTP transport error, falling back to FormSubmit service:', err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -105,7 +105,7 @@ export async function sendFeedbackEmail({
     if (res.ok) {
       return { success: true, method: 'formsubmit' };
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('FormSubmit error:', err);
   }
 

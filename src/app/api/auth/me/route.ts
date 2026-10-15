@@ -15,8 +15,8 @@ export async function GET() {
     if (cachedUser?.email) {
       const freshUser = await findUserByEmail(cachedUser.email);
       if (freshUser) {
-        const { passwordHash, ...safeUser } = freshUser;
-        return NextResponse.json({ authenticated: true, user: safeUser });
+        const { id, name, email, plan, createdAt, avatar } = freshUser;
+        return NextResponse.json({ authenticated: true, user: { id, name, email, plan, createdAt, avatar } });
       }
     }
     return NextResponse.json({ authenticated: true, user: cachedUser });

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Grid3X3, LayoutList, Sparkles, X, ArrowUpRight, Key, Loader2, Globe, Layers, Check, ExternalLink } from 'lucide-react';
+import Image from 'next/image';
+import { Search, Grid3X3, LayoutList, X, Key, Loader2, Globe } from 'lucide-react';
 import TemplateCard from '@/components/TemplateCard';
-import { TEMPLATES, CATEGORIES, getTemplatesByCategory, searchTemplates } from '@/lib/templates';
+import { CATEGORIES, getTemplatesByCategory, searchTemplates } from '@/lib/templates';
 import { Template } from '@/types';
 import Link from 'next/link';
 
@@ -23,12 +24,12 @@ export default function TemplatesPageContent() {
   // Sync state if URL changes externally (e.g. back/forward button)
   useEffect(() => {
     if (urlCategory && urlCategory !== activeCategory) {
-      setActiveCategory(urlCategory);
+      requestAnimationFrame(() => setActiveCategory(urlCategory));
     }
     if (urlQuery !== null && urlQuery !== searchQuery) {
-      setSearchQuery(urlQuery);
+      requestAnimationFrame(() => setSearchQuery(urlQuery));
     }
-  }, [urlCategory, urlQuery]);
+  }, [urlCategory, urlQuery, activeCategory, searchQuery]);
 
   // Debounced sync to URL
   useEffect(() => {
@@ -62,8 +63,10 @@ export default function TemplatesPageContent() {
   useEffect(() => {
     const stored = localStorage.getItem('launchly_unsplash_key');
     if (stored) {
-      setApiKey(stored);
-      setSavedKey(stored);
+      requestAnimationFrame(() => {
+        setApiKey(stored);
+        setSavedKey(stored);
+      });
     }
   }, []);
 
@@ -72,7 +75,7 @@ export default function TemplatesPageContent() {
     if (activeTab !== 'external') return;
 
     let mounted = true;
-    setLoadingExternal(true);
+    requestAnimationFrame(() => setLoadingExternal(true));
 
     const queryParam = searchQuery || (activeCategory !== 'All' ? `${activeCategory} modern website design` : 'minimalist website design');
     const url = `/api/templates/external?query=${encodeURIComponent(queryParam)}${savedKey ? `&apiKey=${encodeURIComponent(savedKey)}` : ''}`;
@@ -130,7 +133,7 @@ export default function TemplatesPageContent() {
   })();
 
   const handleCustomize = (template: Template) => {
-    window.location.href = `/editor/${template.id}`;
+    router.push(`/editor/${template.id}`);
   };
 
   return (
@@ -429,7 +432,7 @@ function TemplateListItem({ template, onCustomize }: { template: Template; onCus
           style={{ background: template.bgColor || '#171720' }}
         >
           {template.thumbnail && template.thumbnail.startsWith('http') ? (
-            <img src={template.thumbnail} alt={template.name} className="w-full h-full object-cover" />
+            <Image src={template.thumbnail} alt={template.name} fill className="object-cover" sizes="96px" />
           ) : (
             template.category
           )}

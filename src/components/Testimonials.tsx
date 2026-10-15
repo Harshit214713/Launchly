@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Star } from 'lucide-react';
 
 const TESTIMONIALS = [
@@ -129,11 +130,15 @@ export default function Testimonials() {
             {/* Author */}
             <div className="flex items-center gap-3 pt-4 border-t-[2px] border-ink/15">
               {'image' in item && item.image ? (
-                <img
-                  src={item.image}
-                  alt={item.name}
-                  className="h-11 w-11 rounded-xl border-2 border-ink object-cover shadow-brutal-sm shrink-0"
-                />
+                <div className="relative h-11 w-11 rounded-xl border-2 border-ink overflow-hidden shadow-brutal-sm shrink-0">
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    width={44}
+                    height={44}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
               ) : (
                 <div
                   className={`h-11 w-11 rounded-xl border-2 border-ink ${item.avatarBg} font-mono font-black text-black flex items-center justify-center text-xs shadow-brutal-sm shrink-0`}

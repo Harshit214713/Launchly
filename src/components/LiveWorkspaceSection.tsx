@@ -9,9 +9,7 @@ import {
   Copy, 
   Check, 
   Sparkles, 
-  ArrowUpRight, 
-  Sliders, 
-  Play
+  ArrowUpRight
 } from 'lucide-react';
 
 const COLOR_THEMES = [
@@ -30,9 +28,6 @@ export default function LiveWorkspaceSection() {
   const [ctaText, setCtaText] = useState('Get Started Free');
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'code' | 'props'>('code');
-  const [customInput, setCustomInput] = useState('');
-  const [isRunning, setIsRunning] = useState(false);
-  const [terminalOutput, setTerminalOutput] = useState('✓ Turbopack compiled /app/page.tsx in 118ms · 0 errors\n✓ Standalone Next.js 15.2 output ready');
   const [runtimeVersion, setRuntimeVersion] = useState('Next.js 15.2');
   const [showRuntimeMenu, setShowRuntimeMenu] = useState(false);
   
@@ -111,18 +106,6 @@ export default function LiveWorkspaceSection() {
     setIsDragging(false);
   };
 
-  const handleRunEngine = () => {
-    setIsRunning(true);
-    setTerminalOutput('Executing sandbox compilation engine...');
-    setTimeout(() => {
-      setIsRunning(false);
-      const streamText = customInput.trim() ? customInput : 'print("Hello Launchly!")';
-      setTerminalOutput(
-        `✓ Compiled successfully in 64ms\n✓ Diagnostic status: 0 errors, 0 warnings\n> Standard I/O stream: ${streamText}`
-      );
-    }, 400);
-  };
-
   const generatedCode = `// Generated Next.js 15 + Tailwind CSS Component
 export default function HeroSection() {
   return (
@@ -154,7 +137,7 @@ export default function HeroSection() {
   };
 
   return (
-    <section id="live-workspace" className="mx-auto w-[min(1400px,calc(100%-32px))] sm:w-[min(1400px,calc(100%-48px))] pb-10 pt-4">
+    <section id="live-workspace" className="scroll-mt-20 mx-auto w-[min(1400px,calc(100%-32px))] sm:w-[min(1400px,calc(100%-48px))] pb-10 pt-4">
       {/* Section Header */}
       <div className="mb-6 max-w-3xl">
         <h2 className="font-display text-3xl sm:text-5xl md:text-6xl font-black leading-[1.05] text-ink">
@@ -272,7 +255,7 @@ export default function HeroSection() {
         </div>
 
         {/* Workspace Body */}
-        <div ref={containerRef} className="relative flex flex-col md:flex-row min-h-[560px] w-full select-none">
+        <div ref={containerRef} className="relative flex flex-col md:flex-row min-h-[560px] w-full">
           {/* Left Canvas Preview */}
           <div
             style={{
@@ -495,7 +478,7 @@ export default function HeroSection() {
                     </button>
                     {showRuntimeMenu && (
                       <div className="absolute right-0 top-full mt-1 z-30 w-36 rounded-xl border-2 border-neutral-700 bg-[#161622] py-1 shadow-lg font-mono text-xs">
-                        {['Python 3.14', 'Next.js 15.2', 'React 19'].map((v) => (
+                        {['Next.js 15.2', 'React 19', 'TypeScript 5.7'].map((v) => (
                           <button
                             key={v}
                             type="button"
@@ -589,7 +572,7 @@ export default function HeroSection() {
                 )}
                 {/* Bottom Action: SIGN UP FREE TO SAVE Button */}
                 <Link
-                  href="/editor/saas-launch"
+                  href="/signup"
                   className="brutal-press w-full rounded-full border-[2.5px] border-black dark:border-[#26283d] bg-pink hover:bg-yellow text-black py-2.5 font-mono text-xs sm:text-sm font-black uppercase tracking-widest shadow-brutal-sm transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-2"
                 >
                   <span>SIGN UP FREE TO SAVE</span>

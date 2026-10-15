@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import PaymentModal from './PaymentModal';
 import { 
   Check, 
-  Sparkles, 
   ArrowUpRight, 
   Plus,
   Minus
@@ -73,7 +72,7 @@ export default function Pricing() {
   };
 
   return (
-    <section id="pricing" className="mx-auto w-[min(1200px,calc(100%-32px))] py-8 sm:py-10">
+    <section id="pricing" className="scroll-mt-20 mx-auto w-[min(1200px,calc(100%-32px))] py-8 sm:py-10">
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto mb-8">
         <h2 className="font-display text-4xl sm:text-5xl md:text-6xl font-black text-ink leading-tight">

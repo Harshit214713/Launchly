@@ -38,18 +38,16 @@ function CheckoutContent() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
-  const [upiUri, setUpiUri] = useState<string>('');
+
+  const payeeVpa = '7428938113@ptaxis';
+  const payeeName = 'VARDAAN SAXENA';
+  const note = `Launchly ${itemName}`;
+
+  // Auto-fill amount in UPI apps
+  const upiUri = `upi://pay?pa=${payeeVpa}&pn=${encodeURIComponent(payeeName)}&am=${inrAmount}.00&cu=INR&tn=${encodeURIComponent(note)}`;
 
   useEffect(() => {
-    const payeeVpa = '7428938113@ptaxis';
-    const payeeName = 'VARDAAN SAXENA';
-    const note = `Launchly ${itemName}`;
-    
-    // Auto-fill amount in UPI apps
-    const uri = `upi://pay?pa=${payeeVpa}&pn=${encodeURIComponent(payeeName)}&am=${inrAmount}.00&cu=INR&tn=${encodeURIComponent(note)}`;
-    setUpiUri(uri);
-
-    QRCode.toDataURL(uri, {
+    QRCode.toDataURL(upiUri, {
       width: 260,
       margin: 1,
       color: {
@@ -59,7 +57,7 @@ function CheckoutContent() {
     })
       .then((url) => setQrDataUrl(url))
       .catch(() => setQrDataUrl('/payment-qr.png'));
-  }, [itemName, inrAmount]);
+  }, [upiUri]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,8 +97,9 @@ function CheckoutContent() {
       }
 
       setSuccess(true);
-    } catch (err: any) {
-      setError(err?.message || 'Unable to verify transaction. Please verify your reference number.');
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Unable to verify transaction. Please verify your reference number.';
+      setError(errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -200,9 +199,12 @@ function CheckoutContent() {
               <div className="mt-4 p-4 rounded-2xl border-2 border-ink bg-white dark:bg-[#12121c] flex flex-col items-center justify-center shadow-brutal-sm text-center">
                 <div className="w-44 h-44 sm:w-48 sm:h-48 relative rounded-xl overflow-hidden border-2 border-black bg-white p-2 flex items-center justify-center shadow-inner">
                   {qrDataUrl ? (
-                    <img
+                    <Image
                       src={qrDataUrl}
                       alt="Official Payment QR Code with Prefilled Amount"
+                      width={192}
+                      height={192}
+                      unoptimized
                       className="w-full h-full object-contain rounded-lg"
                     />
                   ) : (

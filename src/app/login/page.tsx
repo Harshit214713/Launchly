@@ -17,8 +17,7 @@ import {
   Lock,
   User,
   Palette,
-  CheckCircle2,
-  Sparkles
+  CheckCircle2
 } from 'lucide-react';
 import BrandWordmark from '@/components/BrandWordmark';
 
@@ -43,16 +42,14 @@ export default function LoginPage() {
   const [activeTheme, setActiveTheme] = useState(PREVIEW_THEMES[0]);
   const [previewTab, setPreviewTab] = useState<'ui' | 'code'>('ui');
   const [previewHeadline, setPreviewHeadline] = useState('Next-Gen Web Studio');
-  const [showMobilePreview, setShowMobilePreview] = useState(false);
-
   useEffect(() => {
     if (document.documentElement.classList.contains('dark')) {
-      setIsDark(true);
+      requestAnimationFrame(() => setIsDark(true));
     }
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       if (params.get('mode') === 'signup' || params.get('tab') === 'signup') {
-        setAuthMode('signup');
+        requestAnimationFrame(() => setAuthMode('signup'));
       }
     }
   }, []);

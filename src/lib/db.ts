@@ -35,7 +35,7 @@ export interface SiteRecord {
   views: number;
   createdAt: string;
   updatedAt: string;
-  siteData?: any;
+  siteData?: Record<string, unknown>;
 }
 
 export interface PaymentRecord {
@@ -53,15 +53,15 @@ export interface PaymentRecord {
 }
 
 // In-memory fallback caches
-let usersCache: User[] = [];
+const usersCache: User[] = [];
 
-let subscribersCache: Subscriber[] = [];
+const subscribersCache: Subscriber[] = [];
 
-let contactMessagesCache: ContactMessage[] = [];
+const contactMessagesCache: ContactMessage[] = [];
 
-let sitesCache: SiteRecord[] = [];
+const sitesCache: SiteRecord[] = [];
 
-let paymentsCache: PaymentRecord[] = [];
+const paymentsCache: PaymentRecord[] = [];
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -162,7 +162,14 @@ export async function createUser(
 
   usersCache.push(newUser);
 
-  const { passwordHash, ...safeUser } = newUser;
+  const safeUser: Omit<User, 'passwordHash'> = {
+    id: newUser.id,
+    name: newUser.name,
+    email: newUser.email,
+    plan: newUser.plan,
+    createdAt: newUser.createdAt,
+    avatar: newUser.avatar,
+  };
   return { success: true, user: safeUser, message: 'Account created successfully in Supabase!' };
 }
 
@@ -181,7 +188,14 @@ export async function verifyUser(
     return { success: false, message: 'Incorrect password. Please try again.' };
   }
 
-  const { passwordHash, ...safeUser } = user;
+  const safeUser: Omit<User, 'passwordHash'> = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    plan: user.plan,
+    createdAt: user.createdAt,
+    avatar: user.avatar,
+  };
   return { success: true, user: safeUser, message: 'Welcome back!' };
 }
 
@@ -303,7 +317,7 @@ export async function publishSite(
   siteName: string, 
   subdomain: string,
   userId?: string,
-  siteData: any = {}
+  siteData: Record<string, unknown> = {}
 ): Promise<{ success: boolean; site?: SiteRecord; message: string }> {
   const cleanSubdomain = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '');
   if (!cleanSubdomain || cleanSubdomain.length < 3) {
@@ -387,6 +401,19 @@ export async function publishSite(
   };
 }
 
+interface DbSiteRow {
+  id: string;
+  template_id: string;
+  name: string;
+  subdomain: string;
+  custom_domain?: string;
+  status: 'live' | 'building' | 'draft';
+  views: number;
+  created_at: string;
+  updated_at: string;
+  site_data?: Record<string, unknown>;
+}
+
 export async function getAllSites(): Promise<SiteRecord[]> {
   try {
     const { data, error } = await supabaseAdmin
@@ -395,7 +422,7 @@ export async function getAllSites(): Promise<SiteRecord[]> {
       .order('created_at', { ascending: false });
 
     if (!error && data && data.length > 0) {
-      return data.map((d: any) => ({
+      return (data as unknown as DbSiteRow[]).map((d) => ({
         id: d.id,
         templateId: d.template_id,
         name: d.name,
@@ -428,7 +455,7 @@ export async function getSitesForUser(userId?: string): Promise<SiteRecord[]> {
 
     const { data, error } = await query;
     if (!error && data) {
-      return data.map((d: any) => ({
+      return (data as unknown as DbSiteRow[]).map((d) => ({
         id: d.id,
         templateId: d.template_id,
         name: d.name,
@@ -458,7 +485,10 @@ export async function deleteSite(id: string): Promise<boolean> {
     console.warn('[Supabase] deleteSite error:', err);
   }
 
-  sitesCache = sitesCache.filter(s => s.id !== id);
+  const idx = sitesCache.findIndex(s => s.id === id);
+  if (idx !== -1) {
+    sitesCache.splice(idx, 1);
+  }
   return true;
 }
 

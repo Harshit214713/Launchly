@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       sites,
       total: sites.length,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, message: 'Failed to retrieve websites.' },
       { status: 500 }
@@ -62,7 +62,7 @@ export async function DELETE(request: NextRequest) {
     }
     await deleteSite(id);
     return NextResponse.json({ success: true, message: 'Website deleted successfully.' });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, message: 'Failed to delete website.' },
       { status: 500 }

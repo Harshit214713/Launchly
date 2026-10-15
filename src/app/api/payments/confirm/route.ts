@@ -32,10 +32,11 @@ export async function POST(request: Request) {
     );
 
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Payment record error:', error);
+    const message = error instanceof Error ? error.message : 'Server error recording payment.';
     return NextResponse.json(
-      { success: false, message: error?.message || 'Server error recording payment.' },
+      { success: false, message },
       { status: 500 }
     );
   }

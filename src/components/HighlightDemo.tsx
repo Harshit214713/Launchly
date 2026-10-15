@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, Wand2, ArrowRight, Check, Layers, RefreshCw } from 'lucide-react';
+import { Sparkles, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 const PRESET_STYLES = [

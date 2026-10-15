@@ -1,5 +1,16 @@
 import { NextResponse } from 'next/server';
-import { Template } from '@/types';
+import { Template, TemplateCategory } from '@/types';
+
+interface UnsplashSearchResult {
+  id: string;
+  description?: string | null;
+  alt_description?: string | null;
+  color?: string | null;
+  urls?: {
+    regular?: string;
+    small?: string;
+  };
+}
 
 // Curated high-aesthetic creative design themes with full-stack specifications
 const CURATED_AESTHETIC_FULLSTACK_THEMES: Template[] = [
@@ -152,17 +163,18 @@ export async function GET(request: Request) {
       if (res.ok) {
         const data = await res.json();
         if (data.results && data.results.length > 0) {
-          const liveFetchedTemplates: Template[] = data.results.map((photo: any, idx: number) => {
+          const liveFetchedTemplates: Template[] = data.results.map((photo: UnsplashSearchResult, idx: number) => {
             const rawDesc = photo.description || photo.alt_description || 'Modern full-stack website template';
             const titleWords = rawDesc.split(' ').slice(0, 4).join(' ');
             const capitalizedTitle = titleWords.charAt(0).toUpperCase() + titleWords.slice(1);
             const id = `ext_${photo.id.replace(/[^a-zA-Z0-9]/g, '_')}`;
             const photoColor = photo.color || '#12121a';
+            const category: TemplateCategory = idx % 4 === 0 ? 'AI' : idx % 3 === 0 ? 'SaaS' : idx % 2 === 0 ? 'Agency' : 'Portfolio';
 
             return {
               id,
               name: capitalizedTitle || `Aesthetic Studio 0${idx + 1}`,
-              category: (idx % 4 === 0 ? 'AI' : idx % 3 === 0 ? 'SaaS' : idx % 2 === 0 ? 'Agency' : 'Portfolio') as any,
+              category,
               description: photo.alt_description ? `${photo.alt_description}. Engineered with Next.js 15 and Supabase for hyper-scale.` : 'High-impact aesthetic full-stack design with responsive Next.js 15 architecture.',
               tags: ['full-stack', 'unsplash-live', 'nextjs15', 'aesthetic', 'modern-ui'],
               badge: idx % 2 === 0 ? 'Popular' : 'New',

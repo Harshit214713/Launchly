@@ -45,7 +45,7 @@ export default function SignupPage() {
 
   useEffect(() => {
     if (document.documentElement.classList.contains('dark')) {
-      setIsDark(true);
+      requestAnimationFrame(() => setIsDark(true));
     }
   }, []);
 

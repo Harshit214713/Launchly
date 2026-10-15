@@ -25,10 +25,11 @@ export async function POST(request: Request) {
     });
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Signup error:', error);
+    const message = error instanceof Error ? error.message : 'Server error during signup.';
     return NextResponse.json(
-      { success: false, message: error?.message || 'Server error during signup.' },
+      { success: false, message },
       { status: 500 }
     );
   }

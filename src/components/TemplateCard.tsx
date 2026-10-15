@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Eye, ArrowUpRight, ArrowRight } from 'lucide-react';
 import { Template } from '@/types';
 
@@ -704,10 +705,12 @@ function TemplatePreviewCanvas({ template }: { template: Template }) {
   if (template.thumbnail && template.thumbnail.startsWith('http')) {
     return (
       <div className="h-full relative overflow-hidden bg-[#0A0A0E] select-none group">
-        <img
+        <Image
           src={template.thumbnail}
           alt={template.name}
-          className="w-full h-full object-cover opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          className="object-cover opacity-85 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
@@ -811,7 +814,7 @@ export default function TemplateCard({ template, onCustomize }: TemplateCardProp
               {template.name}
             </Link>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0 justify-end">
               {template.badge && (
                 <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-black uppercase bg-yellow text-black border border-ink shadow-2xs">
                   {template.badge}
@@ -839,20 +842,34 @@ export default function TemplateCard({ template, onCustomize }: TemplateCardProp
         </div>
 
         {/* Bottom row: Review rating and action */}
-        <div className="pt-3 border-t-[2px] border-ink/20 flex items-center justify-between font-mono text-[11px]">
-          <div className="flex items-center gap-1 text-ink font-bold">
+        <div className="pt-3 border-t-[2px] border-ink/20 flex items-center justify-between font-mono text-[11px] gap-2">
+          <div className="flex items-center gap-1 text-ink font-bold shrink-0">
             <span className="text-yellow font-black">★</span>
             <span>{template.rating || '4.99'}</span>
-            <span className="text-muted-foreground">({template.reviewsCount || '150'})</span>
+            <span className="text-muted-foreground hidden xs:inline">({template.reviewsCount || '150'})</span>
           </div>
 
-          <Link
-            href={`/templates/${template.id}`}
-            className="inline-flex items-center gap-1 text-xs font-display font-black text-ink hover:text-pink transition-colors"
-          >
-            <span>View Template</span>
-            <ArrowUpRight size={13} className="stroke-[3]" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/templates/${template.id}`}
+              className="inline-flex items-center gap-1 text-xs font-display font-black text-ink hover:text-pink transition-colors"
+            >
+              <span>View</span>
+              <ArrowUpRight size={13} className="stroke-[3]" />
+            </Link>
+            <Link
+              href={`/editor/${template.id}`}
+              onClick={(e) => {
+                if (onCustomize) {
+                  e.preventDefault();
+                  onCustomize(template);
+                }
+              }}
+              className="md:hidden brutal-press px-2.5 py-1 bg-pink text-black border-[1.5px] border-ink rounded-lg text-[11px] font-display font-black shadow-2xs hover:bg-yellow"
+            >
+              Edit
+            </Link>
+          </div>
         </div>
       </div>
     </div>
