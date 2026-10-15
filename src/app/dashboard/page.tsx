@@ -242,7 +242,7 @@ export default function Dashboard() {
                 <div>
                   <span className="text-neutral-500 block text-[10px] uppercase">Plan</span>
                   <span className="font-black text-pink">
-                    {isPro ? 'PRO BUILDER ✦' : 'FREE CREATOR'}
+                    {isPro ? 'PRO BUILDER' : 'FREE CREATOR'}
                   </span>
                 </div>
                 <div>

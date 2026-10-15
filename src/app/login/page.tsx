@@ -249,7 +249,7 @@ export default function LoginPage() {
                       style={{ backgroundColor: activeTheme.bg }}
                       className="px-2 py-0.5 rounded-full border border-black font-mono text-[9px] font-black uppercase text-black shadow-xs"
                     >
-                      ✦ Live Component
+                      Live Component
                     </div>
                     {/* Live editable preview title */}
                     <input

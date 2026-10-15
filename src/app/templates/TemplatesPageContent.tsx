@@ -198,7 +198,7 @@ export default function TemplatesPageContent() {
                     : 'text-muted-foreground hover:text-ink'
                 }`}
               >
-                ✦ Curated Full-Stack Designs
+                Curated Full-Stack Designs
               </button>
               <button
                 type="button"

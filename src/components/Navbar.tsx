@@ -130,23 +130,6 @@ export default function Navbar() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* GitHub Repo Link (Desktop & Tablet) */}
-          <a
-            href="https://github.com/simplyvardaan/Launchly"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Launchly GitHub Repository"
-            className="brutal-press hidden sm:flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border-2 border-black dark:border-[#2A2A3C] bg-white dark:bg-[#161622] text-black shadow-brutal-sm hover:bg-neutral-100 dark:hover:bg-[#202030] transition-colors cursor-pointer p-1.5"
-            title="Star Launchly on GitHub"
-          >
-            <Image
-              src="/github-logo.png"
-              alt="GitHub"
-              width={24}
-              height={24}
-              className="w-full h-full object-contain"
-            />
-          </a>
 
           {/* Dark Mode Switcher */}
           <button

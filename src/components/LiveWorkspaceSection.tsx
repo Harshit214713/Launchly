@@ -129,7 +129,7 @@ export default function HeroSection() {
     <section className="py-24 px-6 text-center bg-[#fdf2f8]">
       <div className="max-w-4xl mx-auto">
         <span className="inline-block px-4 py-1.5 rounded-full border-[3px] border-black bg-[${selectedTheme.color}] font-mono text-xs font-bold uppercase shadow-[3px_3px_0px_#000]">
-          ✦ Live Launch
+          Live Launch
         </span>
         <h1 className="mt-6 text-5xl sm:text-7xl font-black text-black">
           ${siteTitle}
@@ -587,46 +587,15 @@ export default function HeroSection() {
                     </div>
                   </div>
                 )}
-
-                {/* Runtime Input Stream Row + RUN ENGINE button */}
-                <div className="flex items-center gap-2 flex-col sm:flex-row">
-                  <div className="relative flex-1 w-full">
-                    <input
-                      type="text"
-                      value={customInput}
-                      onChange={(e) => setCustomInput(e.target.value)}
-                      placeholder="Hook standard runtime input data streams (stdin)"
-                      className="w-full rounded-xl border border-neutral-800 bg-[#14141e] px-3 py-1.5 font-mono text-[11px] text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:border-neutral-600"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleRunEngine}
-                    className="brutal-press w-full sm:w-auto shrink-0 rounded-xl border-[2.5px] border-black bg-white hover:bg-neutral-100 text-black px-4 py-1.5 font-mono text-[11px] font-black uppercase tracking-wider shadow-[2px_2px_0px_#000000] transition-all cursor-pointer whitespace-nowrap text-center"
-                  >
-                    {isRunning ? 'RUNNING...' : 'RUN ENGINE'}
-                  </button>
-                </div>
-
-                {/* Terminal Diagnostic Outputs Box */}
-                <div>
-                  <div className="font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">
-                    TERMINAL DIAGNOSTIC OUTPUTS
-                  </div>
-                  <div className="rounded-xl border border-neutral-800 bg-[#060609] p-2.5 font-mono text-[11px] leading-relaxed text-mint min-h-[50px] flex flex-col justify-center whitespace-pre-wrap select-text">
-                    {terminalOutput}
-                  </div>
-                </div>
+                {/* Bottom Action: SIGN UP FREE TO SAVE Button */}
+                <Link
+                  href="/editor/saas-launch"
+                  className="brutal-press w-full rounded-full border-[2.5px] border-black bg-white hover:bg-black hover:text-white text-black py-2.5 font-mono text-xs sm:text-sm font-black uppercase tracking-widest shadow-[3px_3px_0px_#000000] transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-2"
+                >
+                  <span>SIGN UP FREE TO SAVE</span>
+                  <ArrowUpRight size={14} className="stroke-[3]" />
+                </Link>
               </div>
-
-              {/* Bottom Action: SIGN UP FREE TO SAVE Button */}
-              <Link
-                href="/editor/saas-launch"
-                className="brutal-press w-full rounded-full border-[2.5px] border-black bg-white hover:bg-black hover:text-white text-black py-2.5 font-mono text-xs sm:text-sm font-black uppercase tracking-widest shadow-[3px_3px_0px_#000000] transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-0.5"
-              >
-                <span>SIGN UP FREE TO SAVE</span>
-                <ArrowUpRight size={14} className="stroke-[3]" />
-              </Link>
             </div>
           </div>
         </div>

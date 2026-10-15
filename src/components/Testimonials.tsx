@@ -6,25 +6,25 @@ import { Star } from 'lucide-react';
 const TESTIMONIALS = [
   {
     name: 'Tanisha Mehindritta',
-    role: 'Product & Brand Designer',
+    role: 'UI/UX & Brand Designer',
     category: 'Designers',
     avatar: 'TM',
     avatarBg: 'bg-lilac',
     image: '/testimonials/tanisha.png',
-    quote: "I launched my client's portfolio in under an hour. The templates are gorgeous and the editor is a dream to use. I've recommended Launchly to every designer in my network.",
+    quote: "Finally a builder that actually respects typography and neo-brutalist aesthetics. Assembled my portfolio in an evening and it felt effortless to tweak every component and color scheme.",
     stars: 5,
-    highlight: 'Launched in < 1 hour',
+    highlight: 'Built in one evening',
   },
   {
     name: 'Divyam Jain',
-    role: 'Founding Engineer',
-    category: 'Founders',
+    role: 'Full-Stack Engineer',
+    category: 'Developers',
     avatar: 'DJ',
     avatarBg: 'bg-yellow',
     image: '/testimonials/divyam.png',
-    quote: "We went from idea to live product page in a single afternoon. The SaaS template was exactly what we needed, and the source code export saved us 3 weeks of dev time.",
+    quote: "Exported the source code straight into our hackathon repo. Pure Next.js 15 App Router code with clean Tailwind classes, zero vendor lock-in, and instant edge live previews.",
     stars: 5,
-    highlight: 'Saved 3 weeks of dev time',
+    highlight: 'Clean Next.js 15 export',
   },
   {
     name: 'Parivisha Midha',
@@ -33,45 +33,35 @@ const TESTIMONIALS = [
     avatar: 'PM',
     avatarBg: 'bg-mint',
     image: '/testimonials/parivisha.jpg',
-    quote: "Completely non-technical but always wanted a beautiful website. Launchly made it possible without touching a single line of code. The results look high-end and super fast.",
+    quote: "I wanted a sleek personal space for my creative work without having to code or settle for generic link-in-bio tools. Launchly was super intuitive and the result looks high-end.",
     stars: 5,
     highlight: 'Zero code required',
   },
   {
     name: 'Gourav Mandal',
-    role: 'Full-Stack Developer & Agency Lead',
-    category: 'Agencies',
+    role: 'Software Engineer & Tech Builder',
+    category: 'Developers',
     avatar: 'GM',
     avatarBg: 'bg-pink',
     image: '/testimonials/gourav.png',
-    quote: "We use Launchly to rapidly prototype client websites before handing off the source code. It has dramatically accelerated our pipeline and clients love the live previews.",
+    quote: "Being able to tweak components on a live canvas and share an instant live subdomain with friends is super slick. The performance and dark aesthetic are top-notch.",
     stars: 5,
-    highlight: 'Agency workflow 3x faster',
+    highlight: 'Instant edge preview',
   },
   {
     name: 'Samiksha Jhunjhunwala',
-    role: 'Photographer & Visual Artist',
+    role: 'Visual Artist & Photographer',
     category: 'Creators',
     avatar: 'SJ',
     avatarBg: 'bg-sky',
     image: '/testimonials/samiksha.png',
-    quote: "The photo portfolio template is breathtaking. My clients consistently ask what agency built my site — they always assume it was custom coded from scratch.",
+    quote: "The photo portfolio layout is stunning. It showcases high-res visuals cleanly with zero lag, and my friends honestly thought I hired a boutique design studio to build it.",
     stars: 5,
-    highlight: 'Looks custom built',
-  },
-  {
-    name: 'Daniel Brooks',
-    role: 'E-commerce Entrepreneur',
-    category: 'Founders',
-    avatar: 'DB',
-    avatarBg: 'bg-yellow',
-    quote: "Setup my drop page in 20 minutes, connected my Stripe and custom domain. Already made $14k in pre-orders. Launchly is an absolute unfair advantage.",
-    stars: 5,
-    highlight: '$14k in pre-orders',
+    highlight: 'Editorial gallery vibe',
   },
 ];
 
-const CATEGORIES = ['All', 'Founders', 'Designers', 'Agencies', 'Creators'];
+const CATEGORIES = ['All', 'Designers', 'Developers', 'Creators'];
 
 export default function Testimonials() {
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -85,10 +75,10 @@ export default function Testimonials() {
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto mb-6">
         <h2 className="font-display text-4xl sm:text-5xl font-black text-ink leading-tight">
-          Joined by thousands of happy makers.
+          Loved by early makers & friends.
         </h2>
         <p className="mt-3 text-base text-muted-foreground">
-          See what founders, designers, and creators say after shipping with Launchly.
+          What fellow designers, developers, and creators say after building with Launchly.
         </p>
 
         {/* Filter Pills */}
@@ -109,12 +99,12 @@ export default function Testimonials() {
         </div>
       </div>
 
-      {/* Testimonials 3-Column Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {/* Testimonials Balanced Grid */}
+      <div className="flex flex-wrap justify-center gap-6">
         {filtered.map((item, idx) => (
           <article
             key={idx}
-            className="brutal-press rounded-2xl border-[3px] border-ink bg-card p-6 shadow-brutal hover:shadow-brutal-md transition-all flex flex-col justify-between"
+            className="brutal-press rounded-2xl border-[3px] border-ink bg-card p-6 shadow-brutal hover:shadow-brutal-md transition-all flex flex-col justify-between w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-md"
           >
             <div>
               {/* Top Row: 5 Stars & Highlight Badge */}

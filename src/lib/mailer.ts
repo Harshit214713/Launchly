@@ -15,7 +15,7 @@ export async function sendFeedbackEmail({
   message,
   senderEmail = 'anonymous@launchly.site',
 }: DispatchFeedbackParams): Promise<{ success: boolean; method: string; error?: string }> {
-  const subject = `🚀 [Launchly Feedback] ${category.toUpperCase()} — ${rating}/5 Stars`;
+  const subject = `[Launchly Feedback] ${category.toUpperCase()} — ${rating}/5 Stars`;
   const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
 
   // Method 1: Check if SMTP credentials exist in environment

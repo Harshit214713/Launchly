@@ -177,7 +177,6 @@ export default function Pricing() {
 
             <h3 className="mt-3 font-display text-3xl font-black text-ink flex items-center gap-2">
               <span>Pro Creator</span>
-              <span className="text-yellow text-xl">✦</span>
             </h3>
             <p className="mt-2 text-sm text-muted-foreground font-mono">
               For ambitious founders, agencies, and builders ready for high-converting production launches.
@@ -192,7 +191,7 @@ export default function Pricing() {
               </div>
               {billing === 'yearly' ? (
                 <span className="font-mono text-xs text-mint font-bold mt-1.5 block">
-                  ⚡ Billed annually (${yearlyPrice}/yr) • Save $68 every year
+                  Billed annually (${yearlyPrice}/yr) • Save $68 every year
                 </span>
               ) : (
                 <span className="font-mono text-xs text-muted-foreground mt-1.5 block">

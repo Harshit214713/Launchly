@@ -107,11 +107,10 @@ export default function CTA() {
                   key={cat}
                   type="button"
                   onClick={() => setCategory(cat)}
-                  className={`brutal-press rounded-full border-2 border-black dark:border-[#262638] px-4 py-1.5 font-mono text-xs font-black uppercase transition-all cursor-pointer ${
-                    category === cat
+                  className={`brutal-press rounded-full border-2 border-black dark:border-[#262638] px-4 py-1.5 font-mono text-xs font-black uppercase transition-all cursor-pointer ${category === cat
                       ? 'bg-pink text-black shadow-[2px_2px_0px_#000000]'
                       : 'bg-white dark:bg-[#1a1a24] text-black dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
-                  }`}
+                    }`}
                 >
                   {cat}
                 </button>
@@ -135,9 +134,8 @@ export default function CTA() {
                   onChange={(e) => setRating(Number(e.target.value))}
                   className="w-full h-2.5 rounded-full appearance-none cursor-pointer border-[1.5px] border-black bg-neutral-200 dark:bg-neutral-800 accent-pink"
                   style={{
-                    background: `linear-gradient(to right, #f472b6 0%, #f472b6 ${
-                      ((rating - 1) / 4) * 100
-                    }%, #e5e7eb ${((rating - 1) / 4) * 100}%, #e5e7eb 100%)`,
+                    background: `linear-gradient(to right, #f472b6 0%, #f472b6 ${((rating - 1) / 4) * 100
+                      }%, #e5e7eb ${((rating - 1) / 4) * 100}%, #e5e7eb 100%)`,
                   }}
                 />
               </div>
@@ -155,7 +153,7 @@ export default function CTA() {
                 type="text"
                 value={userEmail}
                 onChange={(e) => setUserEmail(e.target.value)}
-                placeholder="you@domain.com or @handle"
+                placeholder="Enter your Email Id"
                 className="w-full rounded-xl border-2 border-black dark:border-[#262638] bg-white dark:bg-[#0c0c10] px-3.5 py-2 font-mono text-xs text-ink placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink/50 shadow-xs"
               />
             </div>

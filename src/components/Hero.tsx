@@ -52,22 +52,28 @@ export default function Hero() {
         </div>
 
         {/* Social Proof */}
-        <div className="mt-5 flex items-center justify-center gap-2.5 font-mono text-[11px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
-          <div className="flex -space-x-1.5">
-            <div className="h-6.5 w-6.5 rounded-full border-2 border-black bg-mint shadow-xs flex items-center justify-center text-[9px] font-black text-black">
+        <div className="mt-5 flex items-center justify-center gap-2.5 font-mono text-[11px] font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300 select-none">
+          <div className="flex -space-x-1.5 group cursor-pointer py-1">
+            <div className="h-6.5 w-6.5 rounded-full border-2 border-black bg-mint shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:-translate-x-1 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!-rotate-6 hover:shadow-brutal-sm">
               M
             </div>
-            <div className="h-6.5 w-6.5 rounded-full border-2 border-black bg-yellow shadow-xs flex items-center justify-center text-[9px] font-black text-black">
+            <div className="h-6.5 w-6.5 rounded-full border-2 border-black bg-yellow shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!rotate-6 hover:shadow-brutal-sm">
               K
             </div>
-            <div className="h-6.5 w-6.5 rounded-full border-2 border-black bg-pink shadow-xs flex items-center justify-center text-[9px] font-black text-black">
+            <div className="h-6.5 w-6.5 rounded-full border-2 border-black bg-pink shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!-rotate-6 hover:shadow-brutal-sm">
               S
             </div>
-            <div className="h-6.5 w-6.5 rounded-full border-2 border-black bg-lilac shadow-xs flex items-center justify-center text-[9px] font-black text-black">
+            <div className="h-6.5 w-6.5 rounded-full border-2 border-black bg-lilac shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:translate-x-1 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!rotate-6 hover:shadow-brutal-sm">
               V
             </div>
           </div>
-          <span>Joined by 2,400+ makers & founders</span>
+          <span className="flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>Joined by 2,400+ makers &amp; founders</span>
+          </span>
         </div>
       </div>
     </section>

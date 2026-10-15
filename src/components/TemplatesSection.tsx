@@ -39,12 +39,9 @@ export default function TemplatesSection() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black font-display tracking-tight text-ink mb-3">
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black font-display tracking-tight text-ink mb-1">
             Find your starting point.
           </h2>
-          <p className="text-base sm:text-lg text-muted-foreground max-w-lg mx-auto">
-            Production-ready Next.js 15 designs crafted for speed, aesthetics, and high conversion.
-          </p>
         </div>
 
         {/* Neo-brutalist Search & Filters Bar */}
@@ -97,11 +94,10 @@ export default function TemplatesSection() {
                 key={category}
                 type="button"
                 onClick={() => setActiveCategory(category)}
-                className={`brutal-press px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-display font-black uppercase whitespace-nowrap transition-all cursor-pointer border-[2.5px] border-ink ${
-                  activeCategory === category
+                className={`brutal-press px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-display font-black uppercase whitespace-nowrap transition-all cursor-pointer border-[2.5px] border-ink ${activeCategory === category
                     ? 'bg-pink text-black shadow-brutal-sm'
                     : 'bg-card text-ink hover:bg-neutral-100 dark:hover:bg-neutral-800 shadow-brutal-sm'
-                }`}
+                  }`}
               >
                 {category}
               </button>
@@ -109,17 +105,32 @@ export default function TemplatesSection() {
           </div>
         </div>
 
-        {/* Templates Grid */}
+        {/* Templates Grid (Limited to 6 on Landing Page) */}
         {filteredTemplates.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredTemplates.map((template) => (
-              <TemplateCard
-                key={template.id}
-                template={template}
-                onCustomize={handleCustomize}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredTemplates.slice(0, 6).map((template) => (
+                <TemplateCard
+                  key={template.id}
+                  template={template}
+                  onCustomize={handleCustomize}
+                />
+              ))}
+            </div>
+
+            {/* Show More Templates Action Button */}
+            {filteredTemplates.length > 6 && (
+              <div className="mt-10 sm:mt-12 text-center">
+                <Link
+                  href="/templates"
+                  className="brutal-press inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-2xl border-[3px] border-ink bg-yellow hover:bg-pink text-black font-display text-sm sm:text-base font-black uppercase tracking-wider shadow-brutal transition-all"
+                >
+                  <span>Show More Templates</span>
+                  <ArrowRight size={18} className="stroke-[3]" />
+                </Link>
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-20 bg-card rounded-3xl border-[3px] border-ink p-8 shadow-brutal max-w-md mx-auto">
             <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

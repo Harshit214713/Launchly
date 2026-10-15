@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
-import { 
-  X, 
-  CheckCircle2, 
-  ShieldCheck, 
-  Sparkles, 
-  Loader2, 
+import {
+  X,
+  CheckCircle2,
+  ShieldCheck,
+  Sparkles,
+  Loader2,
   ArrowRight,
   AlertCircle,
   ExternalLink,
@@ -67,7 +67,7 @@ export default function PaymentModal({
     const payeeVpa = '7428938113@ptaxis';
     const payeeName = 'VARDAAN SAXENA';
     const note = `Launchly ${itemName} (${billingCycle})`;
-    
+
     // Standard UPI URI with prefilled amount
     const upiUri = `upi://pay?pa=${payeeVpa}&pn=${encodeURIComponent(payeeName)}&am=${amountInfo.inr}.00&cu=INR&tn=${encodeURIComponent(note)}`;
     setUpiLink(upiUri);
@@ -150,13 +150,13 @@ export default function PaymentModal({
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
-      <div 
+      <div
         className="w-full max-w-[420px] max-h-[94vh] flex flex-col bg-card border-[3.5px] border-black dark:border-[#222232] rounded-3xl p-4 sm:p-5 shadow-brutal-xl text-ink relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -280,7 +280,7 @@ export default function PaymentModal({
                   type="email"
                   value={payerEmail}
                   onChange={(e) => setPayerEmail(e.target.value)}
-                  placeholder="you@domain.com"
+                  placeholder="Enter your Email Id"
                   className="w-full px-3 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-yellow shadow-brutal-xs"
                 />
               </div>
