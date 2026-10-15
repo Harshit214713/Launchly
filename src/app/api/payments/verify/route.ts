@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { 
       txnId, 
+      sessionId,
       userEmail: providedEmail,
       planId = 'pro', 
       itemName = 'Launchly Pro Creator', 
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const cleanTxnId = (txnId || '').trim();
+    const cleanTxnId = (txnId || sessionId || '').trim();
 
     if (!cleanTxnId) {
       return NextResponse.json(

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import QRCode from 'qrcode';
@@ -14,10 +14,10 @@ import {
   AlertCircle,
   ExternalLink,
   Smartphone,
-  Copy,
   Check,
   CreditCard,
   Download,
+  Zap,
 } from 'lucide-react';
 
 interface PaymentModalProps {
@@ -41,17 +41,37 @@ export default function PaymentModal({
 }: PaymentModalProps) {
   const router = useRouter();
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card'>('upi');
-  const [txnId, setTxnId] = useState('');
   const [payerEmail, setPayerEmail] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [verifyStep, setVerifyStep] = useState('');
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-  const [copiedUpi, setCopiedUpi] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [autoCheckCount, setAutoCheckCount] = useState(0);
+
+  // Generate a unique dynamic session order ID for this checkout
+  const [orderSessionId] = useState<string>(() => {
+    return `ORD_${Date.now().toString().slice(-6)}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+  });
+
+  // Automatically fetch logged-in user email on mount
+  useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.authenticated && data.user?.email) {
+          setPayerEmail(data.user.email);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   // Calculate prefilled UPI amount based on selected plan
   const getAmountDetails = () => {
@@ -74,9 +94,9 @@ export default function PaymentModal({
 
   const payeeVpa = '7428938113@ptaxis';
   const payeeName = 'VARDAAN SAXENA';
-  const note = `Launchly ${itemName} (${billingCycle})`;
+  const note = `Launchly ${itemName} ${orderSessionId}`;
 
-  // Derived UPI URI with prefilled amount
+  // Derived UPI URI with prefilled amount and order session ID
   const upiLink = useMemo(() => {
     return `upi://pay?pa=${payeeVpa}&pn=${encodeURIComponent(payeeName)}&am=${amountInfo.inr}.00&cu=INR&tn=${encodeURIComponent(note)}`;
   }, [payeeVpa, payeeName, amountInfo.inr, note]);
@@ -100,13 +120,89 @@ export default function PaymentModal({
       });
   }, [isOpen, upiLink]);
 
-  if (!isOpen) return null;
+  // Automated Verification Handler
+  const handleAutoVerifyPayment = useCallback(async () => {
+    setError('');
+    const targetEmail = payerEmail.trim() || 'customer@launchly.site';
 
-  const handleCopyUpi = () => {
-    navigator.clipboard.writeText('7428938113@ptaxis');
-    setCopiedUpi(true);
-    setTimeout(() => setCopiedUpi(false), 2000);
-  };
+    setSubmitting(true);
+    setVerifyStep('Connecting to banking reconciliation network...');
+
+    try {
+      // Step 1: Check banking status
+      setVerifyStep('Reconciling payment with merchant pool...');
+      const res = await fetch('/api/payments/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: orderSessionId,
+          userEmail: targetEmail,
+          planId,
+          itemName,
+          amount: amountInfo.inr.toString(),
+          billingCycle,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Payment not detected yet. Please ensure you completed the UPI transfer and try again.');
+      }
+
+      setVerifyStep('Payment confirmed! Activating Pro Creator...');
+
+      // Store purchase status locally
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('launchly_plan', planId);
+        localStorage.setItem('launchly_payment_txn', orderSessionId);
+        localStorage.setItem('launchly_pro_active', 'true');
+      }
+
+      setSuccess(true);
+      if (onPaymentComplete) {
+        onPaymentComplete(orderSessionId);
+      }
+
+      // Automatically move forward after celebration
+      setTimeout(() => {
+        onClose();
+        router.push('/dashboard?payment_success=true');
+      }, 2200);
+
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Unable to confirm payment. Please tap "I\'ve Paid" after completing in your app.';
+      setError(errMsg);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [payerEmail, orderSessionId, planId, itemName, amountInfo.inr, billingCycle, onPaymentComplete, onClose, router]);
+
+  // Background Auto-Polling: checks payment status every 4 seconds while modal is open
+  useEffect(() => {
+    if (!isOpen || success || submitting || paymentMethod !== 'upi') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const queryUrl = `/api/payments/status?sessionId=${encodeURIComponent(orderSessionId)}${
+          payerEmail ? `&email=${encodeURIComponent(payerEmail)}` : ''
+        }`;
+        const res = await fetch(queryUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.verified) {
+            handleAutoVerifyPayment();
+          } else {
+            setAutoCheckCount((prev) => prev + 1);
+          }
+        }
+      } catch {}
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [isOpen, success, submitting, paymentMethod, orderSessionId, payerEmail, handleAutoVerifyPayment]);
+
+  if (!isOpen) return null;
 
   const handleCardPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,72 +240,15 @@ export default function PaymentModal({
     }
   };
 
-  const handleVerifyPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    const cleanTxn = txnId.trim();
-    if (!cleanTxn) {
-      setError('Please enter your 12-digit UPI UTR or Reference Number.');
-      return;
-    }
-
-    if (cleanTxn.length < 8) {
-      setError('Reference number is too short. Please provide a valid UTR.');
-      return;
-    }
-
-    setSubmitting(true);
-    setVerifyStep('Connecting to banking reconciliation network...');
-
-    try {
-      const res = await fetch('/api/payments/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          txnId: cleanTxn,
-          userEmail: payerEmail || 'customer@launchly.site',
-          planId,
-          itemName,
-          amount: amountInfo.inr.toString(),
-          billingCycle,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || 'Verification failed. Check your UTR.');
-      }
-
-      // Store purchase status locally
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('launchly_plan', planId);
-        localStorage.setItem('launchly_payment_txn', cleanTxn);
-        localStorage.setItem('launchly_pro_active', 'true');
-      }
-
-      setSuccess(true);
-      if (onPaymentComplete) {
-        onPaymentComplete(cleanTxn);
-      }
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'Unable to verify payment. Please double-check your UTR.';
-      setError(errMsg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const downloadReceipt = () => {
     const receiptContent = `=========================================
 LAUNCHLY STUDIO PRO RECEIPT
 =========================================
 Plan: ${itemName}
-Reference: ${txnId}
+Reference: ${orderSessionId}
 Billing Cycle: ${billingCycle.toUpperCase()}
 Amount: ${amountInfo.label}
-Customer: ${payerEmail || 'Pro Builder'}
+Customer: ${payerEmail || 'Pro Creator'}
 Status: VERIFIED & ACTIVE
 Date: ${new Date().toUTCString()}
 -----------------------------------------
@@ -221,7 +260,7 @@ Visit: https://launchly.site/dashboard
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `launchly-receipt-${txnId.toLowerCase()}.txt`;
+    link.download = `launchly-receipt-${orderSessionId.toLowerCase()}.txt`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -280,7 +319,7 @@ Visit: https://launchly.site/dashboard
                 }`}
               >
                 <Smartphone size={13} className="stroke-[2.5]" />
-                <span>UPI Direct</span>
+                <span>UPI Auto-Pay</span>
               </button>
               <button
                 type="button"
@@ -320,7 +359,7 @@ Visit: https://launchly.site/dashboard
               <>
                 {/* Neo-Brutalist Clean QR Code Box */}
                 <div className="p-3.5 rounded-2xl border-2 border-black dark:border-[#262638] bg-white dark:bg-[#12121c] flex flex-col items-center justify-center shadow-brutal-sm text-center">
-                  <div className="w-38 h-38 sm:w-42 sm:h-42 rounded-xl border-2 border-black bg-white p-2 flex items-center justify-center shadow-inner">
+                  <div className="w-38 h-38 sm:w-42 sm:h-42 rounded-xl border-2 border-black bg-white p-2 flex items-center justify-center shadow-inner relative group">
                     {qrDataUrl ? (
                       <Image
                         src={qrDataUrl}
@@ -337,32 +376,8 @@ Visit: https://launchly.site/dashboard
                     )}
                   </div>
 
-                  {/* Copy UPI ID Box */}
-                  <div className="mt-2.5 w-full flex items-center justify-between gap-2 p-1.5 rounded-xl border border-black/20 dark:border-[#202235] bg-neutral-50 dark:bg-[#1a1a28]">
-                    <span className="font-mono text-[10px] text-neutral-600 dark:text-neutral-300 truncate pl-1">
-                      UPI ID: <strong className="text-black dark:text-white">7428938113@ptaxis</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleCopyUpi}
-                      className="px-2 py-0.5 rounded-md border border-black bg-yellow text-black font-mono text-[9px] font-bold flex items-center gap-1 shadow-2xs hover:bg-pink transition-colors cursor-pointer shrink-0"
-                    >
-                      {copiedUpi ? (
-                        <>
-                          <Check size={10} className="stroke-[3]" />
-                          <span>Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={10} />
-                          <span>Copy</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-
                   {/* Supported UPI Providers List */}
-                  <div className="mt-2 flex items-center justify-center gap-1.5 flex-wrap font-mono text-[10px] font-bold text-neutral-700 dark:text-neutral-300">
+                  <div className="mt-3 flex items-center justify-center gap-1.5 flex-wrap font-mono text-[10px] font-bold text-neutral-700 dark:text-neutral-300">
                     <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span>GPay</span>
                     <span>•</span>
@@ -379,69 +394,90 @@ Visit: https://launchly.site/dashboard
                   {upiLink && (
                     <a
                       href={upiLink}
-                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border-2 border-black bg-yellow text-black font-mono text-[10px] font-bold shadow-brutal-xs hover:bg-pink transition-colors"
+                      className="mt-2.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border-2 border-black bg-yellow text-black font-mono text-[11px] font-bold shadow-brutal-xs hover:bg-pink transition-colors"
                     >
-                      <Smartphone size={11} className="stroke-[2.5]" />
-                      <span>Tap to open in UPI App</span>
-                      <ExternalLink size={10} />
+                      <Smartphone size={12} className="stroke-[2.5]" />
+                      <span>Tap to Pay in UPI App</span>
+                      <ExternalLink size={11} />
                     </a>
                   )}
                 </div>
 
-                {/* Verification Form */}
-                <form onSubmit={handleVerifyPayment} className="space-y-2.5 pt-0.5">
+                {/* Auto-Verification Live Radar Status Box */}
+                <div className="space-y-2.5">
                   {error && (
-                    <div className="p-2 rounded-lg border-2 border-black bg-red-100 dark:bg-red-950/60 text-[11px] font-mono font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5 shadow-brutal-xs">
+                    <div className="p-2.5 rounded-xl border-2 border-black bg-red-100 dark:bg-red-950/60 text-[11px] font-mono font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5 shadow-brutal-xs">
                       <AlertCircle size={14} className="shrink-0" />
                       <span>{error}</span>
                     </div>
                   )}
 
-                  <div>
-                    <label className="block font-mono text-[10px] font-black uppercase tracking-wider text-black dark:text-white mb-1">
-                      12-Digit UTR / Transaction Reference ID <span className="text-pink">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={txnId}
-                      onChange={(e) => { setTxnId(e.target.value); setError(''); }}
-                      placeholder="e.g. 428190348123 (from UPI receipt)"
-                      required
-                      className="w-full px-3 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-yellow shadow-brutal-xs"
-                    />
+                  {/* Live Radar Listening Indicator */}
+                  <div className="p-3 rounded-2xl border-2 border-black dark:border-[#26283d] bg-neutral-50 dark:bg-[#151522] shadow-brutal-xs flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="relative flex h-3.5 w-3.5 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border border-black"></span>
+                      </span>
+                      <div className="text-left truncate">
+                        <p className="font-mono text-[11px] font-black uppercase text-black dark:text-white leading-tight flex items-center gap-1.5">
+                          <span>Auto-Detecting Transfer</span>
+                        </p>
+                        <p className="font-mono text-[10px] text-neutral-500 dark:text-neutral-400 mt-0.5 truncate">
+                          {submitting
+                            ? (verifyStep || 'Validating settlement...')
+                            : `Syncing with bank network${autoCheckCount > 0 ? ` (${autoCheckCount}s)` : ''}...`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="px-2 py-0.5 rounded-md border border-black bg-mint text-black font-mono text-[9px] font-black uppercase tracking-wider shrink-0 shadow-2xs">
+                      ACTIVE
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block font-mono text-[10px] font-black uppercase tracking-wider text-black dark:text-white mb-1">
-                      Your Email (for Pro access & receipt)
-                    </label>
-                    <input
-                      type="email"
-                      value={payerEmail}
-                      onChange={(e) => { setPayerEmail(e.target.value); setError(''); }}
-                      placeholder="Enter your Email Id"
-                      className="w-full px-3 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-yellow shadow-brutal-xs"
-                    />
-                  </div>
+                  {/* Account Email Information */}
+                  {payerEmail ? (
+                    <div className="px-3 py-1.5 rounded-xl border border-black/20 dark:border-[#26283d] bg-white dark:bg-[#12121c] flex items-center justify-between text-[11px] font-mono">
+                      <span className="text-neutral-500 dark:text-neutral-400">Account:</span>
+                      <strong className="text-black dark:text-white truncate max-w-[220px]">{payerEmail}</strong>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="email"
+                        value={payerEmail}
+                        onChange={(e) => { setPayerEmail(e.target.value); setError(''); }}
+                        placeholder="Enter your Email for Pro Receipt"
+                        className="w-full px-3 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-yellow shadow-brutal-xs"
+                      />
+                    </div>
+                  )}
 
+                  {/* Main Action Button: I've Sent Payment • Auto-Verify Now */}
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleAutoVerifyPayment}
                     disabled={submitting}
-                    className="brutal-press w-full py-2.5 px-4 rounded-xl border-[2.5px] border-black bg-pink text-black font-display text-xs sm:text-sm font-black uppercase tracking-wider shadow-brutal hover:bg-pink/90 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                    className="brutal-press w-full py-3 px-4 rounded-xl border-[2.5px] border-black bg-pink text-black font-display text-xs sm:text-sm font-black uppercase tracking-wider shadow-brutal hover:bg-pink/90 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                   >
                     {submitting ? (
                       <>
-                        <Loader2 size={15} className="animate-spin text-black" />
-                        <span>{verifyStep || 'Verifying Payment...'}</span>
+                        <Loader2 size={16} className="animate-spin text-black" />
+                        <span>{verifyStep || 'Verifying Settlement...'}</span>
                       </>
                     ) : (
                       <>
-                        <ShieldCheck size={16} className="stroke-[2.5]" />
-                        <span>Verify &amp; Activate Pro</span>
+                        <Zap size={16} className="fill-yellow stroke-black stroke-[2]" />
+                        <span>I&apos;ve Paid • Auto-Verify &amp; Activate</span>
                       </>
                     )}
                   </button>
-                </form>
+
+                  <p className="text-center font-mono text-[10px] text-neutral-500 dark:text-neutral-400">
+                    Once paid on your phone, tap above or wait for auto-detection to advance.
+                  </p>
+                </div>
               </>
             ) : (
               /* Global Credit / Debit Card Form */
@@ -467,47 +503,6 @@ Visit: https://launchly.site/dashboard
                   />
                 </div>
 
-                <div>
-                  <label className="block font-mono text-[10px] font-black uppercase tracking-wider text-black dark:text-white mb-1">
-                    Card Number
-                  </label>
-                  <input
-                    type="text"
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(e.target.value)}
-                    placeholder="4242 •••• •••• 4242"
-                    className="w-full px-3 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-xs"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block font-mono text-[10px] font-black uppercase tracking-wider text-black dark:text-white mb-1">
-                      Expiry (MM/YY)
-                    </label>
-                    <input
-                      type="text"
-                      value={cardExpiry}
-                      onChange={(e) => setCardExpiry(e.target.value)}
-                      placeholder="12/28"
-                      className="w-full px-3 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-mono text-[10px] font-black uppercase tracking-wider text-black dark:text-white mb-1">
-                      CVC / CVV
-                    </label>
-                    <input
-                      type="password"
-                      maxLength={4}
-                      value={cardCvc}
-                      onChange={(e) => setCardCvc(e.target.value)}
-                      placeholder="•••"
-                      className="w-full px-3 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-xs"
-                    />
-                  </div>
-                </div>
-
                 <div className="p-2.5 rounded-xl border border-black/20 dark:border-[#202235] bg-neutral-50 dark:bg-[#151522] text-[10px] font-mono text-neutral-600 dark:text-neutral-300 flex items-center gap-2">
                   <ShieldCheck size={14} className="text-mint shrink-0" />
                   <span>256-bit encrypted SSL checkout via Stripe webhook pipeline.</span>
@@ -521,12 +516,12 @@ Visit: https://launchly.site/dashboard
                   {submitting ? (
                     <>
                       <Loader2 size={15} className="animate-spin text-black" />
-                      <span>{verifyStep || 'Processing payment...'}</span>
+                      <span>{verifyStep || 'Initiating checkout...'}</span>
                     </>
                   ) : (
                     <>
                       <CreditCard size={15} className="stroke-[2.5]" />
-                      <span>Authorize &amp; Upgrade to Pro</span>
+                      <span>Proceed to Global Stripe Checkout</span>
                     </>
                   )}
                 </button>
@@ -534,7 +529,7 @@ Visit: https://launchly.site/dashboard
             )}
           </div>
         ) : (
-          /* Payment Success Confirmation */
+          /* Payment Success Confirmation & Auto Forwarding */
           <div className="py-5 text-center animate-scale-in space-y-3">
             <div className="w-14 h-14 rounded-2xl border-[3px] border-black bg-mint text-black flex items-center justify-center mx-auto shadow-brutal">
               <CheckCircle2 size={32} className="stroke-[2.5]" />
@@ -542,7 +537,7 @@ Visit: https://launchly.site/dashboard
 
             <div className="inline-flex items-center gap-1 rounded-full border-2 border-black bg-yellow px-2.5 py-0.5 font-mono text-[10px] font-black uppercase text-black shadow-brutal-xs">
               <Sparkles size={10} />
-              PAYMENT VERIFIED
+              PAYMENT AUTO-VERIFIED
             </div>
 
             <h3 className="font-display text-xl sm:text-2xl font-black text-black dark:text-white">
@@ -553,8 +548,13 @@ Visit: https://launchly.site/dashboard
             </p>
 
             <div className="inline-block px-3 py-1 rounded-xl border-2 border-black bg-neutral-100 dark:bg-neutral-800 font-mono text-xs font-black text-black dark:text-white shadow-brutal-xs">
-              Ref: {txnId}
+              Ref: {orderSessionId}
             </div>
+
+            <p className="font-mono text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center gap-1.5 animate-pulse">
+              <Check size={13} className="stroke-[3]" />
+              <span>Redirecting to your Creator Dashboard...</span>
+            </p>
 
             <div className="grid grid-cols-2 gap-2 pt-2">
               <button
