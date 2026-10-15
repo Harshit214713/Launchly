@@ -13,7 +13,7 @@ export default function Hero() {
         <div className="absolute left-1/3 top-[260px] h-[300px] w-[300px] rounded-full bg-yellow/15 dark:bg-sky/20 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex flex-col items-center w-[min(1220px,calc(100%-24px))] text-center px-4 mt-2 sm:mt-3">
+      <div className="relative mx-auto flex flex-col items-center w-full max-w-[1220px] text-center px-4 mt-2 sm:mt-3">
         {/* Main Headline - Bold, high-impact visible text in both Light & Dark modes */}
         <h1 className="font-display text-4xl sm:text-6xl md:text-7xl lg:text-[86px] xl:text-[90px] font-black leading-[1.06] sm:leading-[1.03] tracking-[-0.03em] max-w-5xl text-black dark:text-white">
           Build websites <br />
@@ -52,28 +52,28 @@ export default function Hero() {
         </div>
 
         {/* Social Proof */}
-        <div className="mt-5 flex items-center justify-center gap-2.5 font-mono text-[11px] font-bold uppercase tracking-wider text-neutral-700 dark:text-[#a0a4be] select-none">
-          <div className="flex -space-x-1.5 group cursor-pointer py-1">
-            <div className="h-6.5 w-6.5 rounded-full border-2 border-black bg-mint shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:-translate-x-1 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!-rotate-6 hover:shadow-brutal-sm">
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-700 dark:text-[#a0a4be] select-none">
+          <div className="flex -space-x-1.5 group cursor-pointer py-0.5 shrink-0">
+            <div className="h-6 w-6 sm:h-6.5 sm:w-6.5 rounded-full border-2 border-black bg-mint shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:-translate-x-1 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!-rotate-6 hover:shadow-brutal-sm">
               M
             </div>
-            <div className="h-6.5 w-6.5 rounded-full border-2 border-black bg-yellow shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!rotate-6 hover:shadow-brutal-sm">
+            <div className="h-6 w-6 sm:h-6.5 sm:w-6.5 rounded-full border-2 border-black bg-yellow shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!rotate-6 hover:shadow-brutal-sm">
               K
             </div>
-            <div className="h-6.5 w-6.5 rounded-full border-2 border-black bg-pink shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!-rotate-6 hover:shadow-brutal-sm">
+            <div className="h-6 w-6 sm:h-6.5 sm:w-6.5 rounded-full border-2 border-black bg-pink shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!-rotate-6 hover:shadow-brutal-sm">
               S
             </div>
-            <div className="h-6.5 w-6.5 rounded-full border-2 border-black bg-lilac shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:translate-x-1 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!rotate-6 hover:shadow-brutal-sm">
+            <div className="h-6 w-6 sm:h-6.5 sm:w-6.5 rounded-full border-2 border-black bg-lilac shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:translate-x-1 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!rotate-6 hover:shadow-brutal-sm">
               V
             </div>
           </div>
-          <span className="flex items-center gap-1.5">
-            <span className="relative flex h-2 w-2">
+          <div className="inline-flex items-center gap-1.5 shrink-0">
+            <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span>Joined by 2,400+ makers &amp; founders</span>
-          </span>
+            <span className="whitespace-nowrap">Joined by 2,400+ makers &amp; founders</span>
+          </div>
         </div>
       </div>
     </section>

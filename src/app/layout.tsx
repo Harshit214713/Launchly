@@ -21,13 +21,29 @@ const orbitron = Orbitron({
 });
 
 export const metadata: Metadata = {
-  title: "Launchly — Websites, templates, visual editor and code on one screen",
-  description: "Browse curated templates, customize every pixel visually, and export clean Next.js 15 source code — all without context switching.",
-  keywords: ["website builder", "templates", "no-code", "publish website", "SaaS", "neo-brutalism", "Next.js 15"],
+  title: "Launchly — Craft, Customize & Launch Without Limits",
+  description: "Curated aesthetic templates, real-time visual canvas, and instant production export. Design freely, build faster, and ship your vision to the world.",
+  keywords: [
+    "website builder",
+    "curated templates",
+    "visual editor",
+    "creative studio",
+    "publish website",
+    "neo-brutalism",
+    "web design",
+    "modern web",
+    "maker workspace",
+  ],
   openGraph: {
-    title: "Launchly — Build without context switching",
-    description: "Templates, visual editor, live preview, and Next.js 15 source code on one gamified maker workspace.",
+    title: "Launchly — The Visual Studio for Modern Web Builders",
+    description: "Curated aesthetic templates, live visual editing, and instant edge deployment. Build without friction in a playground crafted for creators.",
     type: "website",
+    siteName: "Launchly",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Launchly — The Visual Studio for Modern Web Builders",
+    description: "Curated aesthetic templates, live visual editing, and instant edge deployment. Build without friction in a playground crafted for creators.",
   },
   icons: {
     icon: "/brand-logo-clean.png",

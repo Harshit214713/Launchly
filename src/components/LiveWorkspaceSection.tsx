@@ -154,19 +154,19 @@ export default function HeroSection() {
   };
 
   return (
-    <section id="live-workspace" className="mx-auto w-[min(1400px,calc(100%-20px))] pb-10 pt-4">
+    <section id="live-workspace" className="mx-auto w-[min(1400px,calc(100%-32px))] sm:w-[min(1400px,calc(100%-48px))] pb-10 pt-4">
       {/* Section Header */}
       <div className="mb-6 max-w-3xl">
         <h2 className="font-display text-3xl sm:text-5xl md:text-6xl font-black leading-[1.05] text-ink">
           Try the real workspace right here.
         </h2>
         <p className="mt-2 text-sm sm:text-base md:text-lg text-muted-foreground">
-          Tweak copy live, pick color themes, test responsive viewports, and inspect the real Next.js source code.
+          Tweak copy live, pick color themes, test responsive viewports, and inspect clean production source code.
         </p>
       </div>
 
       {/* Workspace Shell */}
-      <div className="overflow-hidden rounded-3xl border-[3.5px] border-ink bg-card shadow-brutal-lg">
+      <div className="overflow-hidden rounded-3xl border-[3.5px] border-ink bg-card shadow-brutal sm:shadow-brutal-lg">
         {/* Workspace Top Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 border-b-[3px] border-ink bg-[#faf5ff] dark:bg-[#171720] px-3 sm:px-6 py-2.5 sm:py-3">
           {/* Mode Switcher */}

@@ -95,7 +95,7 @@ export default async function Image({
           }}
         >
           <div style={{ display: 'flex', gap: '24px', fontSize: '18px', color: '#FFFFFF' }}>
-            <span>✓ Next.js 15 App Router</span>
+            <span>✓ Production-Ready Architecture</span>
             <span>✓ Edge Subdomain</span>
             <span>✓ Neo-Brutalist Engine</span>
           </div>
