@@ -110,23 +110,22 @@ BEGIN
     CREATE POLICY "Service role full access on contact_messages" ON public.contact_messages FOR ALL USING (true);
   END IF;
 
-  -- Allow authenticated & anon select on public entities if needed
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow authenticated read users') THEN
-    CREATE POLICY "Allow authenticated read users" ON public.users FOR SELECT USING (true);
+  -- Enforce strict owner-only access policies
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can only read own profile') THEN
+    CREATE POLICY "Users can only read own profile" ON public.users FOR SELECT USING (auth.uid() = id);
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow authenticated read payments') THEN
-    CREATE POLICY "Allow authenticated read payments" ON public.payments FOR SELECT USING (true);
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can only read own payments') THEN
+    CREATE POLICY "Users can only read own payments" ON public.payments FOR SELECT USING (auth.jwt() ->> 'email' = user_email);
   END IF;
 END $$;
 
--- Explicit schema permissions for Supabase Studio, PostgREST and roles
+-- Explicit schema permissions: grant service_role full access, restrict anon/authenticated
 GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
-GRANT ALL ON ALL ROUTINES IN SCHEMA public TO postgres, anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
+GRANT SELECT ON public.sites TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO postgres, service_role;
 
 -- Ensure table ownership for Supabase Dashboard Table Editor
 ALTER TABLE public.users OWNER TO postgres;

@@ -1,9 +1,20 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { publishSite } from '@/lib/db';
+import { verifySessionToken } from '@/lib/auth';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const rl = rateLimit(`publish:${ip}`, 15, 60 * 1000);
+    if (!rl.success) {
+      return NextResponse.json(
+        { success: false, message: 'Too many publish requests. Please wait a minute.' },
+        { status: 429 }
+      );
+    }
+
     const { templateId, name, subdomain, siteData } = await request.json();
 
     if (!templateId || !subdomain) {
@@ -14,13 +25,21 @@ export async function POST(request: Request) {
     }
 
     const cookieStore = await cookies();
-    const userCookie = cookieStore.get('launchly_user');
+    const sessionCookie = cookieStore.get('launchly_session');
     let userId: string | undefined = undefined;
-    if (userCookie?.value) {
-      try {
-        const u = JSON.parse(userCookie.value);
-        if (u?.id) userId = u.id;
-      } catch {}
+
+    if (sessionCookie?.value) {
+      const session = verifySessionToken(sessionCookie.value);
+      if (session?.id) {
+        userId = session.id;
+      }
+    }
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, message: 'Please sign in or create an account to publish and claim this website subdomain.' },
+        { status: 401 }
+      );
     }
 
     const result = await publishSite(templateId, name, subdomain, userId, siteData);
@@ -29,7 +48,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(result);
-  } catch {
+  } catch (err: unknown) {
+    console.error('Publish error:', err);
     return NextResponse.json(
       { success: false, message: 'Internal error deploying website.' },
       { status: 500 }

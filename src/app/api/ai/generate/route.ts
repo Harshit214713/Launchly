@@ -36,10 +36,22 @@ interface AiDesignResult {
   };
 }
 
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
+
 export async function POST(req: Request) {
   try {
+    const ip = getClientIp(req);
+    const rl = rateLimit(`ai:${ip}`, 20, 60 * 1000);
+    if (!rl.success) {
+      return NextResponse.json(
+        { success: false, error: 'Rate limit exceeded. Please wait a minute before generating new designs.' },
+        { status: 429 }
+      );
+    }
+
     const { prompt = '' } = await req.json();
-    const p = prompt.toLowerCase();
+    const cleanPrompt = typeof prompt === 'string' ? prompt.slice(0, 500) : '';
+    const p = cleanPrompt.toLowerCase();
 
     // Determine aesthetic archetype from user prompt
     let result: AiDesignResult;

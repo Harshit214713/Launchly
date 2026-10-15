@@ -117,27 +117,31 @@ export default function PaymentModal({
     }
 
     setSubmitting(true);
-    setVerifyStep('Authorizing Stripe / Global payment gateway...');
+    setVerifyStep('Initiating secure checkout session...');
 
-    setTimeout(() => {
-      setVerifyStep('Validating transaction webhook...');
-      setTimeout(() => {
-        const generatedRef = `STRIPE_${Date.now()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-        setTxnId(generatedRef);
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan: planId,
+          billing: billingCycle,
+          email: payerEmail.trim(),
+        }),
+      });
 
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('launchly_plan', planId);
-          localStorage.setItem('launchly_payment_txn', generatedRef);
-          localStorage.setItem('launchly_pro_active', 'true');
-        }
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to initiate checkout.');
+      }
 
-        setSuccess(true);
-        if (onPaymentComplete) {
-          onPaymentComplete(generatedRef);
-        }
-        setSubmitting(false);
-      }, 700);
-    }, 800);
+      router.push(`/checkout?plan=${encodeURIComponent(planId)}&billing=${encodeURIComponent(billingCycle)}&email=${encodeURIComponent(payerEmail.trim())}`);
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Checkout initiation failed. Please try UPI scan or contact support.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleVerifyPayment = async (e: React.FormEvent) => {
