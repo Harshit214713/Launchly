@@ -7,7 +7,6 @@ import QRCode from 'qrcode';
 import {
   X,
   CheckCircle2,
-  ShieldCheck,
   Sparkles,
   Loader2,
   ArrowRight,
@@ -42,6 +41,9 @@ export default function PaymentModal({
   const router = useRouter();
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card'>('upi');
   const [payerEmail, setPayerEmail] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [verifyStep, setVerifyStep] = useState('');
   const [success, setSuccess] = useState(false);
@@ -207,34 +209,60 @@ export default function PaymentModal({
   const handleCardPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!payerEmail.trim()) {
-      setError('Please provide your email address for receipt and license activation.');
+
+    const cleanEmail = payerEmail.trim();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Please enter a valid email id.');
+      return;
+    }
+
+    if (!cardNumber.trim() || cardNumber.replace(/\s+/g, '').length < 12) {
+      setError('Please enter a valid Card Number.');
       return;
     }
 
     setSubmitting(true);
-    setVerifyStep('Initiating secure checkout session...');
+    setVerifyStep('Authorizing card transaction...');
 
     try {
-      const res = await fetch('/api/checkout', {
+      const res = await fetch('/api/payments/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          plan: planId,
-          billing: billingCycle,
-          email: payerEmail.trim(),
+          sessionId: orderSessionId,
+          userEmail: cleanEmail,
+          planId,
+          itemName,
+          amount: amountInfo.inr.toString(),
+          billingCycle,
         }),
       });
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.message || 'Failed to initiate checkout.');
+        throw new Error(data.message || 'Payment authorization failed.');
       }
 
-      router.push(`/checkout?plan=${encodeURIComponent(planId)}&billing=${encodeURIComponent(billingCycle)}&email=${encodeURIComponent(payerEmail.trim())}`);
-      onClose();
+      setVerifyStep('Card authorized! Activating Pro Creator...');
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('launchly_plan', planId);
+        localStorage.setItem('launchly_payment_txn', orderSessionId);
+        localStorage.setItem('launchly_pro_active', 'true');
+      }
+
+      setSuccess(true);
+      if (onPaymentComplete) {
+        onPaymentComplete(orderSessionId);
+      }
+
+      setTimeout(() => {
+        onClose();
+        router.push('/dashboard?payment_success=true');
+      }, 2200);
+
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Checkout initiation failed. Please try UPI scan or contact support.');
+      setError(err instanceof Error ? err.message : 'Card authorization failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -481,7 +509,7 @@ Visit: https://launchly.site/dashboard
               </>
             ) : (
               /* Global Credit / Debit Card Form */
-              <form onSubmit={handleCardPayment} className="space-y-3 pt-1">
+              <form onSubmit={handleCardPayment} className="space-y-3 pt-1 pb-2">
                 {error && (
                   <div className="p-2 rounded-lg border-2 border-black bg-red-100 dark:bg-red-950/60 text-[11px] font-mono font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5 shadow-brutal-xs">
                     <AlertCircle size={14} className="shrink-0" />
@@ -498,33 +526,89 @@ Visit: https://launchly.site/dashboard
                     required
                     value={payerEmail}
                     onChange={(e) => { setPayerEmail(e.target.value); setError(''); }}
-                    placeholder="founder@yourcompany.com"
+                    placeholder="Enter Your email id"
                     className="w-full px-3 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-xs"
                   />
                 </div>
 
-                <div className="p-2.5 rounded-xl border border-black/20 dark:border-[#202235] bg-neutral-50 dark:bg-[#151522] text-[10px] font-mono text-neutral-600 dark:text-neutral-300 flex items-center gap-2">
-                  <ShieldCheck size={14} className="text-mint shrink-0" />
-                  <span>256-bit encrypted SSL checkout via Stripe webhook pipeline.</span>
+                <div>
+                  <label className="block font-mono text-[10px] font-black uppercase tracking-wider text-black dark:text-white mb-1">
+                    Card Number <span className="text-pink">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={cardNumber}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
+                      const formatted = raw.match(/.{1,4}/g)?.join(' ') || raw;
+                      setCardNumber(formatted);
+                      setError('');
+                    }}
+                    placeholder="Enter your Card Number"
+                    maxLength={19}
+                    className="w-full px-3 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-xs"
+                  />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="brutal-press w-full py-2.5 px-4 rounded-xl border-[2.5px] border-black bg-pink text-black font-display text-xs sm:text-sm font-black uppercase tracking-wider shadow-brutal hover:bg-pink/90 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 size={15} className="animate-spin text-black" />
-                      <span>{verifyStep || 'Initiating checkout...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard size={15} className="stroke-[2.5]" />
-                      <span>Proceed to Global Stripe Checkout</span>
-                    </>
-                  )}
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-mono text-[10px] font-black uppercase tracking-wider text-black dark:text-white mb-1">
+                      Expiry (MM/YY) <span className="text-pink">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={cardExpiry}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        const formatted = raw.length >= 3 ? `${raw.slice(0, 2)}/${raw.slice(2)}` : raw;
+                        setCardExpiry(formatted);
+                        setError('');
+                      }}
+                      placeholder="MM / YY"
+                      maxLength={5}
+                      className="w-full px-3 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-mono text-[10px] font-black uppercase tracking-wider text-black dark:text-white mb-1">
+                      CVC / CVV <span className="text-pink">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      maxLength={4}
+                      value={cardCvc}
+                      onChange={(e) => {
+                        setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 4));
+                        setError('');
+                      }}
+                      placeholder="CVC"
+                      className="w-full px-3 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 pb-1">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="brutal-press w-full py-3 px-4 rounded-xl border-[2.5px] border-black bg-pink text-black font-display text-xs sm:text-sm font-black uppercase tracking-wider shadow-brutal hover:bg-pink/90 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin text-black" />
+                        <span>{verifyStep || 'Processing payment...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard size={16} className="stroke-[2.5]" />
+                        <span>Authorize &amp; Upgrade to Pro</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </form>
             )}
           </div>
