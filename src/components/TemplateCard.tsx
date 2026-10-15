@@ -776,7 +776,7 @@ export default function TemplateCard({ template, onCustomize }: TemplateCardProp
         <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-3 p-4">
           <Link
             href={`/templates/${template.id}`}
-            className="brutal-press flex items-center gap-1.5 px-4 py-2 bg-card text-ink border-[2.5px] border-ink rounded-xl text-xs font-display font-black shadow-brutal-sm hover:bg-[#faf5ff] cursor-pointer"
+            className="brutal-press flex items-center gap-1.5 px-4 py-2 bg-card text-ink border-[2.5px] border-ink rounded-xl text-xs font-display font-black shadow-brutal-sm hover:bg-[#faf5ff] dark:hover:bg-[#1f2136] cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           >
             <Eye size={14} />

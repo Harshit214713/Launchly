@@ -122,7 +122,7 @@ export default function Pricing() {
               <span className="font-mono text-xs font-black uppercase tracking-wider text-muted-foreground">
                 Starter Tier
               </span>
-              <span className="rounded-full border-2 border-ink bg-[#fdf2f8] px-3 py-0.5 font-mono text-[11px] font-black text-black shadow-2xs">
+              <span className="rounded-full border-2 border-ink bg-[#fdf2f8] dark:bg-[#1c1e30] px-3 py-0.5 font-mono text-[11px] font-black text-black dark:text-white shadow-2xs">
                 Free Forever
               </span>
             </div>
@@ -137,7 +137,7 @@ export default function Pricing() {
                 <span className="font-display text-5xl sm:text-6xl font-black text-ink">$0</span>
                 <span className="font-mono text-sm text-muted-foreground">/ month</span>
               </div>
-              <span className="font-mono text-xs text-neutral-400 mt-1 block">
+              <span className="font-mono text-xs text-neutral-500 dark:text-neutral-400 mt-1 block">
                 No credit card required to begin
               </span>
             </div>
@@ -157,14 +157,14 @@ export default function Pricing() {
           <button
             type="button"
             onClick={() => handleSelectPlan('free')}
-            className="brutal-press w-full rounded-2xl border-[3px] border-ink bg-card py-4 font-display text-base font-black text-ink shadow-brutal hover:bg-neutral-100 dark:hover:bg-[#1a1a26] cursor-pointer"
+            className="brutal-press w-full rounded-2xl border-[3px] border-ink bg-card py-4 font-display text-base font-black text-ink shadow-brutal hover:bg-neutral-100 dark:hover:bg-[#1d1f33] cursor-pointer"
           >
             Start Building Free →
           </button>
         </div>
 
         {/* Pro Card */}
-        <div className="rounded-3xl border-[4px] border-ink bg-card p-8 sm:p-10 shadow-brutal-xl relative flex flex-col justify-between hover:-translate-y-1 transition-all">
+        <div className="rounded-3xl border-[4px] border-ink dark:border-pink/40 bg-card dark:bg-[#16172a] p-8 sm:p-10 shadow-brutal-xl relative flex flex-col justify-between hover:-translate-y-1 transition-all">
           <div>
             <div className="flex items-center justify-between">
               <span className="font-mono text-xs font-black uppercase tracking-wider text-pink font-bold">

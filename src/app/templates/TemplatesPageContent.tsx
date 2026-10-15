@@ -214,7 +214,7 @@ export default function TemplatesPageContent() {
       )}
 
       {/* Neo-Brutal Hero */}
-      <div className="bg-[#fdf2f8] dark:bg-[#0b0b12] border-b-[3px] border-ink py-14 sm:py-16 px-6">
+      <div className="bg-[#fdf2f8] dark:bg-[#0c0d16] border-b-[3px] border-ink py-14 sm:py-16 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-3xl">
             <h1 className="text-4xl sm:text-6xl font-black font-display tracking-tight text-ink mb-4">

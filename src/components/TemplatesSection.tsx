@@ -56,7 +56,7 @@ export default function TemplatesSection() {
                 placeholder="Search templates by name, style, or industry..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-11 pr-10 py-2.5 sm:py-3 bg-[#fdf2f8] dark:bg-[#171720] border-[2.5px] border-ink rounded-xl text-xs sm:text-sm font-mono font-bold text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-pink transition-all shadow-brutal-sm"
+                className="w-full pl-11 pr-10 py-2.5 sm:py-3 bg-[#fdf2f8] dark:bg-[#151726] border-[2.5px] border-ink rounded-xl text-xs sm:text-sm font-mono font-bold text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-pink transition-all shadow-brutal-sm"
               />
               {searchQuery && (
                 <button
@@ -75,7 +75,7 @@ export default function TemplatesSection() {
               <select
                 value={filterPlan}
                 onChange={(e) => setFilterPlan(e.target.value as 'all' | 'free' | 'pro')}
-                className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-[#fdf2f8] dark:bg-[#171720] border-[2.5px] border-ink rounded-xl text-xs sm:text-sm font-mono font-bold text-ink focus:outline-none cursor-pointer shadow-brutal-sm"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-[#fdf2f8] dark:bg-[#151726] border-[2.5px] border-ink rounded-xl text-xs sm:text-sm font-mono font-bold text-ink focus:outline-none cursor-pointer shadow-brutal-sm"
               >
                 <option value="all">All Tiers (Free & Pro)</option>
                 <option value="free">Free Templates</option>
@@ -85,7 +85,7 @@ export default function TemplatesSection() {
           </div>
 
           {/* Bottom Row: Category tabs (Wrapped, clean spacing, no clipping) */}
-          <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t-[2px] border-ink/10 dark:border-[#222232]">
+          <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t-[2px] border-ink/10 dark:border-[#202235]">
             <span className="font-mono text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1 hidden md:inline">
               CATEGORY:
             </span>
@@ -96,7 +96,7 @@ export default function TemplatesSection() {
                 onClick={() => setActiveCategory(category)}
                 className={`brutal-press px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-display font-black uppercase whitespace-nowrap transition-all cursor-pointer border-[2.5px] border-ink ${activeCategory === category
                     ? 'bg-pink text-black shadow-brutal-sm'
-                    : 'bg-card text-ink hover:bg-neutral-100 dark:hover:bg-neutral-800 shadow-brutal-sm'
+                    : 'bg-card text-ink hover:bg-neutral-100 dark:hover:bg-[#1b1c30] shadow-brutal-sm'
                   }`}
               >
                 {category}

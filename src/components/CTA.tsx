@@ -59,9 +59,9 @@ export default function CTA() {
       </div>
 
       {/* Main Feedback Box */}
-      <div className="mt-8 mx-auto max-w-2xl rounded-3xl sm:rounded-[28px] border-[3.5px] border-black dark:border-[#262638] bg-white dark:bg-[#121218] p-6 sm:p-8 shadow-[8px_8px_0px_#000000]">
+      <div className="mt-8 mx-auto max-w-2xl rounded-3xl sm:rounded-[28px] border-[3.5px] border-black dark:border-[#26283d] bg-white dark:bg-[#131424] p-6 sm:p-8 shadow-brutal-lg">
         {/* Card Header */}
-        <div className="flex items-center gap-3.5 pb-5 border-b-[2px] border-black/10 dark:border-[#222232]">
+        <div className="flex items-center gap-3.5 pb-5 border-b-[2px] border-black/10 dark:border-[#202235]">
           <div className="h-10 w-10 shrink-0 rounded-xl border-2 border-black bg-lilac flex items-center justify-center text-black shadow-xs">
             <MessageSquareHeart size={20} className="stroke-[2.5]" />
           </div>
@@ -107,9 +107,9 @@ export default function CTA() {
                   key={cat}
                   type="button"
                   onClick={() => setCategory(cat)}
-                  className={`brutal-press rounded-full border-2 border-black dark:border-[#262638] px-4 py-1.5 font-mono text-xs font-black uppercase transition-all cursor-pointer ${category === cat
+                  className={`brutal-press rounded-full border-2 border-black dark:border-[#26283d] px-4 py-1.5 font-mono text-xs font-black uppercase transition-all cursor-pointer ${category === cat
                       ? 'bg-pink text-black shadow-[2px_2px_0px_#000000]'
-                      : 'bg-white dark:bg-[#1a1a24] text-black dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                      : 'bg-white dark:bg-[#18192a] text-black dark:text-white hover:bg-neutral-100 dark:hover:bg-[#202238]'
                     }`}
                 >
                   {cat}
@@ -154,7 +154,7 @@ export default function CTA() {
                 value={userEmail}
                 onChange={(e) => setUserEmail(e.target.value)}
                 placeholder="Enter your Email Id"
-                className="w-full rounded-xl border-2 border-black dark:border-[#262638] bg-white dark:bg-[#0c0c10] px-3.5 py-2 font-mono text-xs text-ink placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink/50 shadow-xs"
+                className="w-full rounded-xl border-2 border-black dark:border-[#26283d] bg-[#faf8f5] dark:bg-[#151726] px-3.5 py-2 font-mono text-xs text-ink placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink/50 shadow-xs"
               />
             </div>
 
@@ -168,7 +168,7 @@ export default function CTA() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Roast our animations, request your dream template, or describe the feature that would make Launchly your default builder..."
-                className="w-full rounded-2xl border-[2.5px] border-black dark:border-[#262638] bg-white dark:bg-[#0c0c10] p-4 font-mono text-xs sm:text-[13px] text-ink placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink/50 shadow-inner resize-y min-h-[110px]"
+                className="w-full rounded-2xl border-[2.5px] border-black dark:border-[#26283d] bg-[#faf8f5] dark:bg-[#151726] p-4 font-mono text-xs sm:text-[13px] text-ink placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink/50 shadow-inner resize-y min-h-[110px]"
                 required
               />
             </div>

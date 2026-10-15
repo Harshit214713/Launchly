@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 import { cn, formatDate } from '@/lib/utils';
+import BrandWordmark from '@/components/BrandWordmark';
 
 interface WebsiteItem {
   id: string;
@@ -313,23 +314,8 @@ export default function Dashboard() {
               />
             </div>
             <div className="flex flex-col">
-              <Image
-                src="/brand-name-light.png"
-                alt="LAUNCHLY"
-                width={118}
-                height={16}
-                className="block dark:hidden h-3.5 w-auto object-contain"
-                priority
-              />
-              <Image
-                src="/brand-name-dark.png"
-                alt="LAUNCHLY"
-                width={118}
-                height={16}
-                className="hidden dark:block h-3.5 w-auto object-contain"
-                priority
-              />
-              <span className="font-mono text-[9px] font-black uppercase tracking-widest text-pink">
+              <BrandWordmark size="sm" />
+              <span className="font-mono text-[9px] font-black uppercase tracking-widest text-pink mt-0.5">
                 DASHBOARD
               </span>
             </div>

@@ -397,7 +397,7 @@ export default function HeroSection() {
               title="Drag horizontally to resize preview and code panel"
             >
               {/* Continuous vertical black divider line matching Screenshot 2 */}
-              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2.5px] bg-black dark:bg-white/80" />
+              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2.5px] bg-black dark:bg-[#26283d]" />
 
               {/* Pink handle pill matching Screenshot 2 */}
               <div 
@@ -435,10 +435,10 @@ export default function HeroSection() {
                   <button
                     type="button"
                     onClick={() => setActiveTab('props')}
-                    className={`rounded-2xl border-[2.5px] border-black px-3.5 sm:px-4 py-1.5 font-mono text-[11px] sm:text-xs font-black uppercase transition-all cursor-pointer ${
+                    className={`rounded-2xl border-[2.5px] border-black dark:border-[#26283d] px-3.5 sm:px-4 py-1.5 font-mono text-[11px] sm:text-xs font-black uppercase transition-all cursor-pointer ${
                       activeTab === 'props'
-                        ? 'bg-white text-black shadow-[3px_3px_0px_#000000]'
-                        : 'bg-white text-neutral-600 hover:text-black shadow-[1.5px_1.5px_0px_#000000]'
+                        ? 'bg-white dark:bg-pink text-black shadow-[3px_3px_0px_#000000]'
+                        : 'bg-white dark:bg-[#151726] text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white shadow-[1.5px_1.5px_0px_#000000]'
                     }`}
                   >
                     Notes
@@ -446,10 +446,10 @@ export default function HeroSection() {
                   <button
                     type="button"
                     onClick={() => setActiveTab('code')}
-                    className={`rounded-2xl border-[2.5px] border-black px-3.5 sm:px-4 py-1.5 font-mono text-[11px] sm:text-xs font-black uppercase transition-all cursor-pointer ${
+                    className={`rounded-2xl border-[2.5px] border-black dark:border-[#26283d] px-3.5 sm:px-4 py-1.5 font-mono text-[11px] sm:text-xs font-black uppercase transition-all cursor-pointer ${
                       activeTab === 'code'
-                        ? 'bg-white text-black shadow-[3px_3px_0px_#000000]'
-                        : 'bg-white text-neutral-600 hover:text-black shadow-[1.5px_1.5px_0px_#000000]'
+                        ? 'bg-white dark:bg-pink text-black shadow-[3px_3px_0px_#000000]'
+                        : 'bg-white dark:bg-[#151726] text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white shadow-[1.5px_1.5px_0px_#000000]'
                     }`}
                   >
                     Code
@@ -460,7 +460,7 @@ export default function HeroSection() {
                   <button
                     type="button"
                     onClick={copyCode}
-                    className="brutal-press inline-flex items-center gap-1.5 rounded-xl border-[2.5px] border-black bg-white px-3 py-1 text-xs font-mono font-bold text-black shadow-[2px_2px_0px_#000000] hover:bg-neutral-50 transition-all cursor-pointer"
+                    className="brutal-press inline-flex items-center gap-1.5 rounded-xl border-[2.5px] border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-3 py-1 text-xs font-mono font-bold text-black dark:text-white shadow-[2px_2px_0px_#000000] hover:bg-neutral-50 dark:hover:bg-[#1f2136] transition-all cursor-pointer"
                   >
                     {copied ? <Check size={12} className="text-mint stroke-[3]" /> : <Copy size={12} />}
                     <span>{copied ? 'Copied!' : 'Copy Code'}</span>
@@ -469,7 +469,7 @@ export default function HeroSection() {
               </div>
 
               {/* Main Code Execution Sandbox Window */}
-              <div className="rounded-2xl sm:rounded-3xl border-[2.5px] border-black bg-[#0d0d12] p-3 sm:p-4 shadow-[5px_5px_0px_#000000] dark:shadow-[5px_5px_0px_rgba(255,255,255,0.15)] flex flex-col gap-2.5 sm:gap-3">
+              <div className="rounded-2xl sm:rounded-3xl border-[2.5px] border-black dark:border-[#26283d] bg-[#0d0d12] p-3 sm:p-4 shadow-[5px_5px_0px_#000000] dark:shadow-[5px_5px_0px_#000000] flex flex-col gap-2.5 sm:gap-3">
                 {/* Titlebar */}
                 <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
                   <div className="flex items-center gap-2">
@@ -590,7 +590,7 @@ export default function HeroSection() {
                 {/* Bottom Action: SIGN UP FREE TO SAVE Button */}
                 <Link
                   href="/editor/saas-launch"
-                  className="brutal-press w-full rounded-full border-[2.5px] border-black bg-white hover:bg-black hover:text-white text-black py-2.5 font-mono text-xs sm:text-sm font-black uppercase tracking-widest shadow-[3px_3px_0px_#000000] transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  className="brutal-press w-full rounded-full border-[2.5px] border-black dark:border-[#26283d] bg-pink hover:bg-yellow text-black py-2.5 font-mono text-xs sm:text-sm font-black uppercase tracking-widest shadow-brutal-sm transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-2"
                 >
                   <span>SIGN UP FREE TO SAVE</span>
                   <ArrowUpRight size={14} className="stroke-[3]" />

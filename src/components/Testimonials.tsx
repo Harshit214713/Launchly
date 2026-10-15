@@ -90,7 +90,7 @@ export default function Testimonials() {
               onClick={() => setSelectedCategory(cat)}
               className={`brutal-press rounded-xl border-[2.5px] border-ink px-3.5 py-1.5 font-display text-xs font-black uppercase transition-all cursor-pointer ${selectedCategory === cat
                 ? 'bg-pink text-black shadow-brutal-sm'
-                : 'bg-card text-ink hover:bg-neutral-100 shadow-brutal-sm'
+                : 'bg-card text-ink hover:bg-neutral-100 dark:hover:bg-[#1b1c30] shadow-brutal-sm'
                 }`}
             >
               {cat}

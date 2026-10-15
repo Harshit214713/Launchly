@@ -231,11 +231,11 @@ Visit: https://launchly.site/dashboard
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[420px] max-h-[94vh] flex flex-col bg-card border-[3.5px] border-black dark:border-[#222232] rounded-3xl p-4 sm:p-5 shadow-brutal-xl text-ink relative overflow-hidden"
+        className="w-full max-w-[420px] max-h-[94vh] flex flex-col bg-card border-[3.5px] border-black dark:border-[#26283d] rounded-3xl p-4 sm:p-5 shadow-brutal-xl text-ink relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with Title and Close Button */}
-        <div className="flex items-start justify-between gap-3 pb-3 border-b-2 border-black/10 dark:border-[#222232] shrink-0">
+        <div className="flex items-start justify-between gap-3 pb-3 border-b-2 border-black/10 dark:border-[#202235] shrink-0">
           <div>
             <div className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-full bg-pink border border-black inline-block" />
@@ -327,7 +327,7 @@ Visit: https://launchly.site/dashboard
                   </div>
 
                   {/* Copy UPI ID Box */}
-                  <div className="mt-2.5 w-full flex items-center justify-between gap-2 p-1.5 rounded-xl border border-black/20 dark:border-white/10 bg-neutral-50 dark:bg-[#1a1a28]">
+                  <div className="mt-2.5 w-full flex items-center justify-between gap-2 p-1.5 rounded-xl border border-black/20 dark:border-[#202235] bg-neutral-50 dark:bg-[#1a1a28]">
                     <span className="font-mono text-[10px] text-neutral-600 dark:text-neutral-300 truncate pl-1">
                       UPI ID: <strong className="text-black dark:text-white">7428938113@ptaxis</strong>
                     </span>
@@ -497,7 +497,7 @@ Visit: https://launchly.site/dashboard
                   </div>
                 </div>
 
-                <div className="p-2.5 rounded-xl border border-black/20 dark:border-white/10 bg-neutral-50 dark:bg-[#151522] text-[10px] font-mono text-neutral-600 dark:text-neutral-300 flex items-center gap-2">
+                <div className="p-2.5 rounded-xl border border-black/20 dark:border-[#202235] bg-neutral-50 dark:bg-[#151522] text-[10px] font-mono text-neutral-600 dark:text-neutral-300 flex items-center gap-2">
                   <ShieldCheck size={14} className="text-mint shrink-0" />
                   <span>256-bit encrypted SSL checkout via Stripe webhook pipeline.</span>
                 </div>

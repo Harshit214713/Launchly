@@ -17,6 +17,7 @@ import {
   ArrowRight,
   ExternalLink
 } from 'lucide-react';
+import BrandWordmark from '@/components/BrandWordmark';
 
 function CheckoutContent() {
   const router = useRouter();
@@ -119,20 +120,7 @@ function CheckoutContent() {
               className="w-full h-full object-contain p-0.5 rounded-lg"
             />
           </div>
-          <Image
-            src="/brand-name-light.png"
-            alt="LAUNCHLY"
-            width={130}
-            height={20}
-            className="h-4 w-auto object-contain dark:hidden"
-          />
-          <Image
-            src="/brand-name-dark.png"
-            alt="LAUNCHLY"
-            width={130}
-            height={20}
-            className="h-4 w-auto object-contain hidden dark:block"
-          />
+          <BrandWordmark size="md" />
         </Link>
 
         <Link

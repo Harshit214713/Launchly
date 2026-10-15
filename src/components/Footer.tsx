@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { GitBranch, ArrowUpRight, Sparkles } from 'lucide-react';
+import BrandWordmark from './BrandWordmark';
 
 export default function Footer() {
   const router = useRouter();
@@ -29,7 +30,7 @@ export default function Footer() {
         <div className="flex flex-col lg:flex-row items-center justify-between gap-6 pb-6 border-b-2 border-ink/10 dark:border-[#222232]">
           {/* Brand */}
           <Link href="/" className="flex items-center gap-3 group shrink-0">
-            <div className="h-10 w-10 rounded-xl border-[2.5px] border-ink bg-white dark:bg-[#161622] p-1.5 shadow-brutal-sm flex items-center justify-center transition-transform group-hover:rotate-6 shrink-0">
+            <div className="h-10 w-10 rounded-xl border-[2.5px] border-ink bg-white dark:bg-[#151726] p-1.5 shadow-brutal-sm flex items-center justify-center transition-transform group-hover:rotate-6 shrink-0">
               <Image
                 src="/brand-logo-clean.png"
                 alt="Launchly"
@@ -39,22 +40,7 @@ export default function Footer() {
               />
             </div>
             <div className="flex flex-col justify-center">
-              <div className="flex items-center">
-                <Image
-                  src="/brand-name-light.png"
-                  alt="LAUNCHLY"
-                  width={132}
-                  height={20}
-                  className="block dark:hidden h-5 w-auto object-contain"
-                />
-                <Image
-                  src="/brand-name-dark.png"
-                  alt="LAUNCHLY"
-                  width={132}
-                  height={20}
-                  className="hidden dark:block h-5 w-auto object-contain"
-                />
-              </div>
+              <BrandWordmark size="md" />
               <span className="font-mono text-[9px] font-bold tracking-[0.16em] text-muted-foreground uppercase mt-0.5">
                 VISUAL WEB STUDIO
               </span>

@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Sparkles
 } from 'lucide-react';
+import BrandWordmark from '@/components/BrandWordmark';
 
 const PREVIEW_THEMES = [
   { name: 'Pink', bg: '#f472b6', text: '#000000', label: 'Candy' },
@@ -148,22 +149,7 @@ export default function LoginPage() {
             />
           </div>
           <div className="flex flex-col">
-            <Image
-              src="/brand-name-light.png"
-              alt="LAUNCHLY"
-              width={124}
-              height={18}
-              className="block dark:hidden h-4 sm:h-4.5 w-auto object-contain"
-              priority
-            />
-            <Image
-              src="/brand-name-dark.png"
-              alt="LAUNCHLY"
-              width={124}
-              height={18}
-              className="hidden dark:block h-4 sm:h-4.5 w-auto object-contain"
-              priority
-            />
+            <BrandWordmark size="md" />
           </div>
         </Link>
 
