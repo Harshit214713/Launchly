@@ -8,7 +8,7 @@ import {
   TrendingUp, Clock, LayoutTemplate, ChevronRight,
   Settings, LogOut, Search, Sparkles, Check, Menu, X,
   Sun, Moon, ArrowRight, Layers, ShieldCheck, User as UserIcon,
-  Loader2, ExternalLink, Calendar, Mail, Zap, CheckCircle2
+  Loader2, ExternalLink, Calendar, Mail, Zap, CheckCircle2, Crown
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 import { cn, formatDate } from '@/lib/utils';
@@ -42,6 +42,7 @@ export default function Dashboard() {
   const [search, setSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedUserId, setCopiedUserId] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -150,6 +151,13 @@ export default function Dashboard() {
     setTimeout(() => setCopiedEmail(false), 2000);
   };
 
+  const handleCopyUserId = () => {
+    const idToCopy = user?.id || 'usr_launchly';
+    navigator.clipboard?.writeText(idToCopy);
+    setCopiedUserId(true);
+    setTimeout(() => setCopiedUserId(false), 2000);
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this website? This action cannot be undone.')) {
       return;
@@ -198,95 +206,242 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Account Settings / Profile Modal */}
+      {/* Account Settings / Profile Modal - Fully Interactive & Responsive */}
       {profileModalOpen && user && (
         <div 
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+          className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setProfileModalOpen(false)}
         >
           <div 
-            className="w-full max-w-md rounded-3xl border-[3.5px] border-black dark:border-[#262638] bg-card dark:bg-[#12121a] p-5 sm:p-6 shadow-brutal-lg text-ink space-y-4"
+            className="w-full max-w-[460px] max-h-[92vh] overflow-y-auto rounded-3xl border-[3px] sm:border-[3.5px] border-black dark:border-[#26283d] bg-[#faf8f5] dark:bg-[#0e0f18] p-4 sm:p-6 shadow-brutal-xl text-ink space-y-3.5 sm:space-y-4 relative"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-3 border-b-2 border-black/10 dark:border-[#262638]">
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-pink border border-black inline-block" />
-                <h3 className="font-display text-lg font-black text-black dark:text-white">
-                  Your Account Details
+            {/* Ambient Background Grid Pattern */}
+            <div 
+              className="absolute inset-0 opacity-[0.06] dark:opacity-[0.12] pointer-events-none"
+              style={{
+                backgroundImage: 'radial-gradient(#000 1.5px, transparent 1.5px)',
+                backgroundSize: '16px 16px',
+              }}
+            />
+
+            {/* Modal Header with Live Node Status */}
+            <div className="relative z-10 flex items-center justify-between pb-3 border-b-2 border-black/10 dark:border-white/10">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-emerald-500 border border-black"></span>
+                </span>
+                <h3 className="font-display text-base sm:text-lg font-black text-black dark:text-white uppercase tracking-tight">
+                  Maker Identity
                 </h3>
               </div>
+
               <button
                 type="button"
                 onClick={() => setProfileModalOpen(false)}
-                className="brutal-press h-8 w-8 rounded-xl border-2 border-black bg-yellow text-black flex items-center justify-center shadow-brutal-xs cursor-pointer"
+                className="brutal-press h-8 w-8 rounded-xl border-2 border-black bg-yellow hover:bg-yellow/90 text-black flex items-center justify-center shadow-brutal-xs hover:rotate-90 transition-all cursor-pointer"
+                title="Close"
               >
                 <X size={15} className="stroke-[3]" />
               </button>
             </div>
 
-            <div className="p-4 rounded-2xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#181824] space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-2xl border-2 border-black dark:border-[#262638] bg-mint text-black font-display font-black text-lg flex items-center justify-center shadow-brutal-xs">
-                  {user.name.charAt(0).toUpperCase()}
+            {/* Identity Card */}
+            <div className="relative z-10 p-3.5 sm:p-4 rounded-2xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#151726] shadow-brutal-sm space-y-3">
+              {/* User Avatar + Identity Row */}
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Avatar with Pro Crown Badge */}
+                <div className="relative shrink-0">
+                  <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl border-2 sm:border-[2.5px] border-black dark:border-[#26283d] bg-mint text-black font-display font-black text-xl sm:text-2xl flex items-center justify-center shadow-brutal-xs">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  {isPro ? (
+                    <div 
+                      className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border border-black bg-yellow text-black flex items-center justify-center shadow-xs"
+                      title="Pro Builder"
+                    >
+                      <Crown size={10} className="stroke-[3]" />
+                    </div>
+                  ) : (
+                    <div 
+                      className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border border-black bg-pink text-black flex items-center justify-center shadow-xs"
+                      title="Free Creator"
+                    >
+                      <Zap size={10} className="stroke-[3]" />
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <div className="font-display text-sm font-black text-black dark:text-white">
-                    {user.name}
+
+                {/* Name, Tier Badge & Email */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-display text-sm sm:text-base font-black text-black dark:text-white truncate max-w-[150px] sm:max-w-none">
+                      {user.name}
+                    </span>
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-black font-mono text-[9px] font-black uppercase tracking-wider shadow-xs shrink-0",
+                      isPro ? "bg-yellow text-black" : "bg-pink text-black"
+                    )}>
+                      {isPro ? <Crown size={9} className="stroke-[3]" /> : <Zap size={9} className="stroke-[3]" />}
+                      <span>{isPro ? 'PRO TIER' : 'FREE TIER'}</span>
+                    </span>
                   </div>
-                  <div className="font-mono text-xs text-neutral-500">
-                    {user.email}
-                  </div>
+
+                  {/* Interactive Copy Email Pill */}
+                  <button
+                    type="button"
+                    onClick={handleCopyEmail}
+                    className="mt-1 group inline-flex max-w-full items-center gap-1.5 px-2 py-1 rounded-lg border border-black/20 dark:border-white/15 bg-neutral-50 dark:bg-[#1a1c30] hover:bg-yellow hover:text-black hover:border-black font-mono text-[10px] sm:text-[11px] text-neutral-600 dark:text-neutral-300 transition-all cursor-pointer text-left overflow-hidden w-full"
+                    title="Click to copy email"
+                  >
+                    <Mail size={11} className="shrink-0" />
+                    <span className="truncate min-w-0 flex-1">{user.email}</span>
+                    {copiedEmail ? (
+                      <span className="text-emerald-600 font-black text-[9px] flex items-center gap-0.5 shrink-0 pl-1">
+                        <Check size={10} className="stroke-[3]" /> Copied!
+                      </span>
+                    ) : (
+                      <Copy size={10} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                    )}
+                  </button>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-black/10 dark:border-[#262638] grid grid-cols-2 gap-2 text-xs font-mono">
-                <div>
-                  <span className="text-neutral-500 block text-[10px] uppercase">Plan</span>
-                  <span className="font-black text-pink">
-                    {isPro ? 'PRO BUILDER' : 'FREE CREATOR'}
+              {/* 3-Column Metrics Grid */}
+              <div className="pt-2.5 border-t border-black/10 dark:border-white/10 grid grid-cols-3 gap-1.5 sm:gap-2 text-center">
+                <div className="p-1.5 sm:p-2 rounded-xl border border-black/15 dark:border-white/15 bg-neutral-50 dark:bg-[#1a1c30]">
+                  <span className="font-mono text-[9px] uppercase font-bold text-neutral-500 block leading-tight">
+                    Sites
+                  </span>
+                  <span className="font-display text-xs sm:text-sm font-black text-black dark:text-white mt-0.5 block truncate">
+                    {totalSites} {isPro ? '· ∞' : '/ 3'}
                   </span>
                 </div>
-                <div>
-                  <span className="text-neutral-500 block text-[10px] uppercase">Member Since</span>
-                  <span className="font-bold text-black dark:text-white">
+
+                <div className="p-1.5 sm:p-2 rounded-xl border border-black/15 dark:border-white/15 bg-neutral-50 dark:bg-[#1a1c30]">
+                  <span className="font-mono text-[9px] uppercase font-bold text-neutral-500 block leading-tight">
+                    Published
+                  </span>
+                  <span className="font-display text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block truncate">
+                    {liveDeployments} Live
+                  </span>
+                </div>
+
+                <div className="p-1.5 sm:p-2 rounded-xl border border-black/15 dark:border-white/15 bg-neutral-50 dark:bg-[#1a1c30]">
+                  <span className="font-mono text-[9px] uppercase font-bold text-neutral-500 block leading-tight">
+                    Joined
+                  </span>
+                  <span className="font-display text-[10px] sm:text-xs font-black text-black dark:text-white truncate block mt-0.5">
                     {user.createdAt ? formatDate(user.createdAt) : '2026'}
                   </span>
                 </div>
               </div>
+
+              {/* Interactive Quick Utilities (Copy ID + Theme Switch) */}
+              <div className="flex items-center gap-2 pt-1 text-xs">
+                <button
+                  type="button"
+                  onClick={handleCopyUserId}
+                  className="flex-1 brutal-press flex items-center justify-between px-2.5 py-1.5 rounded-xl border border-black/20 dark:border-white/15 bg-neutral-50 dark:bg-[#1a1c30] hover:bg-yellow hover:text-black font-mono text-[10px] transition-all cursor-pointer"
+                  title="Click to copy account ID"
+                >
+                  <span className="text-neutral-500 truncate mr-1">
+                    ID // {user.id ? user.id.slice(0, 10) + '...' : 'LNCH-7701'}
+                  </span>
+                  {copiedUserId ? (
+                    <span className="text-emerald-600 font-black flex items-center gap-0.5 shrink-0">
+                      <Check size={10} className="stroke-[3]" /> Copied!
+                    </span>
+                  ) : (
+                    <span className="text-neutral-400 group-hover:text-black flex items-center gap-1 shrink-0">
+                      <Copy size={10} />
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={toggleDarkMode}
+                  className="brutal-press flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-black/20 dark:border-white/15 bg-neutral-50 dark:bg-[#1a1c30] hover:bg-mint hover:text-black font-mono text-[10px] font-bold transition-all cursor-pointer shrink-0 text-black dark:text-white"
+                  title="Toggle Light / Dark mode"
+                >
+                  {isDark ? <Sun size={11} className="text-yellow-500" /> : <Moon size={11} className="text-indigo-500" />}
+                  <span>{isDark ? 'Light' : 'Dark'}</span>
+                </button>
+              </div>
             </div>
 
-            {!isPro && (
-              <div className="p-3.5 rounded-2xl border-2 border-black dark:border-[#262638] bg-yellow text-black shadow-brutal-xs">
-                <div className="flex items-center gap-1.5 font-display text-xs font-black uppercase mb-1">
-                  <Sparkles size={14} className="stroke-[2.5]" />
-                  <span>Upgrade to Launchly Pro</span>
+            {/* Pro Privileges Active or Upgrade Banner */}
+            {isPro ? (
+              <div className="relative z-10 p-3 sm:p-3.5 rounded-2xl border-2 border-black dark:border-[#26283d] bg-[#fbf7ee] dark:bg-[#17161b] shadow-brutal-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-display text-[11px] sm:text-xs font-black uppercase text-black dark:text-yellow">
+                    <ShieldCheck size={13} className="stroke-[2.5] text-amber-500" />
+                    <span>Pro Privileges Active</span>
+                  </div>
+                  <span className="font-mono text-[8px] font-black uppercase text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
+                    VERIFIED
+                  </span>
                 </div>
-                <p className="font-mono text-[11px] leading-snug mb-2">
-                  Unlock unlimited cloud deployments, custom domain attachments, and full source code downloads.
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[10px] sm:text-[11px] font-mono text-neutral-700 dark:text-neutral-300">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                    <span>Unlimited Edge Sites</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                    <span>Source Code Downloads</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                    <span>Custom Domain Routing</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                    <span>Instant Turbopack Engine</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="relative z-10 p-3.5 sm:p-4 rounded-2xl border-2 border-black dark:border-[#26283d] bg-yellow text-black shadow-brutal-xs">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1.5 font-display text-xs font-black uppercase">
+                    <Sparkles size={13} className="stroke-[2.5]" />
+                    <span>Upgrade to Pro Builder</span>
+                  </div>
+                  <span className="font-mono text-[8px] font-black uppercase bg-black text-white px-1.5 py-0.5 rounded-md">
+                    UNLOCK ALL
+                  </span>
+                </div>
+                <p className="font-mono text-[10px] leading-snug mb-2.5">
+                  Deploy unlimited websites, hook up custom domains, and download complete source code.
                 </p>
                 <Link
                   href="/#pricing"
-                  className="brutal-press inline-block w-full text-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs"
+                  className="brutal-press inline-flex items-center justify-center gap-1.5 w-full text-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-pink/90 transition-all"
                 >
-                  View Pro Plans
+                  <span>Claim Pro Membership</span>
+                  <ArrowRight size={12} className="stroke-[3]" />
                 </Link>
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-2">
+            {/* Bottom Modal Actions */}
+            <div className="relative z-10 flex items-center justify-between pt-1">
               <button
                 type="button"
                 onClick={handleLogout}
-                className="brutal-press py-2 px-4 rounded-xl border-2 border-black bg-card hover:bg-red-500 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="brutal-press py-2 sm:py-2.5 px-3.5 sm:px-4 rounded-xl border-2 border-black bg-white dark:bg-[#1a1b2e] hover:bg-red-500 hover:text-white dark:hover:bg-red-500 dark:hover:text-white text-xs font-mono font-black flex items-center gap-1.5 transition-colors cursor-pointer shadow-brutal-xs text-neutral-700 dark:text-neutral-300"
               >
-                <LogOut size={13} />
+                <LogOut size={13} className="stroke-[2.5]" />
                 <span>Sign Out</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setProfileModalOpen(false)}
-                className="brutal-press py-2 px-4 rounded-xl border-2 border-black bg-yellow text-black font-display text-xs font-black uppercase cursor-pointer shadow-brutal-xs"
+                className="brutal-press py-2 sm:py-2.5 px-5 sm:px-6 rounded-xl border-2 border-black bg-yellow hover:bg-yellow/90 text-black font-display text-xs font-black uppercase cursor-pointer shadow-brutal-sm"
               >
                 Done
               </button>
@@ -409,8 +564,15 @@ export default function Dashboard() {
                 className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-80 transition-opacity cursor-pointer flex-1"
                 title="View Account Profile"
               >
-                <div className="h-9 w-9 rounded-xl border-2 border-black dark:border-[#262638] bg-mint text-black font-display font-black text-sm flex items-center justify-center shrink-0 shadow-brutal-xs">
-                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                <div className="relative shrink-0">
+                  <div className="h-9 w-9 rounded-xl border-2 border-black dark:border-[#262638] bg-mint text-black font-display font-black text-sm flex items-center justify-center shadow-brutal-xs">
+                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  {isPro && (
+                    <div className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-yellow border border-black flex items-center justify-center text-[7px] text-black">
+                      <Crown size={8} className="stroke-[3]" />
+                    </div>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
@@ -867,20 +1029,21 @@ export default function Dashboard() {
 
           {/* Discover New Templates Shelf */}
           <div className="pt-6 border-t-2 border-black/10 dark:border-[#262638]">
-            <div className="flex items-center justify-between mb-4">
-              <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 mb-4">
+              <div className="min-w-0">
                 <h2 className="font-display text-xl sm:text-2xl font-black text-black dark:text-white">
                   Explore Templates
                 </h2>
-                <p className="font-mono text-xs text-neutral-500">
-                  Ready to deploy in your Next.js cloud workspace.
+                <p className="font-mono text-xs text-neutral-500 mt-0.5">
+                  Ready to customize and deploy live in your visual studio workspace.
                 </p>
               </div>
               <Link 
                 href="/templates" 
-                className="font-mono text-xs font-black uppercase text-pink hover:underline flex items-center gap-1"
+                className="font-mono text-xs font-black uppercase text-pink hover:underline inline-flex items-center gap-1 shrink-0 whitespace-nowrap self-start sm:self-auto"
               >
-                View all ({TEMPLATES.length}) <ChevronRight size={14} />
+                <span>View all ({TEMPLATES.length})</span>
+                <ChevronRight size={14} className="shrink-0" />
               </Link>
             </div>
 
@@ -948,16 +1111,16 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    <div className="p-3 bg-card dark:bg-[#12121a] flex items-center justify-between">
-                      <div>
-                        <div className="font-display font-black text-xs text-black dark:text-white truncate">
+                    <div className="p-2.5 sm:p-3 bg-card dark:bg-[#12121a] flex items-center justify-between gap-2 min-w-0">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-display font-black text-xs text-black dark:text-white truncate" title={tmpl.name}>
                           {tmpl.name}
                         </div>
-                        <div className="font-mono text-[10px] text-pink font-bold uppercase mt-0.5">
+                        <div className="font-mono text-[9px] sm:text-[10px] text-pink font-bold uppercase truncate mt-0.5">
                           {tmpl.category}
                         </div>
                       </div>
-                      <span className="font-mono text-[10px] font-bold text-neutral-400 group-hover:text-pink transition-colors">
+                      <span className="font-mono text-[10px] font-bold text-neutral-400 group-hover:text-pink transition-colors shrink-0 whitespace-nowrap pl-1">
                         Launch ↗
                       </span>
                     </div>
