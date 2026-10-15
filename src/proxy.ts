@@ -21,7 +21,8 @@ export default function proxy(request: NextRequest) {
 
   if (isCustomSubdomain) {
     const subdomain = host.split('.')[0]?.toLowerCase();
-    if (subdomain && subdomain !== 'localhost' && subdomain !== 'launchly' && subdomain !== 'www') {
+    const reserved = ['localhost', 'launchly', 'www', 'api', 'admin', 'auth', 'dashboard', 'editor', 'login', 'signup', 'pay', 'checkout', 'billing', 'support', 'status'];
+    if (subdomain && !reserved.includes(subdomain)) {
       // If user is accessing the root or a subpath of their hosted site, rewrite to /live/[subdomain]
       if (!url.pathname.startsWith('/live/')) {
         url.pathname = `/live/${subdomain}${url.pathname === '/' ? '' : url.pathname}`;

@@ -1,5 +1,3 @@
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
@@ -21,10 +19,12 @@ parsed.search = ''; // Strip search query parameters
 
 console.log(`Connecting to Supabase PostgreSQL at ${parsed.host}...`);
 
+const isLocalhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+
 const client = new pg.Client({
   connectionString: parsed.toString(),
-  ssl: {
-    rejectUnauthorized: false
+  ssl: isLocalhost ? false : {
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
   }
 });
 

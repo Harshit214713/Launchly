@@ -23,6 +23,17 @@ interface ExportTemplateParams {
   sectionOrder?: string[];
 }
 
+function safeCodeString(val: string): string {
+  if (!val) return '';
+  return String(val)
+    .replace(/\\/g, '\\\\')
+    .replace(/`/g, '\\`')
+    .replace(/\$/g, '\\$')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/<\/(script|style)>/gi, '<\\/$1>');
+}
+
 export async function exportTemplateAsZip({
   siteTitle,
   templateId,
@@ -146,8 +157,8 @@ body {
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '${siteTitle}',
-  description: '${heroContent.description.replace(/'/g, "\\'")}',
+  title: '${safeCodeString(siteTitle)}',
+  description: '${safeCodeString(heroContent.description)}',
 };
 
 export default function RootLayout({
@@ -172,21 +183,21 @@ export default function Page() {
     <main className="min-h-screen">
       {/* Hero Section */}
       <section className="py-24 px-6 max-w-5xl mx-auto text-center">
-        <span className="inline-block px-3 py-1 text-xs font-mono font-bold uppercase rounded-full mb-4 border" style={{ borderColor: '${theme.primaryColor}', color: '${theme.primaryColor}' }}>
-          ${heroContent.badge}
+        <span className="inline-block px-3 py-1 text-xs font-mono font-bold uppercase rounded-full mb-4 border" style={{ borderColor: '${safeCodeString(theme.primaryColor)}', color: '${safeCodeString(theme.primaryColor)}' }}>
+          ${safeCodeString(heroContent.badge)}
         </span>
         <h1 className="text-4xl sm:text-6xl font-black tracking-tight mb-6">
-          ${heroContent.title}
+          ${safeCodeString(heroContent.title)}
         </h1>
         <p className="text-lg opacity-80 max-w-2xl mx-auto mb-8">
-          ${heroContent.description}
+          ${safeCodeString(heroContent.description)}
         </p>
         <div className="flex items-center justify-center gap-4">
-          <button className="px-6 py-3 rounded-xl font-bold transition-all shadow-md" style={{ backgroundColor: '${theme.primaryColor}', color: '#000000', borderRadius: '${theme.borderRadius}' }}>
-            ${heroContent.ctaPrimary}
+          <button className="px-6 py-3 rounded-xl font-bold transition-all shadow-md" style={{ backgroundColor: '${safeCodeString(theme.primaryColor)}', color: '#000000', borderRadius: '${safeCodeString(theme.borderRadius)}' }}>
+            ${safeCodeString(heroContent.ctaPrimary)}
           </button>
-          <button className="px-6 py-3 rounded-xl font-bold border opacity-80 hover:opacity-100 transition-all" style={{ borderRadius: '${theme.borderRadius}' }}>
-            ${heroContent.ctaSecondary}
+          <button className="px-6 py-3 rounded-xl font-bold border opacity-80 hover:opacity-100 transition-all" style={{ borderRadius: '${safeCodeString(theme.borderRadius)}' }}>
+            ${safeCodeString(heroContent.ctaSecondary)}
           </button>
         </div>
       </section>
@@ -198,9 +209,9 @@ export default function Page() {
           ${featuresContent
             .map(
               (f) => `
-          <div className="p-6 rounded-2xl border border-white/10" style={{ borderRadius: '${theme.borderRadius}' }}>
-            <h3 className="text-lg font-bold mb-2">${f.title.replace(/'/g, "\\'")}</h3>
-            <p className="text-sm opacity-70">${f.desc.replace(/'/g, "\\'")}</p>
+          <div className="p-6 rounded-2xl border border-white/10" style={{ borderRadius: '${safeCodeString(theme.borderRadius)}' }}>
+            <h3 className="text-lg font-bold mb-2">${safeCodeString(f.title)}</h3>
+            <p className="text-sm opacity-70">${safeCodeString(f.desc)}</p>
           </div>`
             )
             .join('\n')}
@@ -213,11 +224,11 @@ export default function Page() {
           ${testimonialsContent
             .map(
               (t) => `
-          <div className="p-6 rounded-2xl border border-white/10" style={{ borderRadius: '${theme.borderRadius}' }}>
-            <p className="text-sm italic mb-4">"${t.quote.replace(/'/g, "\\'")}"</p>
+          <div className="p-6 rounded-2xl border border-white/10" style={{ borderRadius: '${safeCodeString(theme.borderRadius)}' }}>
+            <p className="text-sm italic mb-4">"${safeCodeString(t.quote)}"</p>
             <div>
-              <h4 className="font-bold text-sm">${t.name.replace(/'/g, "\\'")}</h4>
-              <p className="text-xs opacity-60">${t.role.replace(/'/g, "\\'")}</p>
+              <h4 className="font-bold text-sm">${safeCodeString(t.name)}</h4>
+              <p className="text-xs opacity-60">${safeCodeString(t.role)}</p>
             </div>
           </div>`
             )
@@ -227,10 +238,10 @@ export default function Page() {
 
       {/* CTA Section */}
       <section className="py-20 px-6 max-w-4xl mx-auto text-center border-t border-white/10">
-        <h2 className="text-3xl font-black mb-4">${ctaContent.title.replace(/'/g, "\\'")}</h2>
-        <p className="opacity-80 mb-6">${ctaContent.desc.replace(/'/g, "\\'")}</p>
-        <button className="px-8 py-3.5 rounded-xl font-bold shadow-lg" style={{ backgroundColor: '${theme.primaryColor}', color: '#000000', borderRadius: '${theme.borderRadius}' }}>
-          ${ctaContent.buttonText}
+        <h2 className="text-3xl font-black mb-4">${safeCodeString(ctaContent.title)}</h2>
+        <p className="opacity-80 mb-6">${safeCodeString(ctaContent.desc)}</p>
+        <button className="px-8 py-3.5 rounded-xl font-bold shadow-lg" style={{ backgroundColor: '${safeCodeString(theme.primaryColor)}', color: '#000000', borderRadius: '${safeCodeString(theme.borderRadius)}' }}>
+          ${safeCodeString(ctaContent.buttonText)}
         </button>
       </section>
     </main>

@@ -1,9 +1,20 @@
 import { NextResponse } from 'next/server';
 import { addContactMessage } from '@/lib/db';
 import { sendFeedbackEmail } from '@/lib/mailer';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 export async function POST(request: Request) {
   try {
+    // 1. Rate limiting: Max 5 messages per 3 minutes per IP to prevent mail bombing
+    const ip = getClientIp(request);
+    const rl = rateLimit(`contact:${ip}`, 5, 3 * 60 * 1000);
+    if (!rl.success) {
+      return NextResponse.json(
+        { success: false, message: 'Too many messages sent. Please wait a few minutes before submitting again.' },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { name, email, message, category, rating } = body;
 
@@ -14,15 +25,22 @@ export async function POST(request: Request) {
       );
     }
 
-    const cleanCategory = category || 'IDEA';
-    const cleanRating = typeof rating === 'number' ? rating : 4;
-    const cleanEmail = (email && email.trim()) || 'anonymous@launchly.site';
-    const senderName = name || `User [${cleanCategory}] (${cleanRating}/5 Stars)`;
+    if (message.length > 3000) {
+      return NextResponse.json(
+        { success: false, message: 'Message exceeds maximum allowed length of 3000 characters.' },
+        { status: 400 }
+      );
+    }
 
-    // 1. Save to Supabase contact_messages table
-    const dbResult = await addContactMessage(senderName, cleanEmail, message.trim());
+    const cleanCategory = String(category || 'IDEA').slice(0, 30);
+    const cleanRating = typeof rating === 'number' ? Math.min(5, Math.max(1, rating)) : 4;
+    const cleanEmail = (email && typeof email === 'string' && email.trim()) || 'anonymous@launchly.site';
+    const cleanName = (name && typeof name === 'string' && name.trim().slice(0, 80)) || `User [${cleanCategory}]`;
 
-    // 2. Dispatch real email directly to admin's Gmail: vardaansaxena096@gmail.com
+    // 1. Save to database
+    const dbResult = await addContactMessage(cleanName, cleanEmail, message.trim());
+
+    // 2. Dispatch email notification to admin
     const emailResult = await sendFeedbackEmail({
       category: cleanCategory,
       rating: cleanRating,
@@ -32,7 +50,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Feedback received and dispatched to admin.',
+      message: 'Feedback received and dispatched successfully.',
       savedToDb: dbResult.success,
       emailDelivered: emailResult.success,
       deliveryMethod: emailResult.method,

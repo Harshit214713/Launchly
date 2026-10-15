@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabase';
+import { hashPassword, verifyPassword } from './auth';
 
 export interface User {
   id: string;
@@ -114,7 +115,7 @@ export async function createUser(
 
   if (!cleanName) return { success: false, message: 'Full name is required.' };
   if (!isValidEmail(cleanEmail)) return { success: false, message: 'Please enter a valid email address.' };
-  if (!password || password.length < 6) return { success: false, message: 'Password must be at least 6 characters.' };
+  if (!password || password.length < 8) return { success: false, message: 'Password must be at least 8 characters long.' };
 
   const existing = await findUserByEmail(cleanEmail);
   if (existing) {
@@ -130,12 +131,13 @@ export async function createUser(
 
   const newUserId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const now = new Date().toISOString();
+  const hashedPassword = hashPassword(password);
 
   const newUser: User = {
     id: newUserId,
     name: cleanName,
     email: cleanEmail,
-    passwordHash: password,
+    passwordHash: hashedPassword,
     plan,
     createdAt: now,
     avatar: initials
@@ -146,7 +148,7 @@ export async function createUser(
       id: newUserId,
       name: cleanName,
       email: cleanEmail,
-      password_hash: password,
+      password_hash: hashedPassword,
       plan,
       avatar: initials,
       created_at: now,
@@ -184,8 +186,25 @@ export async function verifyUser(
     return { success: false, message: 'No account found with this email. Please sign up.' };
   }
 
-  if (user.passwordHash !== password) {
+  const isPasswordValid = verifyPassword(password, user.passwordHash);
+  if (!isPasswordValid) {
     return { success: false, message: 'Incorrect password. Please try again.' };
+  }
+
+  // Gracefully upgrade legacy plain-text password to hash in background
+  if (!user.passwordHash.includes(':')) {
+    const upgradedHash = hashPassword(password);
+    user.passwordHash = upgradedHash;
+    (async () => {
+      try {
+        await supabaseAdmin
+          .from('users')
+          .update({ password_hash: upgradedHash })
+          .eq('id', user.id);
+      } catch (err: unknown) {
+        console.warn('[Supabase] Failed to upgrade legacy password hash:', err);
+      }
+    })();
   }
 
   const safeUser: Omit<User, 'passwordHash'> = {
@@ -312,6 +331,12 @@ export async function addContactMessage(
 // ==========================================
 // Site Publishing API
 // ==========================================
+const RESERVED_SUBDOMAINS = new Set([
+  'admin', 'api', 'auth', 'login', 'signup', 'dashboard', 'pay', 'checkout', 
+  'billing', 'www', 'support', 'status', 'app', 'mail', 'root', 'help', 
+  'static', 'assets', 'editor', 'internal', 'launchly', 'security'
+]);
+
 export async function publishSite(
   templateId: string, 
   siteName: string, 
@@ -322,6 +347,14 @@ export async function publishSite(
   const cleanSubdomain = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '');
   if (!cleanSubdomain || cleanSubdomain.length < 3) {
     return { success: false, message: 'Subdomain must be at least 3 alphanumeric characters.' };
+  }
+
+  if (RESERVED_SUBDOMAINS.has(cleanSubdomain)) {
+    return { success: false, message: `Subdomain "${cleanSubdomain}" is reserved by the platform. Please choose another name.` };
+  }
+
+  if (!userId) {
+    return { success: false, message: 'You must be signed in to publish and claim a website subdomain.' };
   }
 
   const id = `site_${Date.now()}`;
@@ -347,11 +380,12 @@ export async function publishSite(
       .maybeSingle();
 
     if (existing) {
-      if (userId && existing.user_id && existing.user_id !== userId) {
-        return { success: false, message: `Subdomain "${cleanSubdomain}.launchly.site" is already taken. Try another name.` };
+      if (existing.user_id && existing.user_id !== userId) {
+        return { success: false, message: `Subdomain "${cleanSubdomain}.launchly.site" is already registered to another user.` };
       }
 
       await supabaseAdmin.from('sites').update({
+        user_id: userId,
         template_id: templateId,
         name: siteName || 'My Launchly Website',
         status: 'live',
@@ -379,7 +413,7 @@ export async function publishSite(
 
     await supabaseAdmin.from('sites').insert({
       id,
-      user_id: userId || null,
+      user_id: userId,
       template_id: templateId,
       name: siteName || 'My Launchly Website',
       subdomain: cleanSubdomain,
@@ -403,6 +437,7 @@ export async function publishSite(
 
 interface DbSiteRow {
   id: string;
+  user_id?: string;
   template_id: string;
   name: string;
   subdomain: string;
@@ -442,18 +477,16 @@ export async function getAllSites(): Promise<SiteRecord[]> {
   return [...sitesCache];
 }
 
-export async function getSitesForUser(userId?: string): Promise<SiteRecord[]> {
+export async function getSitesForUser(userId: string): Promise<SiteRecord[]> {
+  if (!userId) return [];
+
   try {
-    let query = supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('sites')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
-    if (userId) {
-      query = query.eq('user_id', userId);
-    }
-
-    const { data, error } = await query;
     if (!error && data) {
       return (data as unknown as DbSiteRow[]).map((d) => ({
         id: d.id,
@@ -472,15 +505,31 @@ export async function getSitesForUser(userId?: string): Promise<SiteRecord[]> {
     console.warn('[Supabase] getSitesForUser error:', err);
   }
 
-  return [...sitesCache];
+  return sitesCache.filter((s) => !s.siteData?.userId || s.siteData?.userId === userId);
 }
 
-export async function deleteSite(id: string): Promise<boolean> {
+export async function deleteSite(id: string, userId: string): Promise<{ success: boolean; message: string }> {
+  if (!id || !userId) {
+    return { success: false, message: 'Invalid site ID or unauthenticated request.' };
+  }
+
   try {
+    // Check ownership before deleting
+    const { data: existing } = await supabaseAdmin
+      .from('sites')
+      .select('id, user_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (existing && existing.user_id && existing.user_id !== userId) {
+      return { success: false, message: 'Forbidden. You do not own this website.' };
+    }
+
     await supabaseAdmin
       .from('sites')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', userId);
   } catch (err) {
     console.warn('[Supabase] deleteSite error:', err);
   }
@@ -489,7 +538,7 @@ export async function deleteSite(id: string): Promise<boolean> {
   if (idx !== -1) {
     sitesCache.splice(idx, 1);
   }
-  return true;
+  return { success: true, message: 'Website deleted successfully.' };
 }
 
 // ==========================================

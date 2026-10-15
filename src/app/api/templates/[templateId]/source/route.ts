@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { getTemplateById } from '@/lib/templates';
+import { verifySessionToken } from '@/lib/auth';
 
 export async function GET(
   request: Request,
@@ -13,6 +15,25 @@ export async function GET(
       { success: false, message: 'Template not found' },
       { status: 404 }
     );
+  }
+
+  // Paywall enforcement: Pro templates require active Pro subscription
+  if (template.isPro) {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('launchly_session');
+    const session = sessionCookie?.value ? verifySessionToken(sessionCookie.value) : null;
+
+    if (!session || session.plan !== 'pro') {
+      return NextResponse.json(
+        {
+          success: false,
+          isPro: true,
+          message: `"${template.name}" is a Pro template. Please upgrade to Launchly Pro to access the production source code.`,
+          upgradeUrl: `/checkout?plan=pro&templateId=${template.id}`
+        },
+        { status: 403 }
+      );
+    }
   }
 
   // Generates source code package metadata and files
