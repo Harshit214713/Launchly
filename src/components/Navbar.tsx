@@ -131,27 +131,6 @@ export default function Navbar() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* GitHub Star Button (Desktop) */}
-          <a
-            href="https://github.com/simplyvardaan/Launchly"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="brutal-press hidden md:inline-flex h-10 items-center gap-1.5 rounded-xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-3 font-display text-xs font-black text-black dark:text-white shadow-brutal-sm hover:bg-neutral-50 dark:hover:bg-[#202030] transition-colors"
-            title="Star Launchly on GitHub"
-          >
-            <Image
-              src="/github-logo.png"
-              alt="GitHub"
-              width={16}
-              height={16}
-              className="w-4 h-4 object-contain dark:invert"
-            />
-            <span className="hidden xl:inline">GitHub</span>
-            <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-yellow/20 dark:bg-yellow/15 text-neutral-800 dark:text-yellow border border-yellow/50">
-              <Star size={10} className="fill-current text-yellow-500 dark:text-yellow" />
-              <span>{githubStars}</span>
-            </span>
-          </a>
 
           {/* Dark Mode Switcher */}
           <button
