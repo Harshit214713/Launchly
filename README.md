@@ -252,6 +252,8 @@ Launchly is open source. Community contributions, bug fixes, template submission
    ```
 5. Open a Pull Request on GitHub.
 
+---
+
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and standards.
 
 ---
