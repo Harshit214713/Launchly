@@ -92,7 +92,7 @@ export default function FeedbackWidget() {
             <label className="flex flex-col gap-2">
               <div className="flex items-center justify-between font-mono text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                 <span>Vibe rating</span>
-                <span className="text-pink font-black text-xs">({rating}/5) ★</span>
+                <span className="text-pink font-black text-xs">({rating}/5)</span>
               </div>
               <input
                 type="range"
@@ -122,7 +122,7 @@ export default function FeedbackWidget() {
             {/* Submit Row */}
             <div className="flex items-center justify-between gap-3 pt-2">
               <span className="font-mono text-[10px] text-muted-foreground">
-                Sending anonymously ✦ Instant delivery
+                Sending anonymously · Instant delivery
               </span>
               <button
                 type="submit"

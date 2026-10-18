@@ -21,7 +21,7 @@ const TICKER_ITEMS = [
 
 export default function MarqueeTicker() {
   return (
-    <div className="w-full overflow-hidden border-b-[3px] border-black dark:border-white bg-pink py-2 text-black select-none z-20 relative">
+    <div className="w-full overflow-hidden border-b-[3px] border-black dark:border-[#222232] bg-pink py-2 text-black select-none z-20 relative">
       <div className="animate-marquee flex w-max items-center whitespace-nowrap">
         {/* List A */}
         <div className="flex items-center gap-6 pr-6">

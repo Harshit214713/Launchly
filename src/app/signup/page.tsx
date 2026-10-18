@@ -1,13 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, ArrowRight, Loader2, Check, CheckCircle2 } from 'lucide-react';
+import { 
+  Eye, 
+  EyeOff, 
+  ArrowRight, 
+  ArrowLeft, 
+  Loader2, 
+  AlertCircle,
+  Sun,
+  Moon,
+  Mail,
+  Lock,
+  User,
+  Palette,
+  CheckCircle2
+} from 'lucide-react';
+import BrandWordmark from '@/components/BrandWordmark';
+
+const PREVIEW_THEMES = [
+  { name: 'Pink', bg: '#f472b6', text: '#000000', label: 'Candy' },
+  { name: 'Yellow', bg: '#ffd600', text: '#000000', label: 'Volt' },
+  { name: 'Mint', bg: '#7bd7c1', text: '#000000', label: 'Mint' },
+  { name: 'Lilac', bg: '#ddd6fe', text: '#000000', label: 'Lilac' },
+];
 
 export default function SignupPage() {
   const router = useRouter();
+  const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,31 +38,73 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+  const [activeTheme, setActiveTheme] = useState(PREVIEW_THEMES[0]);
+  const [previewTab, setPreviewTab] = useState<'ui' | 'code'>('ui');
+  const [previewHeadline, setPreviewHeadline] = useState('Next-Gen Web Studio');
+
+  useEffect(() => {
+    if (document.documentElement.classList.contains('dark')) {
+      requestAnimationFrame(() => setIsDark(true));
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    if (document.documentElement.classList.contains('dark')) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      setIsDark(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      setIsDark(true);
+    }
+  };
+
+  const calculatePasswordStrength = (pwd: string) => {
+    if (!pwd) return 0;
+    let score = 0;
+    if (pwd.length >= 6) score += 1;
+    if (pwd.length >= 10) score += 1;
+    if (/[A-Z]/.test(pwd) && /[0-9]/.test(pwd)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+    return score;
+  };
+
+  const pwdStrength = calculatePasswordStrength(password);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!name.trim()) {
-      setError('Please enter your full name.');
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Please enter your email id.');
       return;
     }
-    if (!email || !email.includes('@')) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-    if (password.length < 6) {
+
+    if (!password || password.length < 6) {
       setError('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (authMode === 'signup' && !name.trim()) {
+      setError('Please enter your full name.');
       return;
     }
 
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/signup', {
+      const endpoint = authMode === 'signup' ? '/api/auth/signup' : '/api/auth/login';
+      const bodyPayload = authMode === 'signup' 
+        ? { name: name.trim(), email: cleanEmail, password, plan: 'free' }
+        : { email: cleanEmail, password };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, plan: 'free' }),
+        body: JSON.stringify(bodyPayload),
       });
 
       const data = await res.json();
@@ -50,188 +115,363 @@ export default function SignupPage() {
           router.push('/dashboard');
         }, 600);
       } else {
-        setError(data.message || 'Signup failed. Please try again.');
+        setError(data.message || (authMode === 'signup' ? 'Signup failed. Please try again.' : 'Invalid email or password.'));
       }
     } catch {
-      setError('Network connection error. Please try again.');
+      setError('Network connection error. Please verify your connection.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] flex">
-      {/* Left decorative brand panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-[#121214] flex-col justify-between p-12 relative overflow-hidden text-white border-r border-[#171717]/10">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/4 right-1/4 w-80 h-80 bg-[#FF5500]/18 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 left-1/4 w-60 h-60 bg-[#FF8833]/10 rounded-full blur-3xl" />
-        </div>
+    <div className="min-h-screen bg-[#faf8fc] dark:bg-[#09090f] text-ink flex flex-col justify-between relative overflow-hidden select-none">
 
-        {/* Brand logo */}
-        <div className="relative z-10">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-xl bg-[#0F0F11] overflow-hidden flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform border border-white/10">
-              <Image
-                src="/brand-logo-clean.png"
-                alt="Launchly Emblem"
-                width={32}
-                height={32}
-                className="w-full h-full object-contain p-0.5 rounded-lg"
-              />
-            </div>
+      {/* Top Header Navigation */}
+      <header className="relative z-10 w-full border-b-[3px] border-black dark:border-[#222232] bg-card/90 backdrop-blur-md px-3 sm:px-8 py-2.5 sm:py-3.5 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 sm:gap-3 group shrink-0">
+          <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl border-[2.5px] border-black dark:border-[#222232] bg-white dark:bg-[#161622] p-1 shadow-brutal-sm flex items-center justify-center transition-transform group-hover:rotate-6">
             <Image
-              src="/brand-name-dark.png"
-              alt="LAUNCHLY"
-              width={140}
-              height={22}
-              className="h-4 w-auto object-contain"
+              src="/brand-logo-clean.png"
+              alt="Launchly Logo"
+              width={28}
+              height={28}
+              className="w-full h-full object-contain"
+              priority
             />
-            <span className="sr-only">LAUNCHLY</span>
+          </div>
+          <div className="flex flex-col">
+            <BrandWordmark size="md" />
+          </div>
+        </Link>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleDarkMode}
+            aria-label="Toggle dark mode"
+            className="brutal-press h-8 w-8 sm:h-9 sm:w-9 rounded-xl border-2 border-black bg-yellow text-black flex items-center justify-center shadow-brutal-sm cursor-pointer"
+          >
+            {isDark ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+
+          <Link
+            href="/"
+            className="brutal-press inline-flex items-center gap-1.5 h-8 sm:h-9 px-3 sm:px-3.5 rounded-xl border-2 border-black bg-card font-display text-xs font-black uppercase tracking-wider text-ink shadow-brutal-sm hover:bg-neutral-100 transition-colors"
+          >
+            <ArrowLeft size={13} className="stroke-[3]" />
+            <span className="hidden sm:inline">Back to Home</span>
           </Link>
         </div>
+      </header>
 
-        {/* Value proposition */}
-        <div className="relative z-10 max-w-md">
-          <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#FF5500] mb-2 block">
-            Start Free Today
-          </span>
-          <h2 className="text-4xl font-black leading-tight mb-4">
-            Publish your first live website in 5 minutes.
-          </h2>
-          <p className="text-white/60 text-sm leading-relaxed mb-8">
-            Create an account to save visual editor drafts, deploy instantly on fast global edge networks, and export code on demand.
-          </p>
+      {/* Main Authentication Container */}
+      <main className="relative z-10 flex-1 flex items-center justify-center p-3 sm:p-6 my-auto">
+        <div className="w-full max-w-[440px] md:max-w-4xl rounded-3xl border-[3.5px] border-black dark:border-[#222232] bg-card shadow-[8px_8px_0px_#000000] dark:shadow-[8px_8px_0px_#000000] overflow-hidden grid grid-cols-1 md:grid-cols-12">
+          
+          {/* Left Visual Interactive Canvas (Desktop Showcase) */}
+          <div className="hidden md:flex md:col-span-5 bg-[#faf5ff] dark:bg-[#12121c] p-6 sm:p-8 flex-col justify-between border-b-[3px] md:border-b-0 md:border-r-[3.5px] border-black dark:border-[#222232] relative overflow-hidden">
+            <div className="relative z-10 space-y-4">
+              <div>
+                <h2 className="font-display text-3xl font-black text-black dark:text-white leading-[1.08] tracking-tight">
+                  Design visually. <br />
+                  <span className="text-pink">Ship instantly.</span>
+                </h2>
+                <p className="font-mono text-xs text-neutral-600 dark:text-neutral-400 mt-1.5">
+                  Your creative cloud workspace with real-time Next.js hot-reloading.
+                </p>
+              </div>
 
-          <div className="space-y-3">
-            {[
-              'Free to start with no credit card required',
-              'Access to all curated aesthetic templates',
-              'Visual editor with real-time mobile previews',
-              'Free automated SSL and edge subdomain',
-            ].map((perk) => (
-              <div key={perk} className="flex items-center gap-3 text-xs text-white/80">
-                <div className="w-4 h-4 rounded-full bg-[#FF5500]/20 border border-[#FF5500]/40 flex items-center justify-center shrink-0">
-                  <Check size={10} className="text-[#FF5500]" />
+              {/* Aesthetic Interactive Studio Preview Card */}
+              <div className="rounded-2xl border-[2.5px] border-black dark:border-[#262638] bg-white dark:bg-[#0c0c12] p-3.5 shadow-brutal-sm text-black dark:text-white space-y-3">
+                <div className="flex items-center justify-between border-b border-black/10 dark:border-[#222232] pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#ef4444] border border-black/20" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#f59e0b] border border-black/20" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#10b981] border border-black/20" />
+                  </div>
+                  <span className="font-mono text-[10px] font-bold text-neutral-500 dark:text-neutral-400">
+                    launchly.site/preview
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewTab('ui')}
+                      className={`px-2 py-0.5 rounded font-mono text-[9px] font-bold uppercase transition-colors cursor-pointer ${
+                        previewTab === 'ui' ? 'bg-pink text-black' : 'text-neutral-400 hover:text-black dark:hover:text-white'
+                      }`}
+                    >
+                      UI
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewTab('code')}
+                      className={`px-2 py-0.5 rounded font-mono text-[9px] font-bold uppercase transition-colors cursor-pointer ${
+                        previewTab === 'code' ? 'bg-pink text-black' : 'text-neutral-400 hover:text-black dark:hover:text-white'
+                      }`}
+                    >
+                      TSX
+                    </button>
+                  </div>
                 </div>
-                <span>{perk}</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Bottom copyright */}
-        <div className="relative z-10 text-xs text-white/40">
-          © 2026 Launchly, Inc. Built for ambitious creators worldwide.
-        </div>
-      </div>
+                {previewTab === 'ui' ? (
+                  <div 
+                    style={{ borderColor: activeTheme.bg }}
+                    className="rounded-xl border-2 p-3 bg-[#fdfaf8] dark:bg-[#161622] transition-colors flex flex-col justify-center items-center text-center space-y-2"
+                  >
+                    <div 
+                      style={{ backgroundColor: activeTheme.bg }}
+                      className="px-2 py-0.5 rounded-full border border-black font-mono text-[9px] font-black uppercase text-black shadow-xs"
+                    >
+                      Live Component
+                    </div>
+                    <input
+                      type="text"
+                      value={previewHeadline}
+                      onChange={(e) => setPreviewHeadline(e.target.value)}
+                      className="w-full text-center font-display text-sm font-black text-black dark:text-white bg-transparent border-b border-dashed border-black/20 dark:border-[#262638] focus:outline-none"
+                      title="Type to tweak preview live"
+                    />
+                    <button
+                      type="button"
+                      style={{ backgroundColor: activeTheme.bg }}
+                      className="px-3.5 py-1 rounded-lg border-2 border-black font-display text-[10px] font-black text-black shadow-brutal-xs flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Get Started</span>
+                      <ArrowRight size={10} className="stroke-[3]" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-black/20 dark:border-[#262638] bg-[#06060a] p-3 font-mono text-[10px] text-neutral-300 leading-relaxed overflow-hidden">
+                    <span className="text-[#c4b5fd]">export default function</span> Hero() &#123;<br />
+                    &nbsp;&nbsp;<span className="text-[#7dd3fc]">return</span> (<br />
+                    &nbsp;&nbsp;&nbsp;&nbsp;&lt;<span className="text-[#f472b6]">Section</span> theme=&quot;<span className="text-yellow">{activeTheme.name.toLowerCase()}</span>&quot;&gt;<br />
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;<span className="text-[#f472b6]">h1</span>&gt;{previewHeadline}&lt;/<span className="text-[#f472b6]">h1</span>&gt;<br />
+                    &nbsp;&nbsp;&nbsp;&nbsp;&lt;/<span className="text-[#f472b6]">Section</span>&gt;<br />
+                    &nbsp;&nbsp;);<br />
+                    &#125;
+                  </div>
+                )}
 
-      {/* Right Form Panel */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12">
-        <div className="w-full max-w-md">
-          <div className="mb-8">
-            <h1 className="text-3xl font-black text-[#171717] tracking-tight mb-2">
-              Create your account
-            </h1>
-            <p className="text-xs sm:text-sm text-[#737373]">
-              Free forever. No credit card required.
-            </p>
-          </div>
-
-          {/* Error / Success message */}
-          {error && (
-            <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-600 font-medium">
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 font-semibold flex items-center gap-2">
-              <CheckCircle2 size={15} />
-              <span>Account created successfully! Launching studio...</span>
-            </div>
-          )}
-
-          {/* Signup Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-[#171717] uppercase tracking-wider mb-1.5">
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Jane Doe"
-                required
-                className="w-full px-4 py-3 rounded-xl bg-white border border-[#E8E6E0] text-sm text-[#171717] placeholder-[#8A8A8A] focus:outline-none focus:border-[#FF5500] focus:ring-2 focus:ring-[#FF5500]/20 transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-[#171717] uppercase tracking-wider mb-1.5">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@domain.com"
-                required
-                className="w-full px-4 py-3 rounded-xl bg-white border border-[#E8E6E0] text-sm text-[#171717] placeholder-[#8A8A8A] focus:outline-none focus:border-[#FF5500] focus:ring-2 focus:ring-[#FF5500]/20 transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-[#171717] uppercase tracking-wider mb-1.5">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPass ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
-                  required
-                  className="w-full px-4 py-3 rounded-xl bg-white border border-[#E8E6E0] text-sm text-[#171717] placeholder-[#8A8A8A] focus:outline-none focus:border-[#FF5500] focus:ring-2 focus:ring-[#FF5500]/20 transition-all pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A8A8A] hover:text-[#FF5500] cursor-pointer"
-                >
-                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="font-mono text-[10px] font-bold text-neutral-500 uppercase flex items-center gap-1">
+                    <Palette size={11} />
+                    <span>Theme:</span>
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {PREVIEW_THEMES.map((theme) => (
+                      <button
+                        key={theme.name}
+                        type="button"
+                        onClick={() => setActiveTheme(theme)}
+                        style={{ backgroundColor: theme.bg }}
+                        className={`h-5 w-5 rounded-md border border-black transition-transform cursor-pointer ${
+                          activeTheme.name === theme.name ? 'scale-125 ring-2 ring-black dark:ring-white shadow-xs' : 'hover:scale-110'
+                        }`}
+                        title={theme.label}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
 
-            <button
-              type="submit"
-              disabled={loading || success}
-              className="w-full py-3.5 px-4 rounded-xl bg-[#FF5500] hover:bg-[#E04800] text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin text-white" />
-                  <span>Creating account...</span>
-                </>
-              ) : (
-                <>
-                  <span>Create Free Account</span>
-                  <ArrowRight size={15} />
-                </>
+          {/* Right Form Column */}
+          <div className="md:col-span-7 p-4 sm:p-7 md:p-10 flex flex-col justify-center bg-card">
+            {/* Tab Switcher */}
+            <div className="flex items-center gap-2 mb-5 p-1 rounded-2xl border-2 border-black dark:border-[#262638] bg-[#faf5ff] dark:bg-[#181824] shadow-brutal-xs">
+              <button
+                type="button"
+                onClick={() => { setAuthMode('signup'); setError(''); }}
+                className={`flex-1 py-2 rounded-xl font-display text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  authMode === 'signup'
+                    ? 'bg-pink text-black border-2 border-black shadow-brutal-xs'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white'
+                }`}
+              >
+                Create Account
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthMode('login'); setError(''); }}
+                className={`flex-1 py-2 rounded-xl font-display text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  authMode === 'login'
+                    ? 'bg-pink text-black border-2 border-black shadow-brutal-xs'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white'
+                }`}
+              >
+                Sign In
+              </button>
+            </div>
+
+            <div className="mb-5">
+              <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-black text-black dark:text-white">
+                {authMode === 'signup' ? 'Create your creator account' : 'Welcome back to Studio'}
+              </h1>
+              <p className="font-mono text-xs text-neutral-600 dark:text-neutral-400 mt-1">
+                {authMode === 'signup'
+                  ? 'Get started free with instant access to aesthetic templates.'
+                  : 'Enter your verified credentials to load your workspace.'}
+              </p>
+            </div>
+
+            {error && (
+              <div className="mb-4 p-2.5 rounded-xl border-2 border-black bg-red-100 dark:bg-red-950/60 text-xs font-mono font-bold text-red-600 dark:text-red-400 flex items-center gap-2 shadow-brutal-xs">
+                <AlertCircle size={15} className="shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {success && (
+              <div className="mb-4 p-2.5 rounded-xl border-2 border-black bg-mint text-xs font-mono font-black text-black flex items-center gap-2 shadow-brutal-xs animate-scale-in">
+                <CheckCircle2 size={15} className="stroke-[3]" />
+                <span>Account created successfully! Launching workspace...</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              {authMode === 'signup' && (
+                <div>
+                  <label className="block font-mono text-[10px] font-black uppercase tracking-wider text-black dark:text-white mb-1">
+                    Full Name <span className="text-pink">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter your full name"
+                      required
+                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs sm:text-sm font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-xs"
+                    />
+                    <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                  </div>
+                </div>
               )}
-            </button>
-          </form>
 
-          <p className="text-center text-xs text-[#737373] mt-8">
-            Already have an account?{' '}
-            <Link href="/login" className="font-bold text-[#FF5500] hover:underline">
-              Sign in
-            </Link>
-          </p>
+              {/* Email Address */}
+              <div>
+                <label className="block font-mono text-[10px] font-black uppercase tracking-wider text-black dark:text-white mb-1">
+                  Email Address <span className="text-pink">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your Email Id"
+                    required
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs sm:text-sm font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-xs transition-all"
+                  />
+                  <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-mono text-[10px] font-black uppercase tracking-wider text-black dark:text-white">
+                    Password <span className="text-pink">*</span>
+                  </label>
+                  {authMode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => setError('Password reset instructions will be sent to your registered email id.')}
+                      className="font-mono text-[10px] text-pink hover:underline cursor-pointer"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPass ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    className="w-full pl-9 pr-10 py-2.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background font-mono text-xs sm:text-sm font-bold text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-xs"
+                  />
+                  <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black dark:hover:text-white cursor-pointer"
+                    aria-label={showPass ? 'Hide password' : 'Show password'}
+                  >
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+
+                {authMode === 'signup' && password.length > 0 && (
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <div className="flex-1 h-1.5 rounded-full bg-neutral-200 dark:bg-neutral-800 overflow-hidden flex">
+                      <div 
+                        className={`h-full transition-all ${
+                          pwdStrength <= 1 ? 'w-1/4 bg-red-500' : pwdStrength === 2 ? 'w-2/4 bg-amber-500' : pwdStrength === 3 ? 'w-3/4 bg-yellow' : 'w-full bg-emerald-500'
+                        }`}
+                      />
+                    </div>
+                    <span className="font-mono text-[9px] uppercase font-bold text-neutral-500">
+                      {pwdStrength <= 1 ? 'Weak' : pwdStrength <= 3 ? 'Good' : 'Strong'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || success}
+                className="brutal-press w-full mt-2 py-3 px-4 rounded-xl border-[2.5px] border-black bg-pink text-black font-display text-xs sm:text-sm font-black uppercase tracking-wider shadow-brutal hover:bg-pink/90 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 min-h-[46px]"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin text-black" />
+                    <span>{authMode === 'signup' ? 'Creating Account in Supabase...' : 'Authenticating with Supabase...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{authMode === 'signup' ? 'Create Free Account' : 'Sign In to Studio'}</span>
+                    <ArrowRight size={15} className="stroke-[3]" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-5 pt-3.5 border-t-2 border-black/10 dark:border-[#222232] text-center font-mono text-xs text-neutral-600 dark:text-neutral-400">
+              {authMode === 'signup' ? (
+                <p>
+                  Already registered?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMode('login'); setError(''); }}
+                    className="font-bold text-pink underline cursor-pointer"
+                  >
+                    Sign in to your account
+                  </button>
+                </p>
+              ) : (
+                <p>
+                  Don&rsquo;t have an account yet?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMode('signup'); setError(''); }}
+                    className="font-bold text-pink underline cursor-pointer"
+                  >
+                    Create an account free
+                  </button>
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 w-full py-3.5 text-center font-mono text-xs text-neutral-500">
+        © 2026 Launchly, Inc. All rights reserved.
+      </footer>
     </div>
   );
 }

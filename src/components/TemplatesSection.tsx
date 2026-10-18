@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Search, ArrowRight, X, Sparkles, Filter } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, ArrowRight, X } from 'lucide-react';
 import TemplateCard from './TemplateCard';
 import { TEMPLATES, CATEGORIES } from '@/lib/templates';
 import { Template } from '@/types';
 
 export default function TemplatesSection() {
+  const router = useRouter();
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPlan, setFilterPlan] = useState<'all' | 'free' | 'pro'>('all');
@@ -31,24 +33,17 @@ export default function TemplatesSection() {
   });
 
   const handleCustomize = (template: Template) => {
-    window.location.href = `/editor/${template.id}`;
+    router.push(`/editor/${template.id}`);
   };
 
   return (
-    <section id="templates" className="pt-4 sm:pt-6 pb-6 sm:pb-8 px-4 sm:px-6 bg-background overflow-hidden">
+    <section id="templates" className="scroll-mt-20 pt-4 sm:pt-6 pb-6 sm:pb-8 px-4 sm:px-6 bg-background overflow-hidden">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
-          <span className="inline-flex items-center gap-2 rounded-full border-[3px] border-ink bg-card px-4 py-1.5 font-mono text-[11px] font-bold uppercase tracking-widest text-ink shadow-brutal mb-3">
-            <Sparkles size={13} />
-            Template Gallery
-          </span>
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black font-display tracking-tight text-ink mb-3">
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-black font-display tracking-tight text-ink mb-1">
             Find your starting point.
           </h2>
-          <p className="text-base sm:text-lg text-muted-foreground max-w-lg mx-auto">
-            Production-ready Next.js 15 designs crafted for speed, aesthetics, and high conversion.
-          </p>
         </div>
 
         {/* Neo-brutalist Search & Filters Bar */}
@@ -63,7 +58,7 @@ export default function TemplatesSection() {
                 placeholder="Search templates by name, style, or industry..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-11 pr-10 py-2.5 sm:py-3 bg-[#fdf2f8] dark:bg-[#171720] border-[2.5px] border-ink rounded-xl text-xs sm:text-sm font-mono font-bold text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-pink transition-all shadow-brutal-sm"
+                className="w-full pl-11 pr-10 py-2.5 sm:py-3 bg-[#fdf2f8] dark:bg-[#151726] border-[2.5px] border-ink rounded-xl text-xs sm:text-sm font-mono font-bold text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-pink transition-all shadow-brutal-sm"
               />
               {searchQuery && (
                 <button
@@ -82,7 +77,7 @@ export default function TemplatesSection() {
               <select
                 value={filterPlan}
                 onChange={(e) => setFilterPlan(e.target.value as 'all' | 'free' | 'pro')}
-                className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-[#fdf2f8] dark:bg-[#171720] border-[2.5px] border-ink rounded-xl text-xs sm:text-sm font-mono font-bold text-ink focus:outline-none cursor-pointer shadow-brutal-sm"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-[#fdf2f8] dark:bg-[#151726] border-[2.5px] border-ink rounded-xl text-xs sm:text-sm font-mono font-bold text-ink focus:outline-none cursor-pointer shadow-brutal-sm"
               >
                 <option value="all">All Tiers (Free & Pro)</option>
                 <option value="free">Free Templates</option>
@@ -92,7 +87,7 @@ export default function TemplatesSection() {
           </div>
 
           {/* Bottom Row: Category tabs (Wrapped, clean spacing, no clipping) */}
-          <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t-[2px] border-ink/10 dark:border-white/10">
+          <div className="flex flex-wrap items-center gap-2 pt-2.5 border-t-[2px] border-ink/10 dark:border-[#202235]">
             <span className="font-mono text-[10px] font-black uppercase tracking-wider text-muted-foreground mr-1 hidden md:inline">
               CATEGORY:
             </span>
@@ -101,11 +96,10 @@ export default function TemplatesSection() {
                 key={category}
                 type="button"
                 onClick={() => setActiveCategory(category)}
-                className={`brutal-press px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-display font-black uppercase whitespace-nowrap transition-all cursor-pointer border-[2.5px] border-ink ${
-                  activeCategory === category
+                className={`brutal-press px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-display font-black uppercase whitespace-nowrap transition-all cursor-pointer border-[2.5px] border-ink ${activeCategory === category
                     ? 'bg-pink text-black shadow-brutal-sm'
-                    : 'bg-card text-ink hover:bg-neutral-100 dark:hover:bg-neutral-800 shadow-brutal-sm'
-                }`}
+                    : 'bg-card text-ink hover:bg-neutral-100 dark:hover:bg-[#1b1c30] shadow-brutal-sm'
+                  }`}
               >
                 {category}
               </button>
@@ -113,17 +107,32 @@ export default function TemplatesSection() {
           </div>
         </div>
 
-        {/* Templates Grid */}
+        {/* Templates Grid (Limited to 6 on Landing Page) */}
         {filteredTemplates.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredTemplates.map((template) => (
-              <TemplateCard
-                key={template.id}
-                template={template}
-                onCustomize={handleCustomize}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredTemplates.slice(0, 6).map((template) => (
+                <TemplateCard
+                  key={template.id}
+                  template={template}
+                  onCustomize={handleCustomize}
+                />
+              ))}
+            </div>
+
+            {/* Show More Templates Action Button */}
+            {filteredTemplates.length > 6 && (
+              <div className="mt-10 sm:mt-12 text-center">
+                <Link
+                  href="/templates"
+                  className="brutal-press inline-flex items-center gap-2.5 px-8 py-3.5 sm:py-4 rounded-2xl border-[3px] border-ink bg-yellow hover:bg-pink text-black font-display text-sm sm:text-base font-black uppercase tracking-wider shadow-brutal transition-all"
+                >
+                  <span>Show More Templates</span>
+                  <ArrowRight size={18} className="stroke-[3]" />
+                </Link>
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-20 bg-card rounded-3xl border-[3px] border-ink p-8 shadow-brutal max-w-md mx-auto">
             <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

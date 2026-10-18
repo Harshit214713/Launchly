@@ -1,5 +1,4 @@
 import Navbar from '@/components/Navbar';
-import MarqueeTicker from '@/components/MarqueeTicker';
 import Hero from '@/components/Hero';
 import LiveWorkspaceSection from '@/components/LiveWorkspaceSection';
 import HowItWorks from '@/components/HowItWorks';
@@ -14,7 +13,6 @@ export default function Home() {
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <Navbar />
       <main className="flex-1 overflow-x-clip">
-        <MarqueeTicker />
         <Hero />
         <LiveWorkspaceSection />
         <HowItWorks />

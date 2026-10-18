@@ -2,15 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import PaymentModal from './PaymentModal';
 import { 
   Check, 
-  Sparkles, 
   ArrowUpRight, 
   Plus,
-  Minus,
-  ShieldCheck,
-  Zap,
-  HelpCircle
+  Minus
 } from 'lucide-react';
 
 const FREE_FEATURES = [
@@ -61,22 +58,23 @@ export default function Pricing() {
   const router = useRouter();
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const monthlyPrice = 19;
   const yearlyPrice = Math.floor(monthlyPrice * 12 * 0.7);
 
   const handleSelectPlan = (plan: 'free' | 'pro') => {
-    router.push(plan === 'pro' ? '/signup?plan=pro' : '/signup');
+    if (plan === 'pro') {
+      setShowPaymentModal(true);
+    } else {
+      router.push('/signup');
+    }
   };
 
   return (
-    <section id="pricing" className="mx-auto w-[min(1200px,calc(100%-32px))] py-8 sm:py-10">
+    <section id="pricing" className="scroll-mt-20 mx-auto w-[min(1200px,calc(100%-32px))] py-8 sm:py-10">
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto mb-8">
-        <span className="inline-flex items-center gap-2 rounded-full border-[3px] border-ink bg-yellow px-4 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-black shadow-brutal mb-4">
-          <Zap size={13} className="fill-black" />
-          Transparent Pricing
-        </span>
         <h2 className="font-display text-4xl sm:text-5xl md:text-6xl font-black text-ink leading-tight">
           Ship fast, pay fair.
         </h2>
@@ -117,20 +115,20 @@ export default function Pricing() {
       {/* Pricing Cards Grid */}
       <div className="grid gap-8 lg:grid-cols-2 max-w-4xl mx-auto">
         {/* Free Card */}
-        <div className="rounded-3xl border-[4px] border-ink bg-card p-8 sm:p-10 shadow-brutal-lg flex flex-col justify-between">
+        <div className="rounded-3xl border-[4px] border-ink bg-card p-8 sm:p-10 shadow-brutal-lg flex flex-col justify-between hover:-translate-y-1 transition-all">
           <div>
             <div className="flex items-center justify-between">
               <span className="font-mono text-xs font-black uppercase tracking-wider text-muted-foreground">
                 Starter Tier
               </span>
-              <span className="rounded-full border-2 border-ink bg-[#fdf2f8] px-3 py-0.5 font-mono text-[11px] font-bold text-black">
+              <span className="rounded-full border-2 border-ink bg-[#fdf2f8] dark:bg-[#1c1e30] px-3 py-0.5 font-mono text-[11px] font-black text-black dark:text-white shadow-2xs">
                 Free Forever
               </span>
             </div>
 
             <h3 className="mt-3 font-display text-3xl font-black text-ink">Free Plan</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Perfect for exploring templates and launching test landing pages.
+            <p className="mt-2 text-sm text-muted-foreground font-mono">
+              Perfect for exploring templates and launching test landing pages with zero risk.
             </p>
 
             <div className="my-6 pb-6 border-b-[2.5px] border-ink/20">
@@ -138,12 +136,15 @@ export default function Pricing() {
                 <span className="font-display text-5xl sm:text-6xl font-black text-ink">$0</span>
                 <span className="font-mono text-sm text-muted-foreground">/ month</span>
               </div>
+              <span className="font-mono text-xs text-neutral-500 dark:text-neutral-400 mt-1 block">
+                No credit card required to begin
+              </span>
             </div>
 
             <ul className="space-y-3.5 mb-8">
               {FREE_FEATURES.map((feature, idx) => (
                 <li key={idx} className="flex items-center gap-3 text-xs sm:text-sm font-mono text-ink">
-                  <span className="h-5 w-5 shrink-0 rounded-full border-2 border-ink bg-mint text-black flex items-center justify-center">
+                  <span className="h-5 w-5 shrink-0 rounded-full border-2 border-ink bg-mint text-black flex items-center justify-center shadow-2xs">
                     <Check size={12} className="stroke-[3]" />
                   </span>
                   <span>{feature}</span>
@@ -155,35 +156,29 @@ export default function Pricing() {
           <button
             type="button"
             onClick={() => handleSelectPlan('free')}
-            className="brutal-press w-full rounded-2xl border-[3px] border-ink bg-card py-4 font-display text-base font-black text-ink shadow-brutal hover:bg-neutral-100 cursor-pointer"
+            className="brutal-press w-full rounded-2xl border-[3px] border-ink bg-card py-4 font-display text-base font-black text-ink shadow-brutal hover:bg-neutral-100 dark:hover:bg-[#1d1f33] cursor-pointer"
           >
-            Start Free
+            Start Building Free →
           </button>
         </div>
 
         {/* Pro Card */}
-        <div className="rounded-3xl border-[4px] border-ink bg-card p-8 sm:p-10 shadow-brutal-xl relative flex flex-col justify-between ring-2 ring-pink/40">
-          {/* Popular Choice Floating Pill */}
-          <div className="absolute -top-4 right-8">
-            <span className="inline-flex items-center gap-1.5 rounded-full border-[2.5px] border-ink bg-yellow px-4 py-1 font-mono text-[11px] font-black uppercase text-black shadow-brutal-sm">
-              <Sparkles size={12} />
-              POPULAR CHOICE
-            </span>
-          </div>
-
+        <div className="rounded-3xl border-[4px] border-ink dark:border-pink/40 bg-card dark:bg-[#16172a] p-8 sm:p-10 shadow-brutal-xl relative flex flex-col justify-between hover:-translate-y-1 transition-all">
           <div>
             <div className="flex items-center justify-between">
-              <span className="font-mono text-xs font-black uppercase tracking-wider text-pink">
+              <span className="font-mono text-xs font-black uppercase tracking-wider text-pink font-bold">
                 Production Tier
               </span>
-              <span className="rounded-full border-2 border-ink bg-pink px-3 py-0.5 font-mono text-[11px] font-black text-black">
+              <span className="rounded-full border-2 border-ink bg-pink px-3 py-0.5 font-mono text-[11px] font-black text-black shadow-2xs">
                 Full Power
               </span>
             </div>
 
-            <h3 className="mt-3 font-display text-3xl font-black text-ink">Pro Creator</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              For ambitious founders, agencies, and businesses ready to launch.
+            <h3 className="mt-3 font-display text-3xl font-black text-ink flex items-center gap-2">
+              <span>Pro Creator</span>
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground font-mono">
+              For ambitious founders, agencies, and builders ready for high-converting production launches.
             </p>
 
             <div className="my-6 pb-6 border-b-[2.5px] border-ink/20">
@@ -193,9 +188,13 @@ export default function Pricing() {
                 </span>
                 <span className="font-mono text-sm text-muted-foreground">/ month</span>
               </div>
-              {billing === 'yearly' && (
-                <span className="font-mono text-xs text-mint font-bold mt-1 block">
-                  Billed annually (${yearlyPrice}/yr)
+              {billing === 'yearly' ? (
+                <span className="font-mono text-xs text-mint font-bold mt-1.5 block">
+                  Billed annually (${yearlyPrice}/yr) • Save $68 every year
+                </span>
+              ) : (
+                <span className="font-mono text-xs text-muted-foreground mt-1.5 block">
+                  Billed monthly • Cancel anytime with 1 click
                 </span>
               )}
             </div>
@@ -203,10 +202,10 @@ export default function Pricing() {
             <ul className="space-y-3.5 mb-8">
               {PRO_FEATURES.map((feature, idx) => (
                 <li key={idx} className="flex items-center gap-3 text-xs sm:text-sm font-mono text-ink">
-                  <span className="h-5 w-5 shrink-0 rounded-full border-2 border-ink bg-pink text-black flex items-center justify-center">
+                  <span className="h-5 w-5 shrink-0 rounded-full border-2 border-ink bg-pink text-black flex items-center justify-center shadow-2xs">
                     <Check size={12} className="stroke-[3]" />
                   </span>
-                  <span className={idx < 2 ? 'font-bold' : ''}>{feature}</span>
+                  <span>{feature}</span>
                 </li>
               ))}
             </ul>
@@ -215,9 +214,9 @@ export default function Pricing() {
           <button
             type="button"
             onClick={() => handleSelectPlan('pro')}
-            className="brutal-press w-full rounded-2xl border-[3px] border-ink bg-pink py-4 font-display text-base font-black text-black shadow-brutal hover:bg-pink/90 cursor-pointer flex items-center justify-center gap-2"
+            className="brutal-press w-full rounded-2xl border-[3px] border-ink bg-pink hover:bg-yellow py-4 font-display text-base font-black text-black shadow-brutal hover:shadow-brutal-lg transition-all cursor-pointer flex items-center justify-center gap-2"
           >
-            <span>Upgrade to Pro</span>
+            <span>Upgrade to Pro Creator</span>
             <ArrowUpRight size={18} className="stroke-[3]" />
           </button>
         </div>
@@ -226,10 +225,6 @@ export default function Pricing() {
       {/* FAQ Section */}
       <div className="mt-24 max-w-3xl mx-auto">
         <div className="text-center mb-10">
-          <span className="inline-flex items-center gap-2 rounded-full border-[3px] border-ink bg-card px-3.5 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-ink shadow-brutal mb-3">
-            <HelpCircle size={13} />
-            Got Questions?
-          </span>
           <h3 className="font-display text-3xl sm:text-4xl font-black text-ink">
             Frequently Asked Questions
           </h3>
@@ -261,6 +256,16 @@ export default function Pricing() {
           ))}
         </div>
       </div>
+
+      {/* Official QR Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        itemName="Launchly Pro Creator"
+        price={billing === 'monthly' ? `$${monthlyPrice}/mo` : `$${yearlyPrice}/yr`}
+        planId="pro"
+        billingCycle={billing}
+      />
     </section>
   );
 }

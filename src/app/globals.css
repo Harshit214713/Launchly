@@ -3,6 +3,9 @@
 @variant dark (&:where(.dark, .dark *));
 
 :root {
+  --font-space-grotesk: "Space Grotesk", sans-serif;
+  --font-space-mono: "Space Mono", monospace;
+  --font-orbitron: "Orbitron", sans-serif;
   --background: #faf8f5;
   --foreground: #111111;
   --ink: #111111;
@@ -28,26 +31,26 @@
 :root.dark,
 html.dark,
 .dark {
-  --background: #0d0d14;
-  --foreground: #f5f5f7;
-  --ink: #f5f5f7;
-  --paper: #161622;
+  --background: #0a0b12;
+  --foreground: #f4f4f8;
+  --ink: #f4f4f8;
+  --paper: #121320;
   --pink: #f472b6;
   --pink-foreground: #000000;
-  --yellow: #fde047;
-  --mint: #6ee7b7;
-  --lilac: #c4b5fd;
+  --yellow: #ffd600;
+  --mint: #7bd7c1;
+  --lilac: #ddd6fe;
   --sky: #38bdf8;
-  --card: #161622;
-  --card-foreground: #f5f5f7;
-  --border: #2a2a3a;
-  --muted: #8a8a94;
-  --muted-foreground: #a1a1aa;
-  --surface: #161622;
-  --surface-strong: #1e1e2d;
-  --shadow-color: #ffffff;
-  --neo-border: 2.5px solid #ffffff;
-  --card-shadow: #ffffff;
+  --card: #131424;
+  --card-foreground: #f4f4f8;
+  --border: #2c2f48;
+  --muted: #8c90a8;
+  --muted-foreground: #a0a4be;
+  --surface: #141526;
+  --surface-strong: #1c1d32;
+  --shadow-color: #000000;
+  --neo-border: 2px solid #2c2f48;
+  --card-shadow: #000000;
 }
 
 @theme inline {
@@ -71,6 +74,7 @@ html.dark,
   --font-sans: var(--font-space-grotesk), "Space Grotesk", sans-serif;
   --font-display: var(--font-space-grotesk), "Space Grotesk", sans-serif;
   --font-mono: var(--font-space-mono), "Space Mono", monospace;
+  --font-brand: var(--font-orbitron), "Orbitron", sans-serif;
 }
 
 * {
@@ -79,6 +83,12 @@ html.dark,
 
 html {
   scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 body {
@@ -97,9 +107,17 @@ body {
   font-family: var(--font-space-mono), "Space Mono", monospace;
 }
 
+.font-brand {
+  font-family: var(--font-orbitron), "Orbitron", sans-serif;
+}
+
 /* Neo-Brutalist Box Shadows */
 .shadow-brutal {
   box-shadow: 4px 4px 0px 0px var(--shadow-color, #111111);
+}
+
+.shadow-brutal-xs {
+  box-shadow: 1.5px 1.5px 0px 0px var(--shadow-color, #111111);
 }
 
 .shadow-brutal-sm {
@@ -118,30 +136,35 @@ body {
   box-shadow: 12px 12px 0px 0px var(--shadow-color, #111111);
 }
 
-/* Explicit Dark Theme Neo-Brutalist Box Shadows (Solid White High-Contrast Depth) */
+/* Dark Theme Neo-Brutalist Box Shadows (Deep Inky Contrast, Zero Harsh White Rings) */
 .dark .shadow-brutal,
 :root.dark .shadow-brutal {
-  box-shadow: 4px 4px 0px 0px #ffffff;
+  box-shadow: 4px 4px 0px 0px #000000;
+}
+
+.dark .shadow-brutal-xs,
+:root.dark .shadow-brutal-xs {
+  box-shadow: 1.5px 1.5px 0px 0px #000000;
 }
 
 .dark .shadow-brutal-sm,
 :root.dark .shadow-brutal-sm {
-  box-shadow: 2.5px 2.5px 0px 0px #ffffff;
+  box-shadow: 2.5px 2.5px 0px 0px #000000;
 }
 
 .dark .shadow-brutal-md,
 :root.dark .shadow-brutal-md {
-  box-shadow: 6px 6px 0px 0px #ffffff;
+  box-shadow: 6px 6px 0px 0px #000000;
 }
 
 .dark .shadow-brutal-lg,
 :root.dark .shadow-brutal-lg {
-  box-shadow: 8px 8px 0px 0px #ffffff;
+  box-shadow: 8px 8px 0px 0px #000000;
 }
 
 .dark .shadow-brutal-xl,
 :root.dark .shadow-brutal-xl {
-  box-shadow: 12px 12px 0px 0px #ffffff;
+  box-shadow: 12px 12px 0px 0px #000000;
 }
 
 /* Micro-interaction: Brutal Press Button Animation */
@@ -161,12 +184,41 @@ body {
 
 .dark .brutal-press:hover,
 :root.dark .brutal-press:hover {
-  box-shadow: 1px 1px 0px 0px #ffffff;
+  box-shadow: 1.5px 1.5px 0px 0px #000000;
 }
 
 .dark .brutal-press:active,
 :root.dark .brutal-press:active {
-  box-shadow: 0px 0px 0px 0px #ffffff;
+  box-shadow: 0px 0px 0px 0px #000000;
+}
+
+/* Dark Theme Borders: In dark mode, borders must be subtle dark slate (#26283d), NEVER glaring chalk white */
+.dark .border-ink,
+:root.dark .border-ink,
+.dark [class*="border-ink"],
+:root.dark [class*="border-ink"] {
+  border-color: #26283d !important;
+}
+
+.dark .border-ink\/10,
+:root.dark .border-ink\/10,
+.dark .border-ink\/15,
+:root.dark .border-ink\/15,
+.dark .border-ink\/20,
+:root.dark .border-ink\/20,
+.dark .border-ink\/30,
+:root.dark .border-ink\/30,
+.dark .border-ink\/40,
+:root.dark .border-ink\/40,
+.dark [class*="border-ink/"],
+:root.dark [class*="border-ink/"] {
+  border-color: #1a1c2a !important;
+}
+
+/* Guard against any lingering harsh white border utilities in dark mode */
+.dark [class*="dark:border-white"],
+:root.dark [class*="dark:border-white"] {
+  border-color: #26283d !important;
 }
 
 /* Infinite Marquee Animation */
@@ -238,4 +290,18 @@ body {
 
 .code-scroll::-webkit-scrollbar-thumb:hover {
   background: #f472b6;
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar,
+.scrollbar-hide {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }

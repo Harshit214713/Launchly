@@ -4,7 +4,7 @@ export interface Template {
   category: TemplateCategory;
   description: string;
   tags: string[];
-  badge?: 'Popular' | 'New' | 'Pro';
+  badge?: 'Popular' | 'New' | 'Pro' | 'Staff Pick' | 'Trending' | 'Hot' | 'Awwwards SOTD' | 'Exclusive' | 'Design Award' | string;
   isPro: boolean;
   previewUrl: string;
   thumbnail: string;

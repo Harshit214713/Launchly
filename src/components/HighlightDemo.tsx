@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, Wand2, ArrowRight, Check, Layers, RefreshCw } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 const PRESET_STYLES = [
@@ -28,7 +28,7 @@ export default function HighlightDemo() {
           {/* Left Details */}
           <div className="relative">
             <span className="inline-flex items-center gap-2 rounded-full border-[3px] border-ink bg-mint px-3.5 py-1 font-mono text-[11px] font-bold uppercase tracking-widest text-black shadow-brutal">
-              <Sparkles size={12} className="stroke-[3]" />
+              <span className="w-2 h-2 rounded-full bg-black inline-block animate-pulse" />
               Live interactive preview
             </span>
 
@@ -95,7 +95,7 @@ export default function HighlightDemo() {
                   style={{ backgroundColor: selectedStyle.color }}
                   className="inline-block rounded-full border border-ink px-3 py-0.5 font-mono text-[10px] font-bold uppercase text-black mb-2"
                 >
-                  ✦ Curated Template
+                  Curated Template
                 </span>
                 <h4 className="font-display text-xl font-black text-ink">
                   {selectedStyle.id === 'saas' && 'SaaS Next-Gen Analytics'}

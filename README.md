@@ -1,136 +1,131 @@
 <div align="center">
 
-  <img src="public/brand-logo-clean.png" alt="Launchly Logo" width="110" height="110" />
+  <img src="public/brand-logo-clean.png" alt="Launchly Logo" width="100" height="100" />
 
   # Launchly
 
-  ### **Websites, curated templates, visual editor, and clean Next.js code — all on one screen.**
+  ### Open-Source Visual Web Studio & Production Next.js Engine
 
   <p align="center">
-    A high-performance, open-source maker workspace built for designers, developers, and founders. <br/>
-    Customize every pixel visually in real-time, inspect responsive breakpoints, and export production-ready Next.js 15 source code without context switching.
+    A high-performance visual website builder and curated template architecture.<br/>
+    Design on a tactile neo-brutalist canvas, preview responsive edge viewports, and export clean Next.js 15 App Router source code with zero vendor lock-in.
   </p>
 
   <p align="center">
-    <a href="https://github.com/simplyvardaan/Launchly/stargazers"><img src="https://img.shields.io/github/stars/simplyvardaan/Launchly?style=for-the-badge&logo=star&color=FF5500&logoColor=white" alt="Stars Badge"/></a>
-    <a href="https://github.com/simplyvardaan/Launchly/network/members"><img src="https://img.shields.io/github/forks/simplyvardaan/Launchly?style=for-the-badge&logo=git&color=10B981&logoColor=white" alt="Forks Badge"/></a>
-    <a href="https://github.com/simplyvardaan/Launchly/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge&color=6366F1" alt="License"/></a>
-    <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-15%20%7C%2016-black?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js"/></a>
-    <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19"/></a>
-    <a href="https://tailwindcss.com"><img src="https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS v4"/></a>
-    <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/></a>
+    <a href="https://github.com/simplyvardaan/Launchly/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-black.svg?style=flat-square" alt="MIT License"/></a>
+    <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-15%20%7C%2016-black?style=flat-square&logo=next.js&logoColor=white" alt="Next.js"/></a>
+    <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19-black?style=flat-square&logo=react&logoColor=61DAFB" alt="React 19"/></a>
+    <a href="https://tailwindcss.com"><img src="https://img.shields.io/badge/Tailwind_CSS-v4-black?style=flat-square&logo=tailwind-css&logoColor=38B2AC" alt="Tailwind CSS v4"/></a>
+    <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-5-black?style=flat-square&logo=typescript&logoColor=3178C6" alt="TypeScript"/></a>
+    <a href="https://github.com/simplyvardaan/Launchly/pulls"><img src="https://img.shields.io/badge/PRs-Welcome-black.svg?style=flat-square" alt="PRs Welcome"/></a>
   </p>
 
   <p align="center">
-    <a href="#what-is-launchly">Overview</a> •
-    <a href="#features">Features</a> •
+    <a href="#overview">Overview</a> •
+    <a href="#architecture">Architecture</a> •
     <a href="#curated-templates">Templates</a> •
-    <a href="#live-maker-workspace">Maker Workspace</a> •
-    <a href="#quick-start">Quick Start</a> •
+    <a href="#studio-editor">Studio Editor</a> •
+    <a href="#quickstart">Quickstart</a> •
     <a href="#tech-stack">Tech Stack</a> •
-    <a href="#api-reference">APIs</a> •
-    <a href="CONTRIBUTING.md">Contributing</a>
+    <a href="#api-reference">API Reference</a> •
+    <a href="#contributing">Contributing</a> •
+    <a href="#license">License</a>
   </p>
 
 </div>
 
 ---
 
-<a id="what-is-launchly"></a>
-## What is Launchly?
+<a id="overview"></a>
+## Overview
 
-Traditional website builders trap you in proprietary closed gardens with messy, unmaintainable code exports. Traditional coding requires hours of boilerplate setup before seeing a single button on screen.
+Most website builders generate bloated, unmaintainable markup trapped inside proprietary platforms. Hand-coding landing pages requires hours of repetitive scaffolding before seeing a single interactive component.
 
-**Launchly bridges the gap:**
-1. **Browse curated, award-winning templates** inspired by modern design trends (Awwwards, Godly, Linear, Raycast, brutalism, and editorial luxury).
-2. **Fine-tune visually** with in-browser typography, color palettes, spacing, and layout controls.
-3. **Simulate live subdomains** (`/live/[subdomain]`) with instant mockup deployment.
-4. **Export 100% clean Next.js 15 source code** — zero vendor lock-in, zero runtime bloat.
+Launchly combines visual canvas customization with clean, modern source code:
+
+- **Curated Template Systems**: Production-grade architectures covering AI agents, SaaS telemetry, brutalist creative studios, luxury ecommerce, and Web3 finance.
+- **Visual Studio Editor**: Real-time typography scales, curated palettes, spacing controllers, and section arrangement.
+- **AI-Powered Synthesis**: Natural language prompt generation that refactors design tokens, copy, and layout live on canvas.
+- **Edge Deployment Simulation**: Instant preview at `/live/[subdomain]` with wildcard DNS middleware support for custom domains.
+- **Zero Lock-In Source Export**: Clean TypeScript, Tailwind v4, and Next.js 15 App Router components ready for immediate deployment to Vercel, Netlify, or self-hosted servers.
 
 ---
 
-<a id="features"></a>
-## Key Features
+<a id="architecture"></a>
+## Architecture & Flow
 
-| Feature | Description |
-|---|---|
-| 🎨 **Curated Aesthetic Templates** | Handcrafted templates across **SaaS, AI, Agency, Portfolio, Ecommerce, Web3, and Media** with responsive layouts and micro-interactions. |
-| 🎛️ **Visual Design Canvas** | Real-time sliders and toggles for background themes, primary accents, font scales, radii, and container padding. |
-| 📱 **Responsive Viewport Switcher** | Instant preview toggle across **Desktop (1440px)**, **Tablet (768px)**, and **Mobile (375px)** device frames. |
-| ⚡ **Live Code & Canvas Split** | Interactive dual-pane maker workspace displaying rendered UI on one side and live Next.js JSX code on the other. |
-| 🌐 **Simulated Cloud Publishing** | Launch instantly to a simulated high-speed subdomain (e.g., `yourapp.launchly.site`) with built-in analytics preview. |
-| 📦 **Production Code Export** | Download or copy production-ready TypeScript + Tailwind v4 components ready to deploy to Vercel, Netlify, or Cloudflare. |
-| 🌗 **Neo-Brutalist & Dark Mode** | High-contrast tactile borders, bold retro drop shadows, smooth spring animations, and full dark mode support. |
-| 🔌 **Full-Stack REST Endpoints** | Built-in App Router API routes for auth sessions, newsletter captures, contact forms, template queries, and mock checkout. |
+Launchly operates as a full-stack Next.js application leveraging SSR, Turbopack, and edge middleware:
+
+```
+[Template Registry]
+        │
+        ▼
+[Studio Canvas Engine] ───► [AI Design Synthesizer]
+        │                              │
+        ├──────────────────────────────┘
+        ▼
+[Live Edge Router] (/live/[subdomain])
+        │
+        ├──► Wildcard Subdomain Routing (src/middleware.ts)
+        └──► Clean Component Source Export
+```
 
 ---
 
 <a id="curated-templates"></a>
 ## Curated Templates
 
-Launchly comes bundled with ready-to-use, production-grade template architectures:
+Every template is designed as a standalone, production-ready system with bespoke layout patterns and micro-interactions:
 
-```
-┌─────────────────┬───────────┬─────────────────────────────────────────────────────────┬──────────────┐
-│ Template        │ Category  │ Aesthetic Highlights                                    │ Tech Stack   │
-├─────────────────┼───────────┼─────────────────────────────────────────────────────────┼──────────────┤
-│ Agenn AI        │ AI        │ Holographic graphs, prompt playground, token telemetry  │ Next.js + TS │
-│ Fabrica Studio  │ Agency    │ Kinetic project reels, brutalist Swiss typography       │ Next.js + TS │
-│ Chronicle OS    │ SaaS      │ Linear/Raycast dark glass telemetry, live incident radar│ Next.js + TS │
-│ Atelier Maison  │ Ecommerce │ Architectural luxury lookbook, sculptural slide-out cart│ Next.js + TS │
-│ Noora Studio    │ Agency    │ 3D device staging, fluid hover transitions, client ROI  │ Next.js + TS │
-│ Solstice Defi   │ Web3      │ Neon candlestick depth charts, algorithmic orderbook    │ Next.js + TS │
-│ Sora Cinema     │ Media     │ 2.39:1 anamorphic widescreen showreel, golden hour glow │ Next.js + TS │
-│ Strata Cloud    │ SaaS      │ Interactive edge latency globe, sub-second CLI pipeline │ Next.js + TS │
-│ Elian Portfolio │ Portfolio │ Dark editorial layout, micro-motion case studies        │ Next.js + TS │
-└─────────────────┴───────────┴─────────────────────────────────────────────────────────┴──────────────┘
-```
+| Template | Category | Aesthetic Focus | Architecture |
+|---|---|---|---|
+| **Agenn AI** | AI | Holographic graphs, prompt playground, token telemetry | Next.js 15, Framer Motion, Tailwind v4 |
+| **Fabrica Studio** | Agency | Kinetic motion reels, Swiss brutalist typography | Next.js 15, Geist Mono, TypeScript |
+| **Chronicle OS** | SaaS | Linear and Raycast dark glass telemetry, incident radar | Next.js 15, Lucide Icons, SVG charts |
+| **Atelier Maison** | Ecommerce | High-fashion editorial lookbook, slide-out drawer cart | Next.js 15, Custom Flexbox, Radix UI |
+| **Noora Studio** | Agency | Spatial 3D device staging, fluid hover state transitions | Next.js 15, Framer Motion, Tailwind v4 |
+| **Solstice Defi** | Web3 | Real-time candlestick charts, algorithmic depth feeds | Next.js 15, High-density Grid, TypeScript |
+| **Sora Cinema** | Media | 2.39:1 widescreen viewports, golden hour aesthetic | Next.js 15, HTML5 Media, CSS Backdrop |
+| **Strata Cloud** | SaaS | Sub-second latency radar, CLI telemetry streams | Next.js 15, Terminal Components, Radix UI |
+| **Elian Portfolio** | Portfolio | Editorial portfolio, minimalist project showcases | Next.js 15, CSS Grid, TypeScript |
 
 ---
 
-<a id="live-maker-workspace"></a>
-## Live Maker Workspace
+<a id="studio-editor"></a>
+## Studio Editor & Edge Hosting
 
-Launchly features an all-in-one interactive playground (`/live` and `/editor/[templateId]`):
+The Studio Editor (`/editor/[templateId]`) offers a complete design workspace:
 
-```mermaid
-graph LR
-    A[Browse Curated Templates] --> B[Visual Editor Canvas]
-    B --> C{Maker Decisions}
-    C -->|Tweak Styles| D[Live Theme & Token Switcher]
-    C -->|Inspect Code| E[Synchronized Next.js Source]
-    C -->|Simulate Deploy| F[Live Subdomain /live/subdomain]
-    C -->|Download| G[Production Zip / Clean Code]
-```
+- **Multi-Device Canvas**: Seamlessly toggle across Desktop (1440px), Tablet (768px), and Mobile (375px) viewports with architectural grid backgrounds.
+- **Token Management**: Live modification of primary accents, dark/light surface tokens, font scale, and corner radii.
+- **Section Controls**: Toggle and reorder Navigation, Hero, Feature matrices, Testimonials, Call to Action, and Footer blocks.
+- **Prompt Synthesis**: Provide natural language creative prompts to dynamically re-theme colors, typography, and marketing copy.
+- **Subdomain Deployment**: Publish directly to custom subdomains (`[subdomain].launchly.site` or custom domains) with instant edge caching.
 
 ---
 
 <a id="tech-stack"></a>
 ## Tech Stack
 
-Launchly is built on the modern React and Next.js ecosystem:
-
-- **Framework**: [Next.js](https://nextjs.org) (App Router, Server & Client Components)
-- **UI Library**: [React 19](https://react.dev)
-- **Styling**: [Tailwind CSS v4](https://tailwindcss.com) + Custom CSS Variables & Neo-Brutalist design tokens
-- **Typography**: [Space Grotesk](https://fonts.google.com/specimen/Space+Grotesk) & [Space Mono](https://fonts.google.com/specimen/Space+Mono) via `next/font`
-- **Animations**: [Framer Motion](https://www.framer.com/motion/)
-- **Primitives**: [Radix UI](https://www.radix-ui.com) (Dialog, Tooltip, Dropdown, Slider, Switch, Tabs)
-- **State Management**: [Zustand](https://zustand-demo.pmnd.rs)
+- **Core**: [Next.js 15 / 16](https://nextjs.org) (App Router, Turbopack, React Server Components)
+- **Runtime**: [React 19](https://react.dev)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com) with CSS Variables & Neo-Brutalist Design Tokens
+- **Language**: [TypeScript 5](https://www.typescriptlang.org) (Strict Mode)
 - **Icons**: [Lucide React](https://lucide.dev)
-- **Type Safety**: [TypeScript](https://www.typescriptlang.org)
+- **UI Primitives**: [Radix UI](https://www.radix-ui.com)
+- **Database / Auth**: [Supabase](https://supabase.com) (PostgreSQL, JWT Sessions, Row Level Security)
+- **Build & Bundler**: Next.js Turbopack
 
 ---
 
-<a id="quick-start"></a>
-## Quick Start
+<a id="quickstart"></a>
+## Quickstart
 
-Get a local instance of Launchly up and running in under two minutes:
+Follow these steps to run Launchly locally:
 
 ### 1. Prerequisites
-Make sure you have:
 - **Node.js**: `v18.18+` or `v20+`
-- **npm**, **pnpm**, **yarn**, or **bun**
+- Package manager: `npm`, `pnpm`, or `bun`
 
 ### 2. Clone the Repository
 ```bash
@@ -141,79 +136,79 @@ cd Launchly
 ### 3. Install Dependencies
 ```bash
 npm install
-# or
-pnpm install
-# or
-bun install
 ```
 
-### 4. Setup Environment Variables
+### 4. Configure Environment
+Create a `.env.local` file in the root directory:
 ```bash
 cp .env.example .env.local
 ```
 
-### 5. Launch the Development Server
+Required environment variables:
+```env
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-key"
+SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
+AUTH_SECRET="your-secure-auth-secret"
+```
+
+### 5. Start Development Server
 ```bash
 npm run dev
 ```
 
-Open [**http://localhost:3000**](http://localhost:3000) in your browser to start exploring!
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
 ## Available Scripts
 
-| Script | Command | Purpose |
-|---|---|---|
-| **Development** | `npm run dev` | Runs the Next.js development server with TurboPack and hot-reload |
-| **Production Build** | `npm run build` | Compiles and optimizes the application for production deployment |
-| **Start Production** | `npm run start` | Runs the compiled production server locally |
-| **Lint** | `npm run lint` | Runs ESLint to check for syntax and style issues |
+| Command | Action |
+|---|---|
+| `npm run dev` | Starts the Next.js development server with Turbopack |
+| `npm run build` | Compiles an optimized production build |
+| `npm run start` | Runs the compiled production server |
+| `npm run lint` | Analyzes code for TypeScript and ESLint standards |
 
 ---
 
 ## Project Structure
 
-```bash
+```
 Launchly/
-├── .github/                     # Issue templates & PR guidelines
-│   ├── ISSUE_TEMPLATE/
-│   │   ├── bug_report.md
-│   │   └── feature_request.md
-│   └── PULL_REQUEST_TEMPLATE.md
-├── public/                      # Static brand assets, logos, and mockups
+├── public/                      # Static assets, brand logos, testimonials
 │   ├── brand-logo-clean.png
 │   ├── brand-name-dark.png
 │   └── brand-name-light.png
 ├── src/
-│   ├── app/                     # Next.js App Router routes & endpoints
-│   │   ├── api/                 # REST APIs (auth, newsletter, sites, contact)
-│   │   ├── dashboard/           # User project management dashboard
-│   │   ├── editor/              # In-browser visual customizer & canvas
-│   │   ├── live/                # Simulated published subdomain router
-│   │   ├── login/ & signup/     # Authentication screens
-│   │   ├── templates/           # Showcase and individual template preview pages
-│   │   ├── layout.tsx           # Global HTML shell & font definitions
-│   │   └── page.tsx             # Interactive landing page
-│   ├── components/              # Neo-brutalist UI components & sections
+│   ├── app/                     # Next.js App Router
+│   │   ├── api/                 # REST endpoints (auth, sites, payments, ai)
+│   │   │   ├── ai/generate/     # Prompt-to-design engine
+│   │   │   ├── sites/publish/   # Domain deployment engine
+│   │   │   └── ...
+│   │   ├── dashboard/           # User project management workspace
+│   │   ├── editor/[templateId]/ # Studio visual designer
+│   │   ├── live/[subdomain]/    # Deployed website edge surface
+│   │   ├── templates/           # Template gallery & deep dive preview
+│   │   ├── layout.tsx           # Root shell & typography
+│   │   └── page.tsx             # Main landing page
+│   ├── components/              # Neo-brutalist and modular UI blocks
 │   │   ├── Hero.tsx
 │   │   ├── LiveWorkspaceSection.tsx
 │   │   ├── TemplatesSection.tsx
-│   │   ├── TemplateCard.tsx
 │   │   ├── Navbar.tsx
-│   │   ├── Pricing.tsx
-│   │   ├── CTA.tsx
-│   │   └── Footer.tsx
-│   ├── lib/                     # Data stores, utilities & template catalog
-│   │   ├── db.ts                # In-memory mock storage and models
-│   │   ├── templates.ts         # Curated template catalog registry
-│   │   └── utils.ts             # Tailwind class merging utilities
-│   └── types/                   # TypeScript interfaces and schema types
-├── .env.example                 # Example environment variables
-├── CONTRIBUTING.md              # Open source contribution guide
-├── CODE_OF_CONDUCT.md          # Contributor Covenant Code of Conduct
-├── SECURITY.md                  # Security vulnerability reporting policy
-├── LICENSE                      # MIT Open Source License
+│   │   ├── Footer.tsx
+│   │   └── ...
+│   ├── lib/                     # Database client, template data, utilities
+│   │   ├── db.ts                # Site persistence layer
+│   │   ├── supabase.ts          # Supabase client & admin instances
+│   │   └── templates.ts         # Curated template registry
+│   ├── middleware.ts            # Wildcard subdomain edge router
+│   └── types/                   # TypeScript schemas and models
+├── .env.example
+├── CONTRIBUTING.md
+├── LICENSE
 └── package.json
 ```
 
@@ -222,69 +217,46 @@ Launchly/
 <a id="api-reference"></a>
 ## API Reference
 
-Launchly provides built-in REST API endpoints ready to be integrated with databases like PostgreSQL, Prisma, Supabase, or MongoDB:
-
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/templates` | Retrieves all available curated templates and categories |
-| `GET` | `/api/templates/[id]` | Fetches detailed metadata and specs for a specific template |
-| `POST` | `/api/newsletter` | Subscribes an email to product updates |
-| `POST` | `/api/contact` | Submits user messages or enterprise inquiries |
-| `POST` | `/api/auth/signup` | Simulates user account registration |
-| `POST` | `/api/auth/login` | Simulates session login and JWT cookie issuance |
-| `GET` | `/api/auth/me` | Retrieves the currently active user profile |
-| `GET` | `/api/sites` | Lists all published and draft user sites |
-| `POST` | `/api/sites` | Deploys a new site to `/live/[subdomain]` |
-| `POST` | `/api/checkout` | Simulates Pro subscription plan activation |
+| `GET` | `/api/templates` | Retrieves all registered templates and categories |
+| `GET` | `/api/templates/[id]` | Returns specifications and metadata for a given template |
+| `POST` | `/api/ai/generate` | Generates bespoke color tokens, copy, and layout from prompt |
+| `GET` | `/api/sites` | Fetches site records by user ID or subdomain |
+| `POST` | `/api/sites/publish` | Provisions a new live deployment at `/live/[subdomain]` |
+| `POST` | `/api/newsletter` | Subscribes an email to system updates |
+| `POST` | `/api/contact` | Submits inquiries and support requests |
+| `POST` | `/api/auth/signup` | Registers a new user session |
+| `POST` | `/api/auth/login` | Authenticates existing credentials and issues session cookie |
+| `GET` | `/api/auth/me` | Retrieves the active authenticated user profile |
 
 ---
 
-## Roadmap & Vision
-
-- [x] Curated template catalog across 7 distinct categories
-- [x] Dual-pane Live Maker Workspace with interactive code switcher
-- [x] Responsive breakpoint preview simulator (Desktop, Tablet, Mobile)
-- [x] Dark mode support with tactile Neo-Brutalist styling
-- [ ] Drag-and-drop section reordering in visual editor
-- [ ] 1-Click Vercel & Cloudflare Pages deployment integration
-- [ ] AI prompt-to-template layout generator
-- [ ] Custom domain DNS verification engine
-- [ ] Multi-page site builder support
-
----
-
+<a id="contributing"></a>
 ## Contributing
 
-Contributions make the open-source community an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**!
+Launchly is open source. Community contributions, bug fixes, template submissions, and architectural improvements are welcome.
 
-Please check out our [**Contributing Guide**](CONTRIBUTING.md) and [**Code of Conduct**](CODE_OF_CONDUCT.md) for details on getting started, submitting pull requests, and commit conventions.
+1. Fork the repository.
+2. Create your feature branch:
+   ```bash
+   git checkout -b feature/awesome-feature
+   ```
+3. Commit your changes following conventional commit syntax:
+   ```bash
+   git commit -m "feat(templates): add minimal architectural agency layout"
+   ```
+4. Push to your branch:
+   ```bash
+   git push origin feature/awesome-feature
+   ```
+5. Open a Pull Request on GitHub.
 
-```bash
-# Quick contribution workflow
-git checkout -b feat/awesome-new-template
-git commit -m "feat(template): add cyber-terminal portfolio"
-git push origin feat/awesome-new-template
-```
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and standards.
 
 ---
 
-## Security
-
-If you discover a security vulnerability within Launchly, please review our [Security Policy](SECURITY.md) to report it responsibly.
-
----
-
+<a id="license"></a>
 ## License
 
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
-
----
-
-## Community & Acknowledgements
-
-- Built with 💖 by [**Vardaan**](https://github.com/simplyvardaan) & [**Samiksha**](https://github.com/Samikshajjw)
-
-
-<div align="center">
-  <sub> If you find Launchly useful, don't forget to star the repository! ⭐</sub>
-</div>
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for complete details.
