@@ -12,6 +12,8 @@
   </p>
 
   <p align="center">
+    <a href="https://github.com/simplyvardaan/Launchly/releases"><img src="https://img.shields.io/badge/Version-1.0.0-black?style=flat-square" alt="Version 1.0.0"/></a>
+    <a href="https://github.com/simplyvardaan/Launchly/tags"><img src="https://img.shields.io/badge/Tag-v1.0.0-black?style=flat-square" alt="Tag v1.0.0"/></a>
     <a href="https://github.com/simplyvardaan/Launchly/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-black.svg?style=flat-square" alt="MIT License"/></a>
     <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-16%20%7C%20App%20Router-black?style=flat-square&logo=next.js&logoColor=white" alt="Next.js 16"/></a>
     <a href="https://react.dev"><img src="https://img.shields.io/badge/React-19-black?style=flat-square&logo=react&logoColor=61DAFB" alt="React 19"/></a>
@@ -22,9 +24,9 @@
 
   <p align="center">
     <a href="#overview">Overview</a> •
+    <a href="#version-and-tags">Version & Tags</a> •
     <a href="#key-features">Key Features</a> •
     <a href="#architecture">Architecture</a> •
-    <a href="#curated-templates">Templates (22)</a> •
     <a href="#studio-editor">Studio Editor</a> •
     <a href="#cloud-deployments">1-Click Deploy</a> •
     <a href="#social-og-suite">OG & Social Suite</a> •
@@ -46,7 +48,7 @@ Most website builders generate bloated, unmaintainable markup trapped inside pro
 
 **Launchly** bridges the gap between visual design speed and production-grade engineering:
 
-- **22 Production-Ready Templates**: Curated across SaaS, AI, Agency, Portfolio, Ecommerce, Web3, and Media with bespoke micro-interactions.
+- **Curated Template Architecture**: Production-grade systems covering SaaS, AI agents, brutalist creative studios, luxury ecommerce, and Web3 finance.
 - **Visual Studio Designer**: Real-time typography scale, WCAG accessibility contrast checker, neo-brutalist palettes, section reordering, and responsive canvas viewports.
 - **1-Click GitHub & Vercel Deployments**: Provision new repositories directly to GitHub or deploy live to Vercel via authenticated API workflows right from the editor.
 - **Zero Lock-In Full Project ZIP Export**: Generates complete, standalone Next.js 16 + Tailwind CSS v4 source repositories ready to clone, customize, and self-host.
@@ -56,32 +58,47 @@ Most website builders generate bloated, unmaintainable markup trapped inside pro
 
 ---
 
+<a id="version-and-tags"></a>
+## Version & Tags
+
+| Attribute | Specification |
+|---|---|
+| **Current Version** | `1.0.0` |
+| **Release Tag** | `v1.0.0` |
+| **Project Tags** | `nextjs`, `website-builder`, `templates`, `visual-editor`, `neo-brutalism`, `react-19`, `tailwind-css`, `framer-motion`, `open-source` |
+| **Framework Engine** | Next.js `16.4.0` (App Router, Turbopack, React Server Components) |
+| **UI Library** | React `19.3.0` |
+| **Design System** | Tailwind CSS `v4` with CSS Variables & Neo-Brutalist Tokens |
+| **Runtime Requirements** | Node.js `>=20.0.0`, npm / pnpm / bun |
+
+---
+
 <a id="key-features"></a>
 ## Key Features
 
-### 🎨 Visual Studio Canvas
+### Visual Studio Canvas
 - **Multi-Device Simulation**: Instant preview toggling between **Desktop (100%)**, **Tablet (768px)**, and **Mobile (375px)** viewports with architectural grid canvas guidelines.
 - **Section Controls**: Reorder, toggle, and customize Navigation, Hero, Features, Testimonials, CTA, and Footer blocks with immediate live re-rendering.
 - **WCAG Contrast Checker**: Built-in color accessibility analyzer calculating contrast ratios and offering one-click accessible color recommendations.
 - **History Engine**: Granular Undo/Redo state management to freely experiment with typography, color palettes, and component hierarchy.
 
-### 🚀 1-Click Multi-Cloud Deployments
+### 1-Click Multi-Cloud Deployments
 - **GitHub Repository Creator**: Authenticate with a personal access token to automatically create public or private repositories, initialize commits, and push full project files directly from the browser.
 - **Direct Vercel Deployment**: Push pre-configured production deployments to Vercel API v13 with auto-generated project names and environment presets.
 - **Pre-Configured Deploy Button**: Deep-link one-click deployment templates directly into Vercel's importer.
 
-### 📦 Complete Source Code Scaffolding
+### Complete Source Code Scaffolding
 - Download a production-ready ZIP archive of your configured site containing:
   - Next.js 16 App Router architecture (`src/app/page.tsx`, `layout.tsx`, `globals.css`)
   - Tailwind CSS v4 styling rules and token definitions
   - Strict TypeScript configurations (`tsconfig.json`)
   - Standalone dependency declarations (`package.json`) and developer documentation
 
-### 🌐 Edge Subdomains & Wildcard Routing
+### Edge Subdomains & Wildcard Routing
 - Publish custom landing pages instantly to `/live/[subdomain]`.
 - Built-in edge middleware (`src/middleware.ts`) supports custom subdomain host mapping for custom domains.
 
-### 🖼️ Dynamic Open Graph & Social Sharing Suite
+### Dynamic Open Graph & Social Sharing Suite
 - **Dynamic OG Image Generator** (`/api/og`): Generates custom high-resolution OpenGraph cards with live accents, typography, and badges.
 - **Social Sharing Modal**: Instant pre-formatted post sharing to **X (Twitter)**, **LinkedIn**, **Reddit**, and **WhatsApp**, complete with interactive live card previews and clipboard copying.
 
@@ -120,38 +137,6 @@ Most website builders generate bloated, unmaintainable markup trapped inside pro
 
 ---
 
-<a id="curated-templates"></a>
-## Curated Templates (22)
-
-Launchly includes 22 standalone, production-ready template architectures:
-
-| Template | Category | Aesthetic Focus | Tech Stack |
-|---|---|---|---|
-| **Agenn AI** | AI | Multi-agent intelligence, token telemetry & holographic graphs | Next.js 16, Framer Motion, Tailwind v4 |
-| **Fabrica Studio** | Agency | Kinetic motion reels, Swiss brutalist typography | Next.js 16, Geist Mono, TypeScript |
-| **Chronicle OS** | SaaS | Linear & Raycast telemetry, incident radar, dark glass | Next.js 16, Lucide Icons, SVG charts |
-| **Atelier Maison** | Ecommerce | High-fashion editorial lookbook, slide-out drawer cart | Next.js 16, Stripe Ready, Radix UI |
-| **Noora Studio** | Agency | Spatial 3D device staging, fluid hover state transitions | Next.js 16, Framer Motion, Tailwind v4 |
-| **Solstice Protocol** | Web3 | Real-time candlestick charts, algorithmic depth feeds | Next.js 16, High-density Grid, TypeScript |
-| **Sora Cinema** | Media | 2.39:1 widescreen viewports, golden hour aesthetic | Next.js 16, HTML5 Media, CSS Backdrop |
-| **Strata Cloud** | SaaS | Sub-second latency radar, CLI telemetry streams | Next.js 16, Terminal Components, Radix UI |
-| **Elian Portfolio** | Portfolio | Editorial portfolio, minimalist project showcases | Next.js 16, CSS Grid, TypeScript |
-| **Apex Aero** | Media | Wind tunnel telemetry stats & carbon fiber microtextures | Next.js 16, SVG Gauges, TypeScript |
-| **Zenith Health** | AI | Biometric holographic vitals ring & epigenetic tracking | Next.js 16, Biometric Canvas, Tailwind v4 |
-| **Nova Roasters** | Ecommerce | Flavor profile radar & custom grind subscription builder | Next.js 16, Snipcart Ready, TypeScript |
-| **Prism 3D** | AI | Real-time 60fps WebGL viewport & procedural material graph | Next.js 16, Three.js / WebGL, Tailwind v4 |
-| **Monolith DB** | SaaS | Live consensus heatmap & browser interactive SQL runner | Next.js 16, Wasm SQL, Tailwind v4 |
-| **Vortex Studio** | Media | Ray-traced 4K gameplay teaser player & skill trees | Next.js 16, Web Audio API, Tailwind v4 |
-| **Kinfolk Atelier** | Portfolio | Architectural blueprint viewer & Swiss-Kyoto grid | Next.js 16, Serif Fonts, Tailwind v4 |
-| **Kuro Omakase** | Ecommerce | Seasonal 18-course timeline & interactive reservation | Next.js 16, Calendar Booking, Tailwind v4 |
-| **Valkyrie Sound** | Media | Real-time interactive SVG waveform scope & Moog dials | Next.js 16, Web Audio API, Tailwind v4 |
-| **Pulse Protocol** | Web3 | Modular ZK-rollup terminal & live circuit validator | Next.js 16, Web3 / Viem, Tailwind v4 |
-| **Hyperion Capital** | Agency | Deeptech investment thesis papers & founder pitch portal | Next.js 16, Force-Directed Graph |
-| **Lumina Workspace** | SaaS | Bidirectional graph linking & collaborative markdown | Next.js 16, Tiptap Editor, Tailwind v4 |
-| **Zeno Objects** | Ecommerce | Slide-over cart drawer & material finish swatch switcher | Next.js 16, Stripe Cart, Tailwind v4 |
-
----
-
 <a id="studio-editor"></a>
 ## Studio Editor & Canvas Workspace
 
@@ -161,7 +146,7 @@ The Studio Editor (`/editor/[templateId]`) offers a complete design workspace:
 - **Design Tokens**: Dynamically tune primary accents, background colors, text contrast, font pairings, and border radii.
 - **Accessible Color Engine**: Integrated WCAG contrast checker flags inaccessible combinations and suggests compliant alternatives automatically.
 - **Component Inspector**: Edit hero headings, subheadings, primary CTA links, feature matrices, customer testimonials, and footer links with live updates.
-- **Interactive AI Prompting**: Type natural language prompts (e.g., *"Make it look like a cyberpunk terminal"* or *"Minimalist warm editorial archive"*) to re-theme in real time.
+- **Interactive AI Prompting**: Type natural language prompts (such as "Make it look like a dark terminal dashboard" or "Minimalist warm editorial archive") to re-theme in real time.
 
 ---
 
@@ -195,7 +180,7 @@ Launchly includes a built-in OpenGraph generator and social distribution suite:
 - **Dynamic OpenGraph Route**: Access `/api/og?title=Your+Site&accent=%23FF5588&bg=%230A0B10` for branded, high-DPI social cards generated on the fly using `@vercel/og`.
 - **Social Sharing Modal**: Click **Share** on any template or live website to open the social dialog.
 - **Multi-Platform Support**: One-click sharing for:
-  - 𝕏 (Twitter) with pre-filled hashtags and launch copy
+  - X (Twitter) with pre-filled hashtags and launch copy
   - LinkedIn with publication attribution
   - Reddit with community formatting
   - WhatsApp direct message integration
@@ -317,7 +302,7 @@ Launchly/
 │   │   ├── projectFiles.ts       # Next.js 16 project scaffolding generator
 │   │   ├── zipExport.ts          # In-browser ZIP archive builder
 │   │   ├── contrast.ts           # WCAG contrast ratio calculations
-│   │   ├── templates.ts          # Curated 22-template catalog registry
+│   │   ├── templates.ts          # Curated template catalog registry
 │   │   ├── db.ts                 # Persistence layer
 │   │   └── supabase.ts           # Supabase client & credentials
 │   ├── middleware.ts             # Wildcard subdomain edge router
