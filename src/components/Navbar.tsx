@@ -12,10 +12,10 @@ import {
   ArrowUpRight,
   LayoutGrid,
   Sliders,
-  Sparkles,
   CreditCard,
   ChevronRight,
-  Star
+  Star,
+  Layers
 } from 'lucide-react';
 import BrandWordmark from './BrandWordmark';
 
@@ -239,7 +239,7 @@ export default function Navbar() {
             >
               <div className="flex items-center gap-3">
                 <span className="h-9 w-9 rounded-xl border-2 border-black bg-lilac text-black flex items-center justify-center shadow-brutal-xs shrink-0 group-hover:rotate-6 transition-transform">
-                  <Sparkles size={18} />
+                  <Layers size={18} />
                 </span>
                 <div className="flex flex-col text-left">
                   <span className="font-display font-black text-sm text-black dark:text-[#F4F4F8]">

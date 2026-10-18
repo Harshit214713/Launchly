@@ -3,6 +3,9 @@
 @variant dark (&:where(.dark, .dark *));
 
 :root {
+  --font-space-grotesk: "Space Grotesk", sans-serif;
+  --font-space-mono: "Space Mono", monospace;
+  --font-orbitron: "Orbitron", sans-serif;
   --background: #faf8f5;
   --foreground: #111111;
   --ink: #111111;

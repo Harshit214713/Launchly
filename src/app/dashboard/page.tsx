@@ -6,8 +6,8 @@ import Image from 'next/image';
 import {
   Plus, Globe, Edit3, Eye, Copy, Trash2, MoreHorizontal,
   TrendingUp, Clock, LayoutTemplate, ChevronRight,
-  Settings, LogOut, Search, Sparkles, Check, Menu, X,
-  Sun, Moon, ArrowRight, Layers, ShieldCheck, User as UserIcon,
+  Settings, LogOut, Search, Check, Menu, X,
+  Sun, Moon, ArrowRight, ArrowUpRight, Layers, ShieldCheck, User as UserIcon,
   Loader2, ExternalLink, Mail, Zap, CheckCircle2, Crown
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -410,7 +410,7 @@ export default function Dashboard() {
               <div className="relative z-10 p-3.5 sm:p-4 rounded-2xl border-2 border-black dark:border-[#26283d] bg-yellow text-black shadow-brutal-xs">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1.5 font-display text-xs font-black uppercase">
-                    <Sparkles size={13} className="stroke-[2.5]" />
+                    <ArrowUpRight size={14} className="stroke-[2.5]" />
                     <span>Upgrade to Pro Builder</span>
                   </div>
                   <span className="font-mono text-[8px] font-black uppercase bg-black text-white px-1.5 py-0.5 rounded-md">
@@ -550,7 +550,7 @@ export default function Dashboard() {
                 href="/#pricing"
                 className="brutal-press w-full inline-flex items-center justify-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-pink/90 transition-all"
               >
-                <Sparkles size={13} className="mr-1" />
+                <ArrowUpRight size={13} className="mr-1 stroke-[2.5]" />
                 Upgrade to Pro
               </Link>
             </div>

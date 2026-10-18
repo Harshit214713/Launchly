@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { Search, Grid3X3, LayoutList, X, Key, Loader2, Globe } from 'lucide-react';
+import { Search, Grid3X3, LayoutList, X, Loader2, Globe } from 'lucide-react';
 import TemplateCard from '@/components/TemplateCard';
 import { CATEGORIES, getTemplatesByCategory, searchTemplates } from '@/lib/templates';
 import { Template } from '@/types';
@@ -55,8 +55,6 @@ export default function TemplatesPageContent() {
   const [activeTab, setActiveTab] = useState<'curated' | 'external'>('curated');
   const [externalTemplates, setExternalTemplates] = useState<Template[]>([]);
   const [loadingExternal, setLoadingExternal] = useState(false);
-  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
-  const [apiKey, setApiKey] = useState('');
   const [savedKey, setSavedKey] = useState('');
 
   // Load API key from localStorage if present
@@ -64,7 +62,6 @@ export default function TemplatesPageContent() {
     const stored = localStorage.getItem('launchly_unsplash_key');
     if (stored) {
       requestAnimationFrame(() => {
-        setApiKey(stored);
         setSavedKey(stored);
       });
     }
@@ -99,19 +96,6 @@ export default function TemplatesPageContent() {
     };
   }, [activeTab, searchQuery, activeCategory, savedKey]);
 
-  const handleSaveApiKey = () => {
-    localStorage.setItem('launchly_unsplash_key', apiKey.trim());
-    setSavedKey(apiKey.trim());
-    setApiKeyModalOpen(false);
-  };
-
-  const handleClearApiKey = () => {
-    localStorage.removeItem('launchly_unsplash_key');
-    setApiKey('');
-    setSavedKey('');
-    setApiKeyModalOpen(false);
-  };
-
   const displayedTemplates = (() => {
     if (activeTab === 'external') {
       let temps = [...externalTemplates];
@@ -138,84 +122,6 @@ export default function TemplatesPageContent() {
 
   return (
     <>
-      {/* API Key Configuration Modal */}
-      {apiKeyModalOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
-          onClick={() => setApiKeyModalOpen(false)}
-        >
-          <div 
-            className="w-full max-w-md rounded-3xl border-[3.5px] border-ink bg-card p-5 sm:p-6 shadow-brutal-lg text-ink space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b-2 border-ink/20">
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-pink border border-black inline-block" />
-                <h3 className="font-display text-lg font-black text-ink">
-                  Connect Unsplash Creative API
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setApiKeyModalOpen(false)}
-                className="brutal-press h-8 w-8 rounded-xl border-2 border-ink bg-yellow text-black flex items-center justify-center shadow-brutal-xs cursor-pointer"
-              >
-                <X size={15} className="stroke-[3]" />
-              </button>
-            </div>
-
-            <p className="font-mono text-xs text-muted-foreground leading-relaxed">
-              Fetch live, high-resolution aesthetic design imagery directly from Unsplash API for custom full-stack web themes.
-            </p>
-
-            <div>
-              <label className="block font-mono text-[10px] font-black uppercase tracking-wider text-ink mb-1.5">
-                Unsplash Access Key
-              </label>
-              <input
-                type="text"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Paste your Unsplash Access Key..."
-                className="w-full px-3.5 py-2.5 rounded-xl border-2 border-ink bg-background font-mono text-xs font-bold text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-pink shadow-brutal-xs"
-              />
-              <span className="font-mono text-[10px] text-muted-foreground mt-1.5 block">
-                Free keys are available at <a href="https://unsplash.com/developers" target="_blank" rel="noreferrer" className="text-pink underline font-bold">unsplash.com/developers</a>.
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              {savedKey ? (
-                <button
-                  type="button"
-                  onClick={handleClearApiKey}
-                  className="brutal-press py-2 px-3 rounded-xl border-2 border-ink bg-card hover:bg-red-500 hover:text-white text-xs font-mono font-bold text-red-500 transition-colors cursor-pointer"
-                >
-                  Remove Key
-                </button>
-              ) : <div />}
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setApiKeyModalOpen(false)}
-                  className="brutal-press py-2 px-4 rounded-xl border-2 border-ink bg-card font-display text-xs font-black uppercase cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveApiKey}
-                  className="brutal-press py-2 px-4 rounded-xl border-2 border-ink bg-pink text-black font-display text-xs font-black uppercase cursor-pointer shadow-brutal-xs"
-                >
-                  Save & Connect
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Neo-Brutal Hero */}
       <div className="bg-[#fdf2f8] dark:bg-[#0c0d16] border-b-[3px] border-ink py-14 sm:py-16 px-6">
         <div className="max-w-7xl mx-auto">
@@ -252,22 +158,13 @@ export default function TemplatesPageContent() {
                 <Globe size={14} />
                 <span>Live Creative Feed (API)</span>
               </button>
-
-              <button
-                type="button"
-                onClick={() => setApiKeyModalOpen(true)}
-                title="Configure Unsplash API Key"
-                className="brutal-press p-2 rounded-xl border-2 border-ink bg-card hover:bg-mint hover:text-black text-ink transition-colors cursor-pointer"
-              >
-                <Key size={14} />
-              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Sticky Filter Bar */}
-      <div className="sticky top-16 z-40 bg-card/95 backdrop-blur border-b-[3px] border-ink px-4 sm:px-6 py-3.5 space-y-3">
+      {/* Filter Bar (Scrolls with page so only navbar stays visible) */}
+      <div className="relative bg-card/95 border-b-[3px] border-ink px-4 sm:px-6 py-3.5 space-y-3">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Search */}
           <div className="relative flex-1 max-w-lg">
@@ -343,7 +240,7 @@ export default function TemplatesPageContent() {
       </div>
 
       {/* Results */}
-      <div className="px-6 py-12 bg-background min-h-screen">
+      <div className="px-6 py-8 sm:py-10 bg-background min-h-screen">
         <div className="max-w-7xl mx-auto">
           {/* Stats row */}
           <div className="flex items-center justify-between mb-8 pb-4 border-b-[2px] border-ink/20">
@@ -365,15 +262,6 @@ export default function TemplatesPageContent() {
                 </button>
               )}
             </div>
-            
-            <button
-              type="button"
-              onClick={() => setApiKeyModalOpen(true)}
-              className="font-mono text-xs font-bold text-ink hover:text-pink transition-colors inline-flex items-center gap-1 cursor-pointer"
-            >
-              <Key size={13} />
-              <span>{savedKey ? 'Manage API Key' : 'Connect Unsplash Key'}</span>
-            </button>
           </div>
 
           {loadingExternal ? (
@@ -428,14 +316,18 @@ function TemplateListItem({ template, onCustomize }: { template: Template; onCus
     <div className="flex items-center justify-between gap-6 bg-card rounded-2xl border-[3px] border-ink p-5 shadow-brutal hover:shadow-brutal-md transition-all group">
       <div className="flex items-center gap-4">
         <div
-          className="w-24 h-16 rounded-xl border-2 border-ink flex items-center justify-center font-mono font-bold text-xs text-white overflow-hidden relative"
-          style={{ background: template.bgColor || '#171720' }}
+          className="w-24 h-16 rounded-xl border-2 border-ink flex flex-col items-center justify-center font-mono font-bold text-xs text-white overflow-hidden relative p-1.5 shadow-2xs"
+          style={{ background: template.bgColor || '#07080E' }}
         >
-          {template.thumbnail && template.thumbnail.startsWith('http') ? (
-            <Image src={template.thumbnail} alt={template.name} fill className="object-cover" sizes="96px" />
-          ) : (
-            template.category
-          )}
+          <div 
+            className="w-7 h-7 rounded-md flex items-center justify-center font-display font-black text-sm text-black shadow-xs mb-1"
+            style={{ backgroundColor: template.accent || '#00F0FF' }}
+          >
+            {template.name.charAt(0)}
+          </div>
+          <span className="text-[8px] font-mono uppercase tracking-wider text-neutral-300 font-bold truncate max-w-[80px]">
+            {template.category}
+          </span>
         </div>
         <div>
           <div className="flex items-center gap-2">

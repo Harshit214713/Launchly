@@ -9,8 +9,7 @@ import {
   Edit3, 
   ArrowUpRight, 
   Star, 
-  ChevronDown,
-  Sparkles
+  ChevronDown
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 import { Template } from '@/types';
@@ -350,8 +349,8 @@ export default function LiveWebsitePage({
         {/* Features Block */}
         <section id="features" className="py-16 sm:py-24 px-4 sm:px-12 bg-white text-black border-y-2 border-black/10">
           <div className="text-center max-w-xl mx-auto mb-10 space-y-2">
-            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-black/20 bg-[#FAF9F6] font-mono text-[10px] font-bold uppercase text-neutral-600">
-              <Sparkles size={11} className="text-pink" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-black/20 bg-[#FAF9F6] font-mono text-[10px] font-bold uppercase text-neutral-600">
+              <span className="w-1.5 h-1.5 rounded-full bg-pink inline-block animate-pulse" />
               <span>Core Architecture</span>
             </div>
             <h2 className="font-display text-2xl sm:text-4xl font-black tracking-tight">
