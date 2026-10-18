@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageSquareHeart, Send, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { MessageSquareHeart, Send, CheckCircle2, Loader2 } from 'lucide-react';
 
 const CATEGORIES = ['IDEA', 'BUG', 'UX POLISH', 'HOT TAKE'];
 
@@ -81,7 +81,7 @@ export default function CTA() {
               <CheckCircle2 size={24} className="stroke-[2.5]" />
             </div>
             <div className="inline-flex items-center gap-1 rounded-full border border-black bg-yellow px-2.5 py-0.5 font-mono text-[10px] font-black uppercase text-black">
-              <Sparkles size={10} />
+              <CheckCircle2 size={11} className="stroke-[2.5]" />
               TRANSMISSION RECORDED
             </div>
             <h4 className="font-display text-lg font-black text-ink">

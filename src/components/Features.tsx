@@ -4,7 +4,7 @@ import {
   Laptop, 
   Code2, 
   Layers, 
-  Sparkles, 
+  Moon, 
   Zap, 
   Globe
 } from 'lucide-react';
@@ -41,7 +41,7 @@ const FEATURES = [
     description: 'Connect your personal domain with automated SSL certificates, Edge SSR, and global CDN caching in seconds.',
   },
   {
-    icon: Sparkles,
+    icon: Moon,
     bg: 'bg-pink',
     title: 'Light + Dark Modes Built-in',
     description: 'Every single template and section is fully wired with harmonious light and dark palettes out of the box.',

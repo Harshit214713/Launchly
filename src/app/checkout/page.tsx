@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   Check,
   CheckCircle2,
-  Sparkles,
   ArrowRight,
   ArrowLeft,
   Loader2,
@@ -19,7 +18,7 @@ import {
 } from 'lucide-react';
 import BrandWordmark from '@/components/BrandWordmark';
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const plan = searchParams.get('plan') || 'pro';
@@ -186,7 +185,7 @@ export default function CheckoutPage() {
             {/* Left Column: Plan Summary */}
             <div className="md:col-span-5 rounded-3xl border-[3.5px] border-ink bg-card p-5 sm:p-6 shadow-brutal-lg">
               <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-yellow px-3 py-0.5 font-mono text-[10px] font-black uppercase text-black shadow-brutal-sm mb-3">
-                <Sparkles size={11} />
+                <ShieldCheck size={11} className="stroke-[2.5]" />
                 ORDER SUMMARY
               </span>
 
@@ -358,7 +357,7 @@ export default function CheckoutPage() {
             </div>
 
             <div className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-0.5 font-mono text-[10px] font-black uppercase text-black shadow-brutal-sm mb-3">
-              <Sparkles size={11} />
+              <Check size={11} className="stroke-[3]" />
               PAYMENT AUTO-VERIFIED
             </div>
 
@@ -390,5 +389,20 @@ export default function CheckoutPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-canvas flex items-center justify-center font-mono text-sm text-ink">
+          <Loader2 className="animate-spin mr-2" size={20} />
+          <span>Loading checkout session...</span>
+        </div>
+      }
+    >
+      <CheckoutContent />
+    </Suspense>
   );
 }

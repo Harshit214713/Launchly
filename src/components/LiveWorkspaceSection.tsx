@@ -8,7 +8,6 @@ import {
   Smartphone, 
   Copy, 
   Check, 
-  Sparkles, 
   ArrowUpRight
 } from 'lucide-react';
 
@@ -304,7 +303,7 @@ export default function HeroSection() {
                   style={{ backgroundColor: selectedTheme.color }}
                   className="inline-flex items-center gap-1.5 rounded-full border-[2px] sm:border-[2.5px] border-ink px-3 py-0.5 sm:py-1 font-mono text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-black shadow-brutal-xs"
                 >
-                  <Sparkles size={11} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-black inline-block animate-pulse" />
                   <span>Next-Gen Platform</span>
                 </span>
               </div>

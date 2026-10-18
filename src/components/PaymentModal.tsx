@@ -7,7 +7,6 @@ import QRCode from 'qrcode';
 import {
   X,
   CheckCircle2,
-  Sparkles,
   Loader2,
   ArrowRight,
   AlertCircle,
@@ -576,7 +575,7 @@ Visit: https://launchly.site/dashboard
             </div>
 
             <div className="inline-flex items-center gap-1 rounded-full border-2 border-black bg-yellow px-2.5 py-0.5 font-mono text-[10px] font-black uppercase text-black shadow-brutal-xs">
-              <Sparkles size={10} />
+              <Check size={10} className="stroke-[3]" />
               PAYMENT AUTO-VERIFIED
             </div>
 
