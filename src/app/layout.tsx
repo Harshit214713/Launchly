@@ -24,8 +24,11 @@ export const metadata: Metadata = {
     type: "website",
   },
   icons: {
-    icon: "/brand-logo-clean.png",
-    shortcut: "/brand-logo-clean.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/brand-logo-clean.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/favicon.ico",
     apple: "/brand-logo-clean.png",
   },
 };
