@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { Search, Grid3X3, LayoutList, X, Loader2, Globe } from 'lucide-react';
+import { Search, Grid3X3, LayoutList, Loader2, Globe, X } from 'lucide-react';
 import TemplateCard from '@/components/TemplateCard';
-import { CATEGORIES, getTemplatesByCategory, searchTemplates } from '@/lib/templates';
+import { CATEGORIES, getTemplatesByCategory, searchTemplates, COMING_SOON_CATEGORIES } from '@/lib/templates';
+import { TemplateCategory } from '@/types';
 import { Template } from '@/types';
 import Link from 'next/link';
 
@@ -223,19 +224,24 @@ export default function TemplatesPageContent() {
 
         {/* Categories Bar - wraps cleanly, no scrollbar */}
         <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-2 no-scrollbar">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => { setActiveCategory(cat); setSearchQuery(''); }}
-              className={`brutal-press px-3.5 py-1.5 rounded-xl text-xs font-display font-black uppercase whitespace-nowrap transition-all shrink-0 cursor-pointer border-[2.5px] border-ink shadow-brutal-xs ${
-                activeCategory === cat && !searchQuery
-                  ? 'bg-pink text-black'
-                  : 'bg-card text-ink hover:bg-neutral-100 dark:hover:bg-[#1b1b28]'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+          {CATEGORIES.map((cat) => {
+            return (
+              <button
+                key={cat}
+                onClick={() => { 
+                  setActiveCategory(cat); 
+                  setSearchQuery('');
+                }}
+                className={`brutal-press px-3.5 py-1.5 rounded-xl text-xs font-display font-black uppercase whitespace-nowrap transition-all shrink-0 cursor-pointer border-[2.5px] border-ink shadow-brutal-xs relative ${
+                  activeCategory === cat && !searchQuery
+                    ? 'bg-pink text-black'
+                    : 'bg-card text-ink hover:bg-neutral-100 dark:hover:bg-[#1b1b28]'
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -271,6 +277,29 @@ export default function TemplatesPageContent() {
               <p className="font-mono text-xs text-muted-foreground">
                 Streaming high-aesthetic design themes from Creative API.
               </p>
+            </div>
+          ) : COMING_SOON_CATEGORIES.includes(activeCategory as TemplateCategory) && !searchQuery ? (
+            // Show Coming Soon message in template area for non-Ecommerce categories
+            <div className="flex flex-col items-center justify-center py-28 text-center bg-card rounded-3xl border-[3px] border-ink p-8 shadow-brutal max-w-lg mx-auto">
+              <div className="text-6xl mb-6">🚧</div>
+              <h3 className="font-display font-black text-3xl text-ink mb-3">Coming Soon!</h3>
+              <p className="font-mono text-sm text-muted-foreground mb-6 max-w-md">
+                The <span className="text-pink font-black">{activeCategory}</span> category is under development. We're working hard to bring you amazing templates in this category.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  onClick={() => { setActiveCategory('All'); }}
+                  className="brutal-press px-6 py-3 rounded-xl border-[2.5px] border-ink bg-pink font-display text-xs font-black text-black shadow-brutal cursor-pointer"
+                >
+                  Browse All Templates
+                </button>
+                <button
+                  onClick={() => { setActiveCategory('Ecommerce'); }}
+                  className="brutal-press px-6 py-3 rounded-xl border-[2.5px] border-ink bg-yellow font-display text-xs font-black text-black shadow-brutal cursor-pointer"
+                >
+                  View Ecommerce Templates
+                </button>
+              </div>
             </div>
           ) : displayedTemplates.length > 0 ? (
             <div className={
