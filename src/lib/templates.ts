@@ -28,50 +28,6 @@ export const COMING_SOON_CATEGORIES: TemplateCategory[] = [
 // Multiple templates available in the Ecommerce category
 export const TEMPLATES: Template[] = [
   {
-    id: 'luxe-store',
-    name: 'Luxe Store',
-    category: 'Ecommerce',
-    description: 'Complete premium e-commerce platform with elegant product showcases, seamless checkout flow, advanced filtering, wishlist management, real-time inventory tracking, multi-currency support, and conversion-optimized design patterns. Built for scale with Stripe payments, Supabase backend, and full responsive design.',
-    tags: ['ecommerce', 'luxury', 'modern', 'minimal', 'conversion', 'stripe', 'responsive', 'inventory'],
-    badge: 'Featured',
-    isPro: true,
-    previewUrl: '/templates/luxe-store',
-    thumbnail: '/templates/luxe-store.png',
-    accent: '#FF6B6B',
-    bgColor: '#FAFAFA',
-    textColor: '#1A1A1A',
-    pages: ['Home', 'Shop', 'Product Details', 'Cart', 'Checkout', 'Wishlist', 'Account', 'About', 'Contact', 'FAQ', 'Shipping', 'Returns', 'Terms', 'Privacy'],
-    features: [
-      'Product quick view modal',
-      'Advanced variant selector (size, color, material)',
-      'Wishlist system with save for later',
-      'Customer reviews & ratings with photos',
-      'Related products recommendations',
-      'Advanced search & filters (price, category, brand)',
-      'Real-time inventory tracking',
-      'Multi-currency support (USD, EUR, GBP)',
-      'Stripe payment integration',
-      'Guest checkout option',
-      'Order tracking system',
-      'Responsive design (mobile-first)',
-      'SEO optimized pages',
-      'Analytics dashboard',
-      'Email notifications',
-      'Discount code system',
-      'Product comparison tool'
-    ],
-    rating: 4.95,
-    reviewsCount: 247,
-    topReview: {
-      author: 'Sarah Chen',
-      role: 'E-commerce Director',
-      comment: 'Incredible template - saved us months of development. The checkout flow is flawless and conversions increased by 40%. Highly recommend!'
-    },
-    sourceCodeAvailable: true,
-    sourceCodeUrl: '/api/templates/luxe-store/source',
-    techStack: ['Next.js 15', 'Tailwind v4', 'TypeScript', 'Framer Motion', 'Stripe', 'Supabase', 'React Query', 'Zustand', 'React Hook Form', 'Zod']
-  },
-  {
     id: 'velvet-boutique',
     name: 'Velvet Boutique',
     category: 'Ecommerce',
