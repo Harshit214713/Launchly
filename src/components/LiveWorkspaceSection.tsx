@@ -159,7 +159,7 @@ export default function HeroSection() {
               className={`rounded-full px-2.5 sm:px-4 py-1 text-[11px] sm:text-xs font-mono font-bold uppercase transition-all cursor-pointer ${
                 activeMode === 'visual'
                   ? 'bg-pink text-black shadow-brutal-xs'
-                  : 'text-muted-foreground hover:text-black'
+                  : 'text-muted-foreground hover:text-black dark:hover:text-white'
               }`}
             >
               Visual
@@ -170,7 +170,7 @@ export default function HeroSection() {
               className={`rounded-full px-2.5 sm:px-4 py-1 text-[11px] sm:text-xs font-mono font-bold uppercase transition-all cursor-pointer ${
                 activeMode === 'split'
                   ? 'bg-pink text-black shadow-brutal-xs'
-                  : 'text-muted-foreground hover:text-black'
+                  : 'text-muted-foreground hover:text-black dark:hover:text-white'
               }`}
             >
               Split View
@@ -181,7 +181,7 @@ export default function HeroSection() {
               className={`rounded-full px-2.5 sm:px-4 py-1 text-[11px] sm:text-xs font-mono font-bold uppercase transition-all cursor-pointer ${
                 activeMode === 'code'
                   ? 'bg-pink text-black shadow-brutal-xs'
-                  : 'text-muted-foreground hover:text-black'
+                  : 'text-muted-foreground hover:text-black dark:hover:text-white'
               }`}
             >
               Code
@@ -194,7 +194,7 @@ export default function HeroSection() {
               type="button"
               onClick={() => setDevice('desktop')}
               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                device === 'desktop' ? 'bg-yellow text-black' : 'text-muted-foreground hover:text-black'
+                device === 'desktop' ? 'bg-yellow text-black' : 'text-muted-foreground hover:text-black dark:hover:text-white'
               }`}
               title="Desktop view"
             >
@@ -204,7 +204,7 @@ export default function HeroSection() {
               type="button"
               onClick={() => setDevice('tablet')}
               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                device === 'tablet' ? 'bg-yellow text-black' : 'text-muted-foreground hover:text-black'
+                device === 'tablet' ? 'bg-yellow text-black' : 'text-muted-foreground hover:text-black dark:hover:text-white'
               }`}
               title="Tablet view"
             >
@@ -214,7 +214,7 @@ export default function HeroSection() {
               type="button"
               onClick={() => setDevice('mobile')}
               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                device === 'mobile' ? 'bg-yellow text-black' : 'text-muted-foreground hover:text-black'
+                device === 'mobile' ? 'bg-yellow text-black' : 'text-muted-foreground hover:text-black dark:hover:text-white'
               }`}
               title="Mobile view"
             >
