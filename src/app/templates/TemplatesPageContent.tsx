@@ -22,34 +22,30 @@ export default function TemplatesPageContent() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showPro, setShowPro] = useState<boolean | null>(null);
 
-  // Sync state if URL changes externally (e.g. back/forward button)
+  // Force sync with URL immediately
   useEffect(() => {
-    if (urlCategory && urlCategory !== activeCategory) {
-      requestAnimationFrame(() => setActiveCategory(urlCategory));
+    if (urlCategory) {
+      setActiveCategory(urlCategory);
     }
-    if (urlQuery !== null && urlQuery !== searchQuery) {
-      requestAnimationFrame(() => setSearchQuery(urlQuery));
+    if (urlQuery) {
+      setSearchQuery(urlQuery);
     }
-  }, [urlCategory, urlQuery, activeCategory, searchQuery]);
+  }, [urlCategory, urlQuery]);
 
-  // Debounced sync to URL
+  // Instant URL sync on state change
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams();
-      if (activeCategory && activeCategory !== 'All') {
-        params.set('category', activeCategory);
-      }
-      if (searchQuery.trim()) {
-        params.set('q', searchQuery.trim());
-      }
-      const newQuery = params.toString();
-      const currentQuery = searchParams.toString();
-      if (newQuery !== currentQuery) {
-        router.replace(newQuery ? `/templates?${newQuery}` : '/templates', { scroll: false });
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
+    const params = new URLSearchParams();
+    if (activeCategory && activeCategory !== 'All') {
+      params.set('category', activeCategory);
+    }
+    if (searchQuery.trim()) {
+      params.set('q', searchQuery.trim());
+    }
+    const newQuery = params.toString();
+    const currentQuery = searchParams.toString();
+    if (newQuery !== currentQuery) {
+      router.replace(newQuery ? `/templates?${newQuery}` : '/templates', { scroll: false });
+    }
   }, [activeCategory, searchQuery, router, searchParams]);
 
   // External Creative API state
@@ -111,7 +107,7 @@ export default function TemplatesPageContent() {
       : getTemplatesByCategory(activeCategory);
 
     if (showPro !== null) {
-      templates = templates.filter(t => t.isPro === showPro);
+      templates = templates.filter((t: Template) => t.isPro === showPro);
     }
 
     return templates;
@@ -233,7 +229,7 @@ export default function TemplatesPageContent() {
                   setSearchQuery('');
                 }}
                 className={`brutal-press px-3.5 py-1.5 rounded-xl text-xs font-display font-black uppercase whitespace-nowrap transition-all shrink-0 cursor-pointer border-[2.5px] border-ink shadow-brutal-xs relative ${
-                  activeCategory === cat && !searchQuery
+                  activeCategory === cat
                     ? 'bg-pink text-black'
                     : 'bg-card text-ink hover:bg-neutral-100 dark:hover:bg-[#1b1b28]'
                 }`}
@@ -288,13 +284,21 @@ export default function TemplatesPageContent() {
               </p>
               <div className="flex flex-col sm:flex-row items-center gap-3">
                 <button
-                  onClick={() => { setActiveCategory('All'); }}
+                  onClick={() => { 
+                    setActiveCategory('All'); 
+                    setSearchQuery('');
+                    router.replace('/templates', { scroll: false });
+                  }}
                   className="brutal-press px-6 py-3 rounded-xl border-[2.5px] border-ink bg-pink font-display text-xs font-black text-black shadow-brutal cursor-pointer"
                 >
                   Browse All Templates
                 </button>
                 <button
-                  onClick={() => { setActiveCategory('Ecommerce'); }}
+                  onClick={() => { 
+                    setActiveCategory('Ecommerce'); 
+                    setSearchQuery('');
+                    router.replace('/templates?category=Ecommerce', { scroll: false });
+                  }}
                   className="brutal-press px-6 py-3 rounded-xl border-[2.5px] border-ink bg-yellow font-display text-xs font-black text-black shadow-brutal cursor-pointer"
                 >
                   View Ecommerce Templates
@@ -307,7 +311,7 @@ export default function TemplatesPageContent() {
                 ? 'grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8'
                 : 'flex flex-col gap-4'
             }>
-              {displayedTemplates.map((template) => (
+              {displayedTemplates.map((template: Template) => (
                 viewMode === 'grid' ? (
                   <TemplateCard
                     key={template.id}

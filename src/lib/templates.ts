@@ -14,7 +14,7 @@ export const CATEGORIES: TemplateCategory[] = [
 ];
 
 // Categories that are marked as coming soon (exclude Ecommerce)
-// These categories will display a "SOON" badge and be disabled for selection
+// These categories will display a coming soon message when selected
 export const COMING_SOON_CATEGORIES: TemplateCategory[] = [
   'SaaS',
   'AI',
@@ -25,8 +25,51 @@ export const COMING_SOON_CATEGORIES: TemplateCategory[] = [
 ];
 
 // Premium e-commerce templates with modern aesthetics
-// Multiple templates available in the Ecommerce category
+// 2 e-commerce templates available
 export const TEMPLATES: Template[] = [
+  {
+    id: 'luxe-store',
+    name: 'Luxe Store',
+    category: 'Ecommerce',
+    description: 'Complete premium e-commerce platform with elegant product showcases, seamless checkout flow, advanced filtering, wishlist management, real-time inventory tracking, multi-currency support, and conversion-optimized design patterns. Built for scale with Stripe payments, Supabase backend, and full responsive design.',
+    tags: ['ecommerce', 'luxury', 'modern', 'minimal', 'conversion', 'stripe', 'responsive', 'inventory'],
+    badge: 'Featured',
+    isPro: true,
+    previewUrl: '/templates/luxe-store',
+    thumbnail: '/templates/luxe-store.png',
+    accent: '#FF6B6B',
+    bgColor: '#FAFAFA',
+    textColor: '#1A1A1A',
+    pages: ['Home', 'Shop', 'Product Details', 'Cart', 'Checkout', 'Wishlist', 'Account', 'About'],
+    features: [
+      'Product quick view modal',
+      'Advanced variant selector',
+      'Wishlist system',
+      'Customer reviews',
+      'Related products',
+      'Advanced search & filters',
+      'Real-time inventory',
+      'Multi-currency support',
+      'Stripe payments',
+      'Guest checkout',
+      'Order tracking',
+      'Responsive design',
+      'SEO optimized',
+      'Analytics dashboard',
+      'Email notifications',
+      'Discount codes'
+    ],
+    rating: 4.95,
+    reviewsCount: 247,
+    topReview: {
+      author: 'Sarah Chen',
+      role: 'E-commerce Director',
+      comment: 'Incredible template - saved us months of development. The checkout flow is flawless and conversions increased by 40%. Highly recommend!'
+    },
+    sourceCodeAvailable: true,
+    sourceCodeUrl: '/api/templates/luxe-store/source',
+    techStack: ['Next.js 15', 'Tailwind v4', 'TypeScript', 'Framer Motion', 'Stripe', 'Supabase', 'React Query']
+  },
   {
     id: 'velvet-boutique',
     name: 'Velvet Boutique',
@@ -68,19 +111,19 @@ export const TEMPLATES: Template[] = [
     },
     sourceCodeAvailable: true,
     sourceCodeUrl: '/api/templates/velvet-boutique/source',
-    techStack: ['Next.js 15', 'Tailwind v4', 'TypeScript', 'Framer Motion', 'Stripe', 'Supabase', 'React Query', 'Zustand']
+    techStack: ['Next.js 15', 'Tailwind v4', 'TypeScript', 'Framer Motion', 'Stripe', 'Supabase', 'React Query']
   },
 ];
 
 export function getTemplatesByCategory(category: string): Template[] {
   if (category === 'All') return TEMPLATES;
-  return TEMPLATES.filter((t) => t.category.toLowerCase() === category.toLowerCase());
+  return TEMPLATES.filter((t: Template) => t.category.toLowerCase() === category.toLowerCase());
 }
 
 export function searchTemplates(query: string): Template[] {
   const q = query.toLowerCase();
   return TEMPLATES.filter(
-    (t) =>
+    (t: Template) =>
       t.name.toLowerCase().includes(q) ||
       t.description.toLowerCase().includes(q) ||
       t.category.toLowerCase().includes(q) ||
