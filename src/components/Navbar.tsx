@@ -99,27 +99,27 @@ export default function Navbar() {
           >
             Templates
           </Link>
-          <a
+          <Link
             href="/"
             onClick={(e) => handleScrollTo(e, 'live-workspace')}
             className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F8] shadow-brutal-sm hover:bg-mint hover:text-black dark:hover:bg-mint dark:hover:text-black dark:hover:border-black transition-colors cursor-pointer"
           >
             Live Studio
-          </a>
-          <a
+          </Link>
+          <Link
             href="/"
             onClick={(e) => handleScrollTo(e, 'how-it-works')}
             className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F8] shadow-brutal-sm hover:bg-lilac hover:text-black dark:hover:bg-lilac dark:hover:text-black dark:hover:border-black transition-colors cursor-pointer"
           >
             How it works
-          </a>
-          <a
+          </Link>
+          <Link
             href="/"
             onClick={(e) => handleScrollTo(e, 'pricing')}
             className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F8] shadow-brutal-sm hover:bg-pink hover:text-black dark:hover:bg-pink dark:hover:text-black dark:hover:border-black transition-colors cursor-pointer"
           >
             Pricing
-          </a>
+          </Link>
         </div>
 
         {/* Right Actions */}
@@ -203,7 +203,7 @@ export default function Navbar() {
             </Link>
 
             {/* Nav Card 2: Live Studio */}
-            <a
+            <Link
               href="/"
               onClick={(e) => handleScrollTo(e, 'live-workspace')}
               className="brutal-press flex items-center justify-between gap-3 p-3 rounded-2xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#141524] shadow-brutal-sm hover:border-mint dark:hover:border-mint/70 transition-all group cursor-pointer"
@@ -222,10 +222,10 @@ export default function Navbar() {
                 </div>
               </div>
               <ChevronRight size={17} className="text-neutral-400 group-hover:text-mint group-hover:translate-x-1 transition-all shrink-0" />
-            </a>
+            </Link>
 
             {/* Nav Card 3: How It Works */}
-            <a
+            <Link
               href="/"
               onClick={(e) => handleScrollTo(e, 'how-it-works')}
               className="brutal-press flex items-center justify-between gap-3 p-3 rounded-2xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#141524] shadow-brutal-sm hover:border-lilac dark:hover:border-lilac/70 transition-all group cursor-pointer"
@@ -244,10 +244,10 @@ export default function Navbar() {
                 </div>
               </div>
               <ChevronRight size={17} className="text-neutral-400 group-hover:text-lilac group-hover:translate-x-1 transition-all shrink-0" />
-            </a>
+            </Link>
 
             {/* Nav Card 4: Pricing */}
-            <a
+            <Link
               href="/"
               onClick={(e) => handleScrollTo(e, 'pricing')}
               className="brutal-press flex items-center justify-between gap-3 p-3 rounded-2xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#141524] shadow-brutal-sm hover:border-pink dark:hover:border-pink/70 transition-all group cursor-pointer"
@@ -266,7 +266,7 @@ export default function Navbar() {
                 </div>
               </div>
               <ChevronRight size={17} className="text-neutral-400 group-hover:text-pink group-hover:translate-x-1 transition-all shrink-0" />
-            </a>
+            </Link>
 
             {/* Account / Action Buttons */}
             {user ? (

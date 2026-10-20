@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     const owner = userData.login;
 
     // 2. Create the Repository (or check if it exists)
-    let repoRes = await fetch('https://api.github.com/user/repos', {
+    const repoRes = await fetch('https://api.github.com/user/repos', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${githubToken.trim()}`,
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
 
     // 4. Commit files to Repository using Git Trees API or sequential Contents API
     // Let's get the latest commit SHA and base tree
-    let defaultBranch = repoData.default_branch || 'main';
+    const defaultBranch = repoData.default_branch || 'main';
     const refRes = await fetch(`https://api.github.com/repos/${owner}/${cleanRepoName}/git/ref/heads/${defaultBranch}`, {
       headers: {
         Authorization: `Bearer ${githubToken.trim()}`,
@@ -231,10 +231,10 @@ export async function POST(req: NextRequest) {
       vercelDeployUrl,
       message: `Repository ${owner}/${cleanRepoName} successfully initialized on GitHub!`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('GitHub Deploy Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Internal server error while deploying to GitHub.' },
+      { error: error instanceof Error ? error.message : 'Internal server error while deploying to GitHub.' },
       { status: 500 }
     );
   }

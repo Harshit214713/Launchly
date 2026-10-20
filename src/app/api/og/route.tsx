@@ -214,9 +214,9 @@ export async function GET(req: NextRequest) {
         height: 630,
       }
     );
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('OG Generation Error:', e);
-    return new Response(`Failed to generate OG image: ${e.message}`, {
+    return new Response(`Failed to generate OG image: ${e instanceof Error ? e.message : 'Unknown error'}`, {
       status: 500,
     });
   }

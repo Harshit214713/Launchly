@@ -87,7 +87,7 @@ export default function ComingSoonCard({
             <Layers size={12} className="stroke-[3]" />
             {category}
           </span>{' '}
-          category is under active development. We're engineering high-aesthetic, production-ready full-stack templates for this release.
+          category is under active development. We&apos;re engineering high-aesthetic, production-ready full-stack templates for this release.
         </p>
 
         {/* Telemetry Progress & Perks Box */}
@@ -146,7 +146,7 @@ export default function ComingSoonCard({
           ) : (
             <div className="w-full py-2.5 px-4 rounded-xl border-[2px] border-ink bg-mint/20 dark:bg-mint/15 text-ink font-mono text-xs font-bold flex items-center justify-center gap-2 shadow-brutal-xs">
               <CheckCircle2 size={16} className="text-mint shrink-0 stroke-[2.5]" />
-              <span>You're on the VIP drop list for {category}!</span>
+              <span>You&apos;re on the VIP drop list for {category}!</span>
             </div>
           )}
         </div>

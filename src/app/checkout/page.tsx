@@ -177,7 +177,7 @@ function CheckoutContent() {
           <BrandWordmark size="md" />
         </Link>
 
-        <a
+        <Link
           href="/"
           onClick={(e) => {
             e.preventDefault();
@@ -187,7 +187,7 @@ function CheckoutContent() {
         >
           <ArrowLeft size={13} className="stroke-[3]" />
           <span>Back to Plans</span>
-        </a>
+        </Link>
       </header>
 
       {/* Main Checkout Area */}

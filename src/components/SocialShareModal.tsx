@@ -7,14 +7,10 @@ import {
   Copy,
   Check,
   Download,
-  ExternalLink,
   MessageCircle,
   Send,
   Code,
-  Sparkles,
-  Eye,
-  Sliders,
-  Palette
+  Sliders
 } from 'lucide-react';
 
 function XTwitterIcon({ className = 'w-3.5 h-3.5 fill-current' }: { className?: string }) {
@@ -258,7 +254,7 @@ export default function SocialShareModal({
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActivePlatform(tab.id as any)}
+              onClick={() => setActivePlatform(tab.id as 'twitter' | 'linkedin' | 'whatsapp' | 'raw')}
               className={`px-3 py-1 rounded-lg border-2 border-black font-mono text-xs font-bold transition-all cursor-pointer ${
                 activePlatform === tab.id
                   ? 'bg-yellow text-black shadow-[2px_2px_0px_#000]'

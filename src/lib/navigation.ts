@@ -26,7 +26,7 @@ export function scrollToSection(
     // Stash intended section in session storage and navigate cleanly to '/'
     try {
       sessionStorage.setItem('launchly_scroll_target', targetId);
-    } catch (_) {}
+    } catch {}
 
     if (router) {
       router.push('/');

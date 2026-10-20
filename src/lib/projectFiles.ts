@@ -34,7 +34,6 @@ function safeCodeString(val: string): string {
 
 export function generateProjectFiles({
   siteTitle,
-  templateId,
   theme,
   heroContent,
   featuresContent,
