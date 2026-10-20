@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { ArrowUpRight } from 'lucide-react';
 import BrandWordmark from './BrandWordmark';
+import { scrollToSection } from '@/lib/navigation';
 
 export default function Footer() {
   const router = useRouter();
@@ -12,15 +13,7 @@ export default function Footer() {
 
   const handleScrollSection = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
     e.preventDefault();
-    if (pathname === '/') {
-      const el = document.getElementById(sectionId);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth' });
-        window.history.replaceState(null, '', '/');
-      }
-    } else {
-      router.push(`/#${sectionId}`);
-    }
+    scrollToSection(sectionId, router, pathname);
   };
 
   return (
@@ -53,21 +46,21 @@ export default function Footer() {
               Templates
             </Link>
             <a
-              href="#live-workspace"
+              href="/"
               onClick={(e) => handleScrollSection(e, 'live-workspace')}
               className="hover:text-pink transition-colors cursor-pointer"
             >
               Live Studio
             </a>
             <a
-              href="#how-it-works"
+              href="/"
               onClick={(e) => handleScrollSection(e, 'how-it-works')}
               className="hover:text-pink transition-colors cursor-pointer"
             >
               How it works
             </a>
             <a
-              href="#pricing"
+              href="/"
               onClick={(e) => handleScrollSection(e, 'pricing')}
               className="hover:text-pink transition-colors cursor-pointer"
             >
@@ -110,7 +103,7 @@ export default function Footer() {
         </div>
 
         {/* Bottom Tier: Copyright & Meta */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left font-mono text-xs text-muted-foreground">
+        <div className="flex items-center justify-center text-center font-mono text-xs text-muted-foreground pt-4">
           <p>© 2026 Launchly, Inc. All rights reserved.</p>
         </div>
       </div>

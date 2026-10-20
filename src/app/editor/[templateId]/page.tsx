@@ -10,12 +10,14 @@ import {
   Bold, Italic, AlignLeft, AlignCenter, AlignRight,
   Check, Loader2, Wand2, ArrowUpRight, Star,
   SlidersHorizontal, Layout, Download, ZoomIn, ZoomOut,
-  ArrowUp, ArrowDown
+  ArrowUp, ArrowDown, Share2
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
 import { exportTemplateAsZip } from '@/lib/zipExport';
 import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/contrast';
+import DeployModal from '@/components/DeployModal';
+import SocialShareModal from '@/components/SocialShareModal';
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
 type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'assets';
@@ -52,6 +54,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [sections, setSections] = useState<Section[]>(DEFAULT_SECTIONS);
   const [selectedSection, setSelectedSection] = useState<string | null>('hero');
   const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [showDeployModal, setShowDeployModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -476,13 +480,35 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           </div>
         </div>
 
-        {/* Right: Save, Export ZIP & Publish */}
+        {/* Right: Save, Export ZIP, Deploy, Share & Publish */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowShareModal(true)}
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-white hover:bg-mint font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer"
+            title="Preview live OpenGraph social card & share"
+          >
+            <Share2 size={13} className="stroke-[2.5]" />
+            <span>Share &amp; OG</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowDeployModal(true)}
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-white hover:bg-yellow font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer"
+            title="One-click deploy repository to GitHub and Vercel"
+          >
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current" aria-hidden="true">
+              <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+            </svg>
+            <span>Deploy</span>
+          </button>
+
           <button
             type="button"
             onClick={handleExportZip}
             disabled={exportingZip}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-yellow hover:bg-yellow/90 font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer disabled:opacity-50"
+            className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-yellow hover:bg-yellow/90 font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer disabled:opacity-50"
             title="Download Next.js 15 source code as a ZIP archive"
           >
             {exportingZip ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} className="stroke-[2.5]" />}
@@ -998,6 +1024,38 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             testimonialsContent,
             ctaContent,
           }}
+        />
+      )}
+
+      {/* One-Click GitHub & Vercel Deploy Modal */}
+      {showDeployModal && (
+        <DeployModal
+          isOpen={showDeployModal}
+          onClose={() => setShowDeployModal(false)}
+          siteData={{
+            siteTitle,
+            templateId: template.id,
+            theme,
+            heroContent,
+            featuresContent,
+            testimonialsContent,
+            ctaContent,
+            sectionOrder: sections.map((s) => s.id),
+          }}
+        />
+      )}
+
+      {/* Dynamic Social Share & OG Card Modal */}
+      {showShareModal && (
+        <SocialShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          title={siteTitle}
+          description={heroContent.description || 'High-performance digital presence powered by Launchly.'}
+          badge={heroContent.badge || `${template.category} // PRO`}
+          accent={theme.primaryColor || template.accent}
+          bgColor={theme.bgColor || template.bgColor}
+          subdomain={siteTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || template.id}
         />
       )}
 

@@ -18,6 +18,7 @@ import {
   Layers
 } from 'lucide-react';
 import BrandWordmark from './BrandWordmark';
+import { scrollToSection } from '@/lib/navigation';
 
 export default function Navbar() {
   const router = useRouter();
@@ -63,15 +64,7 @@ export default function Navbar() {
 
   const handleScrollTo = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
     e.preventDefault();
-    if (pathname === '/') {
-      const el = document.getElementById(targetId);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth' });
-        window.history.replaceState(null, '', '/');
-      }
-    } else {
-      router.push(`/#${targetId}`);
-    }
+    scrollToSection(targetId, router, pathname);
     setMobileOpen(false);
   };
 
@@ -107,23 +100,23 @@ export default function Navbar() {
             Templates
           </Link>
           <a
-            href="#live-workspace"
+            href="/"
             onClick={(e) => handleScrollTo(e, 'live-workspace')}
-            className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F8] shadow-brutal-sm hover:bg-mint hover:text-black dark:hover:bg-mint dark:hover:text-black dark:hover:border-black transition-colors"
+            className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F8] shadow-brutal-sm hover:bg-mint hover:text-black dark:hover:bg-mint dark:hover:text-black dark:hover:border-black transition-colors cursor-pointer"
           >
             Live Studio
           </a>
           <a
-            href="#how-it-works"
+            href="/"
             onClick={(e) => handleScrollTo(e, 'how-it-works')}
-            className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F8] shadow-brutal-sm hover:bg-lilac hover:text-black dark:hover:bg-lilac dark:hover:text-black dark:hover:border-black transition-colors"
+            className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F8] shadow-brutal-sm hover:bg-lilac hover:text-black dark:hover:bg-lilac dark:hover:text-black dark:hover:border-black transition-colors cursor-pointer"
           >
             How it works
           </a>
           <a
-            href="#pricing"
+            href="/"
             onClick={(e) => handleScrollTo(e, 'pricing')}
-            className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F8] shadow-brutal-sm hover:bg-pink hover:text-black dark:hover:bg-pink dark:hover:text-black dark:hover:border-black transition-colors"
+            className="brutal-press h-10 inline-flex items-center rounded-xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-4 font-display text-xs sm:text-sm font-black text-black dark:text-[#F4F4F8] shadow-brutal-sm hover:bg-pink hover:text-black dark:hover:bg-pink dark:hover:text-black dark:hover:border-black transition-colors cursor-pointer"
           >
             Pricing
           </a>
@@ -211,9 +204,9 @@ export default function Navbar() {
 
             {/* Nav Card 2: Live Studio */}
             <a
-              href="#live-workspace"
+              href="/"
               onClick={(e) => handleScrollTo(e, 'live-workspace')}
-              className="brutal-press flex items-center justify-between gap-3 p-3 rounded-2xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#141524] shadow-brutal-sm hover:border-mint dark:hover:border-mint/70 transition-all group"
+              className="brutal-press flex items-center justify-between gap-3 p-3 rounded-2xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#141524] shadow-brutal-sm hover:border-mint dark:hover:border-mint/70 transition-all group cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <span className="h-9 w-9 rounded-xl border-2 border-black bg-mint text-black flex items-center justify-center shadow-brutal-xs shrink-0 group-hover:rotate-6 transition-transform">
@@ -233,9 +226,9 @@ export default function Navbar() {
 
             {/* Nav Card 3: How It Works */}
             <a
-              href="#how-it-works"
+              href="/"
               onClick={(e) => handleScrollTo(e, 'how-it-works')}
-              className="brutal-press flex items-center justify-between gap-3 p-3 rounded-2xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#141524] shadow-brutal-sm hover:border-lilac dark:hover:border-lilac/70 transition-all group"
+              className="brutal-press flex items-center justify-between gap-3 p-3 rounded-2xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#141524] shadow-brutal-sm hover:border-lilac dark:hover:border-lilac/70 transition-all group cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <span className="h-9 w-9 rounded-xl border-2 border-black bg-lilac text-black flex items-center justify-center shadow-brutal-xs shrink-0 group-hover:rotate-6 transition-transform">
@@ -255,9 +248,9 @@ export default function Navbar() {
 
             {/* Nav Card 4: Pricing */}
             <a
-              href="#pricing"
+              href="/"
               onClick={(e) => handleScrollTo(e, 'pricing')}
-              className="brutal-press flex items-center justify-between gap-3 p-3 rounded-2xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#141524] shadow-brutal-sm hover:border-pink dark:hover:border-pink/70 transition-all group"
+              className="brutal-press flex items-center justify-between gap-3 p-3 rounded-2xl border-2 border-black dark:border-[#26283d] bg-white dark:bg-[#141524] shadow-brutal-sm hover:border-pink dark:hover:border-pink/70 transition-all group cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <span className="h-9 w-9 rounded-xl border-2 border-black bg-pink text-black flex items-center justify-center shadow-brutal-xs shrink-0 group-hover:rotate-6 transition-transform">
