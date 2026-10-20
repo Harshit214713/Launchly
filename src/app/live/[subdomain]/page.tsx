@@ -2,6 +2,7 @@
 
 import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   ArrowLeft, 
   Check, 
@@ -22,12 +23,34 @@ export default function LiveWebsitePage({
   const { subdomain } = use(params);
   const [copied, setCopied] = useState(false);
   const [bannerCollapsed, setBannerCollapsed] = useState(false);
+  const [siteSections, setSiteSections] = useState([
+    { id: 'nav', name: 'Navigation', type: 'nav' },
+    { id: 'hero', name: 'Hero', type: 'hero' },
+    { id: 'gallery', name: 'Featured Products', type: 'gallery' },
+    { id: 'features', name: 'Features', type: 'features' },
+    { id: 'testimonials', name: 'Testimonials', type: 'testimonials' },
+    { id: 'cta', name: 'Call to Action', type: 'cta' },
+    { id: 'footer', name: 'Footer', type: 'footer' },
+  ]);
+  const [assetUrl, setAssetUrl] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [faviconUrl, setFaviconUrl] = useState('');
+  const [isPreview, setIsPreview] = useState(false);
+  const [watermarkRequired, setWatermarkRequired] = useState(false);
+  const [previewWatermarkVisible, setPreviewWatermarkVisible] = useState(true);
+  const [cartCount, setCartCount] = useState(0);
+  const sectionOrder = (type: string) => Math.max(0, siteSections.findIndex((section) => section.type === type));
+  const sectionVisible = (type: string) => siteSections.some((section) => section.type === type);
+  const sectionName = (type: string, fallback: string) => siteSections.find((section) => section.type === type)?.name || fallback;
 
   // Template matching: match by subdomain or template id
   const template: Template = 
     TEMPLATES.find(t => t.id === subdomain.toLowerCase()) ||
     TEMPLATES.find(t => t.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') === subdomain.toLowerCase()) ||
     TEMPLATES[0];
+  const productNames = template.id === 'velvet-boutique'
+    ? ['The Cashmere Coat', 'Velvet Evening Bag', 'Heirloom Gold Cuff']
+    : ['Silk Column Dress', 'The Everyday Tote', 'Sculpted Gold Hoops'];
 
   // Theme & content state (will be populated from localStorage or API or template defaults)
   const [siteTitle, setSiteTitle] = useState(template.name);
@@ -70,83 +93,95 @@ export default function LiveWebsitePage({
     stat2Value: catDefaults.stat2Value,
   });
 
-  const [featuresContent, setFeaturesContent] = useState([
-    { 
-      title: template.features[0] || 'Deterministic Edge', 
-      desc: 'Global sub-millisecond propagation with zero cold starts across 300+ edge nodes.' 
-    },
-    { 
-      title: template.features[1] || 'Neural Reasoning', 
-      desc: 'Integrated multi-agent execution pipeline with instant structured telemetry.' 
-    },
-    { 
-      title: template.features[2] || 'Zero Friction', 
-      desc: 'Production-ready Next.js 15 App Router architecture with full TypeScript safety.' 
-    },
-  ]);
+  const [featuresContent, setFeaturesContent] = useState(template.features.map((title) => ({
+    title,
+    desc: `${title} is thoughtfully integrated into the ${template.name} shopping experience.`,
+  })));
 
   const [testimonialsContent, setTestimonialsContent] = useState([
     { 
-      quote: 'Shipped our client flagship in less than 3 hours. The aesthetic level is completely unmatched.', 
-      name: 'Tanisha Mehindritta', 
-      role: 'Lead Product Designer' 
+      quote: template.topReview?.comment || `${template.name} made our shopping experience feel special.`,
+      name: template.topReview?.author || 'Alex Morgan',
+      role: template.topReview?.role || 'Store owner'
     },
     { 
-      quote: 'The cleanest Next.js export in the industry. Saved our startup weeks of frontend scaffolding.', 
-      name: 'Divyam Jain', 
-      role: 'Founding Engineer' 
+      quote: `The quality and care behind ${template.name} keep us coming back.`,
+      name: 'Jamie Lee',
+      role: 'Returning customer'
     }
   ]);
 
   const [ctaContent, setCtaContent] = useState({
-    title: `Start building with ${template.name}.`,
-    desc: 'Export full production Next.js source code anytime. Zero lock-in.',
-    buttonText: 'Claim Workspace →',
+    title: `Find your next favorite at ${template.name}.`,
+    desc: 'Explore the collection, discover something special, and make it yours.',
+    buttonText: 'Shop the collection →',
   });
 
   // Load custom saved data from localStorage or API
   useEffect(() => {
-    // 1. Check localStorage first for instant fidelity with Editor changes
-    if (typeof window !== 'undefined') {
+    const previewRequested = new URLSearchParams(window.location.search).get('preview') === '1';
+    const applySite = (site: Record<string, unknown>) => {
+      const name = site.name;
+      const data = (site.site_data || site.siteData) as Record<string, unknown> | undefined;
+      if (typeof name === 'string') setSiteTitle(name);
+      if (!data) return;
+      if (data.theme) setTheme(data.theme as typeof theme);
+      if (data.heroContent) setHeroContent(data.heroContent as typeof heroContent);
+      if (data.featuresContent) setFeaturesContent(data.featuresContent as typeof featuresContent);
+      if (data.testimonialsContent) setTestimonialsContent(data.testimonialsContent as typeof testimonialsContent);
+      if (data.ctaContent) setCtaContent(data.ctaContent as typeof ctaContent);
+      if (Array.isArray(data.sections) && data.sections.length) setSiteSections(data.sections as typeof siteSections);
+      if (typeof data.assetUrl === 'string') setAssetUrl(data.assetUrl);
+      if (typeof data.logoUrl === 'string') setLogoUrl(data.logoUrl);
+      if (typeof data.faviconUrl === 'string') setFaviconUrl(data.faviconUrl);
+      // Older published sites default to a visible mark; the server controls new publish flags.
+      setWatermarkRequired(typeof data.watermarkRequired === 'boolean' ? data.watermarkRequired : true);
+    };
+    const applyLocalDraft = () => {
       try {
-        const saved = 
-          localStorage.getItem(`launchly_site_${subdomain.toLowerCase()}`) ||
-          localStorage.getItem(`launchly_site_${template.id}`);
+        const saved = localStorage.getItem(`launchly_site_${subdomain.toLowerCase()}`) || localStorage.getItem(`launchly_site_${template.id}`);
+        if (!saved) return;
+        const draft = JSON.parse(saved);
+        if (draft.siteName) setSiteTitle(draft.siteName);
+        if (draft.theme) setTheme(draft.theme);
+        if (draft.heroContent) setHeroContent(draft.heroContent);
+        if (draft.featuresContent) setFeaturesContent(draft.featuresContent);
+        if (draft.testimonialsContent) setTestimonialsContent(draft.testimonialsContent);
+        if (draft.ctaContent) setCtaContent(draft.ctaContent);
+        if (draft.sections?.length) setSiteSections(draft.sections);
+        if (draft.assetUrl) setAssetUrl(draft.assetUrl);
+        if (draft.logoUrl) setLogoUrl(draft.logoUrl);
+        if (draft.faviconUrl) setFaviconUrl(draft.faviconUrl);
+      } catch { /* Ignore a malformed local draft and render template defaults. */ }
+    };
 
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          requestAnimationFrame(() => {
-            if (parsed.siteName) setSiteTitle(parsed.siteName);
-            if (parsed.theme) setTheme(parsed.theme);
-            if (parsed.heroContent) setHeroContent(parsed.heroContent);
-            if (parsed.featuresContent) setFeaturesContent(parsed.featuresContent);
-            if (parsed.testimonialsContent) setTestimonialsContent(parsed.testimonialsContent);
-            if (parsed.ctaContent) setCtaContent(parsed.ctaContent);
-          });
+    fetch(`/api/sites?subdomain=${encodeURIComponent(subdomain)}`)
+      .then((response) => response.json())
+      .then((result) => {
+        if (result.site) {
+          setIsPreview(false);
+          applySite(result.site);
           return;
         }
-      } catch {}
-    }
-
-    // 2. Fetch from API database
-    fetch(`/api/sites?subdomain=${encodeURIComponent(subdomain)}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.site) {
-          const s = data.site;
-          if (s.name) setSiteTitle(s.name);
-          if (s.site_data || s.siteData) {
-            const sd = s.site_data || s.siteData;
-            if (sd.theme) setTheme(sd.theme);
-            if (sd.heroContent) setHeroContent(sd.heroContent);
-            if (sd.featuresContent) setFeaturesContent(sd.featuresContent);
-            if (sd.testimonialsContent) setTestimonialsContent(sd.testimonialsContent);
-            if (sd.ctaContent) setCtaContent(sd.ctaContent);
-          }
+        if (previewRequested) {
+          setIsPreview(true);
+          applyLocalDraft();
+          fetch('/api/auth/me').then((response) => response.json()).then((auth) => setWatermarkRequired(auth?.user?.plan !== 'pro')).catch(() => setWatermarkRequired(true));
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // Fail closed: an unavailable publish lookup must not enable hiding a published watermark.
+        setIsPreview(false);
+        setWatermarkRequired(true);
+      });
   }, [subdomain, template.id]);
+
+  useEffect(() => {
+    if (!faviconUrl) return;
+    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+    link.href = faviconUrl;
+  }, [faviconUrl]);
 
   const handleCopyLink = () => {
     if (typeof window !== 'undefined') {
@@ -236,23 +271,23 @@ export default function LiveWebsitePage({
       )}
 
       {/* ACTUAL LIVE WEBSITE SURFACE — 100% Identical to Editor Preview Canvas */}
-      <main className="flex-1 pt-12 sm:pt-13">
+      <main className="flex flex-col flex-1 pt-12 sm:pt-13">
         {/* Navigation Block */}
-        <nav className="flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 border-black/10 bg-white/90 backdrop-blur-md sticky top-12 z-40">
+        <nav style={{ order: sectionOrder('nav'), display: sectionVisible('nav') ? undefined : 'none' }} className="flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 border-black/10 bg-white/90 backdrop-blur-md sticky top-12 z-40">
           <div className="flex items-center gap-2.5">
-            <div
+            {logoUrl ? <Image src={logoUrl} alt={`${siteTitle} logo`} width={36} height={36} unoptimized className="h-9 w-9 rounded-lg object-contain" /> : <div
               style={{ backgroundColor: theme.primaryColor }}
               className="w-8 h-8 rounded-lg border-2 border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-display font-black text-sm text-black"
             >
               {siteTitle.charAt(0)}
-            </div>
+            </div>}
             <span className="font-display font-black text-base sm:text-lg text-ink tracking-tight">
               {siteTitle}
             </span>
           </div>
 
           <div className="hidden sm:flex items-center gap-6 font-mono text-xs font-bold text-neutral-700">
-            {['Home', 'Features', 'Showcase', 'Pricing'].map(item => (
+            {['Home', 'Collection', 'Features', 'Showcase'].map(item => (
               <a 
                 key={item} 
                 href={`#${item.toLowerCase()}`}
@@ -263,20 +298,20 @@ export default function LiveWebsitePage({
             ))}
           </div>
 
-          <button
-            type="button"
+          <a
+            href="#collection"
             style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
-            className="px-4 py-2 rounded-xl border-2 border-black font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] hover:scale-103 active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer"
+            className="px-4 py-2 rounded-xl border-2 border-black font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] hover:scale-103 active:translate-x-0.5 active:translate-y-0.5 transition-all"
           >
             Get Started
-          </button>
+          </a>
         </nav>
 
         {/* Hero Block — Rich Ambient Lighting, Vibrant Neo-Brutalist Badges, Crisp Typography */}
         <section
           id="home"
           className="py-16 sm:py-28 px-4 sm:px-12 text-center relative overflow-hidden"
-          style={{ background: theme.bgColor, color: theme.textColor }}
+          style={{ order: sectionOrder('hero'), display: sectionVisible('hero') ? undefined : 'none', background: theme.bgColor, color: theme.textColor }}
         >
           {/* Subtle Ambient Radial Glow */}
           <div
@@ -311,21 +346,21 @@ export default function LiveWebsitePage({
 
             {/* Action Buttons */}
             <div className="pt-3 flex flex-wrap items-center justify-center gap-3">
-              <button
-                type="button"
+              <a
+                href="#collection"
                 style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
-                className="px-6 sm:px-8 py-3 rounded-xl border-2 border-black font-display text-xs sm:text-sm font-black text-black shadow-[3px_3px_0px_#000] hover:scale-103 active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center gap-2 cursor-pointer"
+                className="px-6 sm:px-8 py-3 rounded-xl border-2 border-black font-display text-xs sm:text-sm font-black text-black shadow-[3px_3px_0px_#000] hover:scale-103 active:translate-x-0.5 active:translate-y-0.5 transition-all flex items-center gap-2"
               >
                 <span>{heroContent.ctaPrimary}</span>
                 <ArrowUpRight size={15} className="stroke-[3]" />
-              </button>
-              <button
-                type="button"
+              </a>
+              <a
+                href="#features"
                 style={{ borderRadius: theme.borderRadius }}
-                className="px-5 sm:px-7 py-3 rounded-xl border-2 border-current bg-white/10 hover:bg-white/20 font-mono text-xs sm:text-sm font-bold transition-all cursor-pointer backdrop-blur-xs"
+                className="px-5 sm:px-7 py-3 rounded-xl border-2 border-current bg-white/10 hover:bg-white/20 font-mono text-xs sm:text-sm font-bold transition-all backdrop-blur-xs"
               >
                 {heroContent.ctaSecondary}
-              </button>
+              </a>
             </div>
 
             {/* Live Telemetry Radar Pills */}
@@ -346,15 +381,36 @@ export default function LiveWebsitePage({
           </div>
         </section>
 
+        <section id="collection" style={{ order: sectionOrder('gallery'), display: sectionVisible('gallery') ? undefined : 'none' }} className="py-14 px-4 sm:px-12 bg-[#FAF9F6] text-black">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-8"><p className="font-mono text-[10px] uppercase tracking-widest" style={{ color: theme.primaryColor }}>Curated for you</p><h2 className="font-display text-2xl sm:text-3xl font-black mt-1">{sectionName('gallery', 'Featured pieces')}</h2></div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {productNames.map((name, index) => (
+                <article key={name} className="overflow-hidden rounded-2xl border-2 border-black bg-white shadow-[4px_4px_0px_#000]">
+                  <div className="h-40 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${theme.primaryColor}55, ${theme.primaryColor}15)` }}>
+                    {assetUrl ? <>
+                      {/* User-supplied assets may be arbitrary URLs or local data URLs. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={assetUrl} alt={name} className="h-full w-full object-cover" />
+                    </> : <span className="font-display text-5xl font-black opacity-50">0{index + 1}</span>}
+                  </div>
+                  <div className="p-4"><h3 className="font-display font-black">{name}</h3><p className="font-mono text-xs text-neutral-500 mt-1">Premium materials · Made with care</p><div className="flex items-center justify-between mt-4"><span className="font-display font-black">${[189, 128, 78][index]}.00</span><button type="button" onClick={() => setCartCount((count) => count + 1)} className="rounded-lg border-2 border-black px-3 py-1.5 font-mono text-[10px] font-black" style={{ backgroundColor: theme.primaryColor }}>Add to bag</button></div></div>
+                </article>
+              ))}
+            </div>
+            <p className="text-right mt-4 font-mono text-xs font-bold">Shopping bag: {cartCount} item{cartCount === 1 ? '' : 's'}</p>
+          </div>
+        </section>
+
         {/* Features Block */}
-        <section id="features" className="py-16 sm:py-24 px-4 sm:px-12 bg-white text-black border-y-2 border-black/10">
+        <section id="features" style={{ order: sectionOrder('features'), display: sectionVisible('features') ? undefined : 'none' }} className="py-16 sm:py-24 px-4 sm:px-12 bg-white text-black border-y-2 border-black/10">
           <div className="text-center max-w-xl mx-auto mb-10 space-y-2">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-black/20 bg-[#FAF9F6] font-mono text-[10px] font-bold uppercase text-neutral-600">
               <span className="w-1.5 h-1.5 rounded-full bg-pink inline-block animate-pulse" />
-              <span>Core Architecture</span>
+              <span>Considered details</span>
             </div>
             <h2 className="font-display text-2xl sm:text-4xl font-black tracking-tight">
-              Engineered for hyper-scale precision.
+              {sectionName('features', 'Made for the way you live.')}
             </h2>
           </div>
 
@@ -382,13 +438,13 @@ export default function LiveWebsitePage({
         </section>
 
         {/* Testimonials Block */}
-        <section id="showcase" className="py-16 sm:py-24 px-4 sm:px-12 bg-[#FFFDF8] text-black">
+        <section id="showcase" style={{ order: sectionOrder('testimonials'), display: sectionVisible('testimonials') ? undefined : 'none' }} className="py-16 sm:py-24 px-4 sm:px-12 bg-[#FFFDF8] text-black">
           <div className="text-center max-w-xl mx-auto mb-10 space-y-2">
             <h2 className="font-display text-2xl sm:text-4xl font-black tracking-tight">
-              Trusted by world-class teams.
+              {sectionName('testimonials', 'Loved by our customers.')}
             </h2>
             <p className="font-mono text-xs text-neutral-500">
-              Verified production deployments powered by Launchly Edge
+              Thoughtful quality and personal service, every step of the way.
             </p>
           </div>
 
@@ -421,7 +477,7 @@ export default function LiveWebsitePage({
         </section>
 
         {/* CTA Block */}
-        <section id="pricing" className="py-16 sm:py-24 px-4 sm:px-12 bg-black text-white text-center relative overflow-hidden">
+        <section id="pricing" style={{ order: sectionOrder('cta'), display: sectionVisible('cta') ? undefined : 'none' }} className="py-16 sm:py-24 px-4 sm:px-12 bg-black text-white text-center relative overflow-hidden">
           <div className="relative z-10 max-w-lg mx-auto space-y-3.5">
             <h2 className="font-display text-2xl sm:text-4xl font-black">
               {ctaContent.title}
@@ -430,19 +486,19 @@ export default function LiveWebsitePage({
               {ctaContent.desc}
             </p>
             <div className="pt-2">
-              <button
-                type="button"
+              <a
+                href="#collection"
                 style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
-                className="px-6 sm:px-8 py-3 rounded-xl border-2 border-white font-display text-xs sm:text-sm font-black text-black shadow-[3px_3px_0px_#FFFFFF] hover:scale-103 active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer"
+                className="inline-block px-6 sm:px-8 py-3 rounded-xl border-2 border-white font-display text-xs sm:text-sm font-black text-black shadow-[3px_3px_0px_#FFFFFF] hover:scale-103 active:translate-x-0.5 active:translate-y-0.5 transition-all"
               >
                 {ctaContent.buttonText}
-              </button>
+              </a>
             </div>
           </div>
         </section>
 
         {/* Branded Footer Block */}
-        <footer className="py-8 px-4 sm:px-12 border-t-2 border-black/10 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs text-neutral-600">
+        <footer style={{ order: sectionOrder('footer'), display: sectionVisible('footer') ? undefined : 'none' }} className="py-8 px-4 sm:px-12 border-t-2 border-black/10 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs text-neutral-600">
           <div className="flex items-center gap-2 font-bold text-black">
             <span>{siteTitle}</span>
             <span>•</span>
@@ -455,6 +511,10 @@ export default function LiveWebsitePage({
           </div>
         </footer>
       </main>
+      {watermarkRequired && (!isPreview || previewWatermarkVisible) && <a href="https://launchly.site" target="_blank" rel="noreferrer" className="fixed bottom-3 right-3 z-[60] inline-flex items-center gap-2 rounded-full border border-black/20 bg-white/90 px-3 py-2 text-[11px] font-semibold text-neutral-800 shadow-lg backdrop-blur" aria-label="Made with Launchly">
+        <Image src="/brand-logo-clean.png" alt="" width={20} height={20} className="h-5 w-5 rounded-full object-contain" /> Made with Launchly
+      </a>}
+      {isPreview && watermarkRequired && <button type="button" onClick={() => setPreviewWatermarkVisible((visible) => !visible)} className="fixed bottom-3 left-3 z-[60] rounded-full border border-black/20 bg-white/90 px-3 py-2 text-[11px] font-semibold text-neutral-700 shadow-lg">{previewWatermarkVisible ? 'Hide preview watermark' : 'Show preview watermark'}</button>}
     </div>
   );
 }

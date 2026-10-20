@@ -19,7 +19,7 @@ import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/co
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
 type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'assets';
-type MobileTab = 'canvas' | 'sections' | 'styles' | 'inspector';
+type MobileTab = 'canvas' | 'sections' | 'styles' | 'inspector' | 'elements' | 'pages' | 'assets';
 
 const DEVICE_WIDTHS = {
   desktop: '100%',
@@ -36,6 +36,7 @@ interface Section {
 const DEFAULT_SECTIONS: Section[] = [
   { id: 'nav', name: 'Navigation', type: 'nav' },
   { id: 'hero', name: 'Hero', type: 'hero' },
+  { id: 'gallery', name: 'Featured Products', type: 'gallery' },
   { id: 'features', name: 'Features', type: 'features' },
   { id: 'testimonials', name: 'Testimonials', type: 'testimonials' },
   { id: 'cta', name: 'Call to Action', type: 'cta' },
@@ -57,6 +58,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [saved, setSaved] = useState(false);
   const [zoomScale, setZoomScale] = useState<number>(1);
   const [exportingZip, setExportingZip] = useState(false);
+  const [userPlan, setUserPlan] = useState<'loading' | 'free' | 'pro'>('loading');
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [logoUrl, setLogoUrl] = useState('');
+  const [faviconUrl, setFaviconUrl] = useState('');
 
   // AI Prompt State
   const [aiPrompt, setAiPrompt] = useState('');
@@ -72,6 +77,13 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     borderRadius: '16px',
   });
   const [siteTitle, setSiteTitle] = useState(template.name || 'My Website');
+  const [assetUrl, setAssetUrl] = useState('');
+
+  useEffect(() => {
+    fetch('/api/auth/me').then((response) => response.json()).then((data) => {
+      setUserPlan(data?.authenticated && data.user?.plan === 'pro' ? 'pro' : 'free');
+    }).catch(() => setUserPlan('free'));
+  }, []);
 
   // Bespoke content state (can be updated via AI)
   const [heroContent, setHeroContent] = useState({
@@ -86,21 +98,23 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     stat2Value: '99.98% SLA',
   });
 
-  const [featuresContent, setFeaturesContent] = useState([
-    { title: 'Deterministic Edge', desc: 'Global sub-millisecond propagation with zero cold starts across 300+ edge nodes.' },
-    { title: 'Neural Reasoning', desc: 'Integrated multi-agent execution pipeline with instant structured telemetry.' },
-    { title: 'Zero Friction', desc: 'Production-ready Next.js 15 App Router architecture with full TypeScript safety.' },
-  ]);
+  const initialFeatures = template.features.map((title) => ({
+    title,
+    desc: `${title} is thoughtfully integrated into the ${template.name} shopping experience.`,
+  }));
+  const [featuresContent, setFeaturesContent] = useState(initialFeatures);
 
   const [testimonialsContent, setTestimonialsContent] = useState([
-    { quote: 'Shipped our client flagship in less than 3 hours. The aesthetic level is completely unmatched.', name: 'Tanisha M.', role: 'Lead Product Designer' },
-    { quote: 'The cleanest Next.js export in the industry. Saved our startup weeks of frontend scaffolding.', name: 'Divyam J.', role: 'Founding Engineer' }
+    template.topReview
+      ? { quote: template.topReview.comment, name: template.topReview.author, role: template.topReview.role }
+      : { quote: `${template.name} gave our store the premium experience we wanted.`, name: 'Alex Morgan', role: 'Store owner' },
+    { quote: `${template.name} made it easy to present our products beautifully and serve customers on every screen.`, name: 'Jamie Lee', role: 'Brand director' },
   ]);
 
   const [ctaContent, setCtaContent] = useState({
-    title: 'Start building today.',
-    desc: 'Export full production Next.js source code anytime. Zero lock-in.',
-    buttonText: 'Claim Workspace →',
+    title: `Discover ${template.name}.`,
+    desc: `Explore the ${template.name} collection and find your next favorite.`,
+    buttonText: 'Shop the collection →',
   });
 
   // Undo / Redo State Stack
@@ -112,9 +126,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     testimonialsContent: typeof testimonialsContent;
     ctaContent: typeof ctaContent;
     sections: typeof sections;
+    assetUrl: string;
+    logoUrl: string;
+    faviconUrl: string;
   }
 
-  const [history] = useState<Snapshot[]>(() => [{
+  const [history, setHistory] = useState<Snapshot[]>(() => [{
     theme: {
       primaryColor: template.accent || '#FF5588',
       bgColor: template.bgColor || '#0F0F11',
@@ -134,23 +151,67 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       stat2Label: 'ZERO-SHOT BENCHMARK',
       stat2Value: '99.98% SLA',
     },
-    featuresContent: [
-      { title: 'Deterministic Edge', desc: 'Global sub-millisecond propagation with zero cold starts across 300+ edge nodes.' },
-      { title: 'Neural Reasoning', desc: 'Integrated multi-agent execution pipeline with instant structured telemetry.' },
-      { title: 'Zero Friction', desc: 'Production-ready Next.js 15 App Router architecture with full TypeScript safety.' },
-    ],
+    featuresContent: initialFeatures,
     testimonialsContent: [
-      { quote: 'Shipped our client flagship in less than 3 hours. The aesthetic level is completely unmatched.', name: 'Tanisha M.', role: 'Lead Product Designer' },
-      { quote: 'The cleanest Next.js export in the industry. Saved our startup weeks of frontend scaffolding.', name: 'Divyam J.', role: 'Founding Engineer' }
+      template.topReview
+        ? { quote: template.topReview.comment, name: template.topReview.author, role: template.topReview.role }
+        : { quote: `${template.name} gave our store the premium experience we wanted.`, name: 'Alex Morgan', role: 'Store owner' },
+      { quote: `${template.name} made it easy to present our products beautifully and serve customers on every screen.`, name: 'Jamie Lee', role: 'Brand director' },
     ],
     ctaContent: {
-      title: 'Start building today.',
-      desc: 'Export full production Next.js source code anytime. Zero lock-in.',
-      buttonText: 'Claim Workspace →',
+      title: `Discover ${template.name}.`,
+      desc: `Explore the ${template.name} collection and find your next favorite.`,
+      buttonText: 'Shop the collection →',
     },
     sections,
+    assetUrl: '',
+    logoUrl: '',
+    faviconUrl: '',
   }]);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
+
+  // Keep a real, bounded edit history. The previous implementation initialized
+  // a single immutable snapshot, so the visible Undo/Redo controls never worked.
+  const snapshot = useCallback((): Snapshot => ({
+    theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, assetUrl, logoUrl, faviconUrl,
+  }), [theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, assetUrl, logoUrl, faviconUrl]);
+  const [isHistoryReady, setHistoryReady] = useState(false);
+  // Draft restoration is an external-storage synchronization on mount.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const key = `launchly_site_${template.id}`;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const savedSite = JSON.parse(raw);
+        if (savedSite.theme) setTheme(savedSite.theme);
+        if (savedSite.siteName) setSiteTitle(savedSite.siteName);
+        if (savedSite.heroContent) setHeroContent(savedSite.heroContent);
+        if (savedSite.featuresContent) setFeaturesContent(savedSite.featuresContent);
+        if (savedSite.testimonialsContent) setTestimonialsContent(savedSite.testimonialsContent);
+        if (savedSite.ctaContent) setCtaContent(savedSite.ctaContent);
+        if (savedSite.sections?.length) setSections(savedSite.sections);
+        if (savedSite.assetUrl) setAssetUrl(savedSite.assetUrl);
+        if (savedSite.logoUrl) setLogoUrl(savedSite.logoUrl);
+        if (savedSite.faviconUrl) setFaviconUrl(savedSite.faviconUrl);
+      }
+    } catch { /* Ignore malformed local drafts and keep template defaults. */ }
+    setHistoryReady(true);
+  // Load once for each selected template.
+  }, [template.id]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+  // Capture edits after React commits them so every editor control participates in history.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!isHistoryReady) return;
+    const next = snapshot();
+    const present = history[historyIndex];
+    if (present && JSON.stringify(present) === JSON.stringify(next)) return;
+    const updated = [...history.slice(0, historyIndex + 1), next].slice(-50);
+    setHistory(updated);
+    setHistoryIndex(updated.length - 1);
+  }, [snapshot, historyIndex, history, isHistoryReady]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
@@ -162,9 +223,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       setTestimonialsContent(prev.testimonialsContent);
       setCtaContent(prev.ctaContent);
       setSections(prev.sections);
+      setAssetUrl(prev.assetUrl);
+      setLogoUrl(prev.logoUrl);
+      setFaviconUrl(prev.faviconUrl);
       setHistoryIndex(historyIndex - 1);
     }
-  }, [historyIndex, history]);
+  }, [historyIndex, history, setTheme, setSiteTitle, setHeroContent, setFeaturesContent, setTestimonialsContent, setCtaContent, setSections, setAssetUrl, setLogoUrl, setFaviconUrl]);
 
   const handleRedo = useCallback(() => {
     if (historyIndex < history.length - 1) {
@@ -176,9 +240,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       setTestimonialsContent(next.testimonialsContent);
       setCtaContent(next.ctaContent);
       setSections(next.sections);
+      setAssetUrl(next.assetUrl);
+      setLogoUrl(next.logoUrl);
+      setFaviconUrl(next.faviconUrl);
       setHistoryIndex(historyIndex + 1);
     }
-  }, [historyIndex, history]);
+  }, [historyIndex, history, setTheme, setSiteTitle, setHeroContent, setFeaturesContent, setTestimonialsContent, setCtaContent, setSections, setAssetUrl, setLogoUrl, setFaviconUrl]);
 
   // Keyboard shortcut listener for Ctrl+Z and Ctrl+Y
   useEffect(() => {
@@ -212,6 +279,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   // 1-Click ZIP Export
   const handleExportZip = async () => {
+    if (userPlan !== 'pro') {
+      setShowUpgrade(true);
+      return;
+    }
     setExportingZip(true);
     try {
       const blob = await exportTemplateAsZip({
@@ -223,6 +294,11 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         testimonialsContent,
         ctaContent,
         sectionOrder: sections.map((s) => s.id),
+        assetUrl,
+        logoUrl,
+        faviconUrl,
+        pages: template.pages,
+        sectionNames: Object.fromEntries(sections.map((section) => [section.type, section.name])),
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -283,6 +359,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         featuresContent,
         testimonialsContent,
         ctaContent,
+        sections,
+        assetUrl,
+        logoUrl,
+        faviconUrl,
       };
       if (typeof window !== 'undefined') {
         localStorage.setItem(`launchly_site_${template.id}`, JSON.stringify(payload));
@@ -341,9 +421,14 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   };
 
   const addSection = (type: string) => {
-    const sectionIndex = sections.length + 1;
+    let suffix = sections.length + 1;
+    let id = `section-${type}-${suffix}`;
+    while (sections.some((section) => section.id === id)) {
+      suffix += 1;
+      id = `section-${type}-${suffix}`;
+    }
     const newSection: Section = {
-      id: `section-${type}-${sectionIndex}`,
+      id,
       name: type.charAt(0).toUpperCase() + type.slice(1),
       type,
     };
@@ -481,12 +566,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           <button
             type="button"
             onClick={handleExportZip}
-            disabled={exportingZip}
+            disabled={exportingZip || userPlan === 'loading'}
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-yellow hover:bg-yellow/90 font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer disabled:opacity-50"
-            title="Download Next.js 15 source code as a ZIP archive"
+            title={userPlan === 'pro' ? 'Download Next.js 16 source code as a ZIP archive' : 'Upgrade to Pro to export source code'}
           >
             {exportingZip ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} className="stroke-[2.5]" />}
-            <span>{exportingZip ? 'Exporting…' : 'Export .zip'}</span>
+            <span>{exportingZip ? 'Exporting…' : userPlan === 'loading' ? 'Checking plan…' : userPlan === 'pro' ? 'Export .zip' : 'Export .zip · Pro'}</span>
           </button>
 
           <button
@@ -501,13 +586,17 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 featuresContent,
                 testimonialsContent,
                 ctaContent,
+                sections,
+                assetUrl,
+        logoUrl,
+        faviconUrl,
               };
               if (typeof window !== 'undefined') {
                 try {
                   localStorage.setItem(`launchly_site_${template.id}`, JSON.stringify(payload));
                   localStorage.setItem(`launchly_site_${subdomain}`, JSON.stringify(payload));
                 } catch {}
-                window.open(`/live/${subdomain}`, '_blank');
+                window.open(`/live/${subdomain}?preview=1`, '_blank');
               }
             }}
             className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-white hover:bg-yellow font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer"
@@ -585,7 +674,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             'w-60 hidden md:flex', // Desktop default
             // Mobile full screen overlay when tab selected
             mobileTab === 'sections' && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white',
-            mobileTab === 'styles' && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white'
+            mobileTab === 'styles' && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white',
+            ['elements', 'pages', 'assets'].includes(mobileTab) && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white'
           )}
         >
           <div className="p-3.5 border-b-[2px] border-black bg-white flex items-center justify-between">
@@ -692,6 +782,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                     {[
                       { label: 'Accent', key: 'primaryColor' },
                       { label: 'Background', key: 'bgColor' },
+                      { label: 'Text', key: 'textColor' },
                     ].map(({ label, key }) => (
                       <div key={key} className="flex items-center justify-between rounded-xl border border-black/20 bg-white p-2">
                         <span className="font-mono text-xs font-medium text-neutral-700">{label}</span>
@@ -730,6 +821,15 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                   </div>
                 </div>
 
+                <div>
+                  <label htmlFor="editor-font-family" className="font-mono text-[10px] font-bold uppercase text-neutral-500 tracking-wider mb-2 block">Typography</label>
+                  <select id="editor-font-family" value={theme.fontFamily} onChange={(e) => setTheme((prev) => ({ ...prev, fontFamily: e.target.value }))} className="w-full rounded-xl border-2 border-black bg-white px-3 py-2 font-mono text-xs font-bold text-black">
+                    <option value="Inter, sans-serif">Modern sans</option>
+                    <option value="Georgia, serif">Editorial serif</option>
+                    <option value="ui-monospace, monospace">Monospace</option>
+                  </select>
+                </div>
+
                 {/* Real-time WCAG Contrast Checker */}
                 {(() => {
                   const textContrast = getContrastRatio(theme.textColor, theme.bgColor);
@@ -762,6 +862,57 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                     </div>
                   );
                 })()}
+              </div>
+            )}
+
+            {(leftPanel === 'elements' || mobileTab === 'elements') && (
+              <div className="space-y-3">
+                <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Add a block to your page</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Hero', 'Gallery', 'Features', 'Testimonials', 'Pricing', 'Contact', 'CTA', 'Footer'].map((type) => (
+                    <button key={type} type="button" onClick={() => addSection(type.toLowerCase())} className="rounded-xl border-2 border-black bg-white px-2 py-3 font-mono text-xs font-bold shadow-[2px_2px_0_#000] hover:bg-yellow">＋ {type}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(leftPanel === 'pages' || mobileTab === 'pages') && (
+              <div className="space-y-3">
+                <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Pages included in this site</p>
+                {template.pages.map((page, index) => (
+                  <a key={page} href={index === 0 ? '#home' : `/live/${template.id}?preview=1&page=${encodeURIComponent(page.toLowerCase().replace(/\s+/g, '-'))}`} target={index === 0 ? undefined : '_blank'} rel="noreferrer" className="flex items-center justify-between rounded-xl border-2 border-black/15 bg-white px-3 py-2 font-mono text-xs hover:bg-yellow">
+                    <span>{page}</span><span className="text-[9px] text-neutral-400">/{index === 0 ? '' : page.toLowerCase().replace(/\s+/g, '-')}</span>
+                  </a>
+                ))}
+                <p className="text-[10px] font-mono leading-relaxed text-neutral-500">Template pages have shareable routes and are included in the exported site.</p>
+              </div>
+            )}
+
+            {(leftPanel === 'assets' || mobileTab === 'assets') && (
+              <div className="space-y-3">
+                <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Brand identity</p>
+                <label className="block cursor-pointer rounded-xl border-2 border-dashed border-black/40 bg-white p-3 text-center font-mono text-xs font-bold text-black hover:bg-yellow">Upload site logo<input type="file" accept="image/*" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setLogoUrl(String(reader.result || '')); reader.readAsDataURL(file); }} /></label>
+                <label className="block cursor-pointer rounded-xl border-2 border-dashed border-black/40 bg-white p-3 text-center font-mono text-xs font-bold text-black hover:bg-yellow">Upload favicon<input type="file" accept="image/png,image/x-icon,image/svg+xml,image/jpeg" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setFaviconUrl(String(reader.result || '')); reader.readAsDataURL(file); }} /></label>
+                {logoUrl && <div className="flex items-center gap-2 rounded-xl border border-black/20 bg-white p-2"><NextImage src={logoUrl} alt="Site logo preview" width={40} height={40} unoptimized className="h-10 w-10 rounded object-contain" /><button type="button" onClick={() => setLogoUrl('')} className="font-mono text-xs underline">Remove logo</button></div>}
+                {faviconUrl && <div className="flex items-center gap-2 rounded-xl border border-black/20 bg-white p-2"><NextImage src={faviconUrl} alt="Favicon preview" width={32} height={32} unoptimized className="h-8 w-8 rounded object-contain" /><button type="button" onClick={() => setFaviconUrl('')} className="font-mono text-xs underline">Remove favicon</button></div>}
+                <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Product image asset</p>
+                <input type="url" value={assetUrl} onChange={(e) => setAssetUrl(e.target.value)} placeholder="Paste an image URL" className="w-full rounded-xl border-2 border-black bg-white px-3 py-2 font-mono text-xs text-black" />
+                <label className="block cursor-pointer rounded-xl border-2 border-dashed border-black/40 bg-white p-4 text-center font-mono text-xs font-bold text-black hover:bg-yellow">
+                  Upload image<input type="file" accept="image/*" className="sr-only" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => setAssetUrl(String(reader.result || ''));
+                    reader.readAsDataURL(file);
+                  }} />
+                </label>
+                {assetUrl && <div className="space-y-2">
+                  {/* Dynamic user-provided images can come from any host or a local data URL. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={assetUrl} alt="Selected product asset preview" className="w-full h-36 rounded-xl border-2 border-black object-cover" />
+                  <button type="button" onClick={() => setAssetUrl('')} className="w-full rounded-lg border border-black bg-white py-2 font-mono text-xs font-bold">Remove image</button>
+                </div>}
+                <p className="font-mono text-[10px] text-neutral-500">The selected image appears on featured product cards and is saved with your draft.</p>
               </div>
             )}
           </div>
@@ -814,6 +965,14 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 featuresContent={featuresContent}
                 testimonialsContent={testimonialsContent}
                 ctaContent={ctaContent}
+                setHeroContent={setHeroContent}
+                setFeaturesContent={setFeaturesContent}
+                setTestimonialsContent={setTestimonialsContent}
+                setCtaContent={setCtaContent}
+                onSelectSection={setSelectedSection}
+                onRenameSection={(id, name) => setSections((prev) => prev.map((section) => section.id === id ? { ...section, name } : section))}
+                assetUrl={assetUrl}
+                logoUrl={logoUrl}
               />
             </div>
           </div>
@@ -863,6 +1022,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         {[
           { id: 'canvas' as const, label: 'Canvas', icon: Layout },
           { id: 'sections' as const, label: 'Blocks', icon: Layers },
+          { id: 'elements' as const, label: 'Add', icon: Plus },
+          { id: 'pages' as const, label: 'Pages', icon: ChevronRight },
+          { id: 'assets' as const, label: 'Assets', icon: ImageIcon },
           { id: 'styles' as const, label: 'Styles', icon: Palette },
           { id: 'inspector' as const, label: 'Inspect', icon: SlidersHorizontal },
         ].map(({ id, label, icon: Icon }) => (
@@ -989,6 +1151,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           onClose={() => setShowPublishDialog(false)}
           siteName={siteTitle}
           templateId={template.id}
+          isPro={userPlan === 'pro'}
           sitePayload={{
             siteName: siteTitle,
             templateId: template.id,
@@ -997,9 +1160,23 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             featuresContent,
             testimonialsContent,
             ctaContent,
+            sections,
+            assetUrl,
+            logoUrl,
+            faviconUrl,
           }}
         />
       )}
+
+      {showUpgrade && <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title">
+        <div className="w-full max-w-sm rounded-3xl border-[3px] border-black bg-white p-6 text-center shadow-[8px_8px_0_#000]">
+          <button type="button" onClick={() => setShowUpgrade(false)} aria-label="Close" className="float-right rounded-lg p-1 hover:bg-neutral-100"><X size={18} /></button>
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-black bg-yellow"><Download size={22} /></div>
+          <h2 id="upgrade-title" className="font-display text-xl font-black">Export is a Pro feature</h2>
+          <p className="mt-2 font-mono text-xs text-neutral-600">Upgrade to download your complete site source as a ZIP file.</p>
+          <a href="/checkout?plan=pro" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-black bg-pink px-4 py-3 font-display text-sm font-black shadow-[3px_3px_0_#000] hover:bg-yellow">Upgrade to Pro <ArrowUpRight size={15} /></a>
+        </div>
+      </div>}
 
       {/* Floating Inline Formatting Toolbar */}
       {toolbarPos && (
@@ -1062,6 +1239,14 @@ function CanvasContent({
   featuresContent,
   testimonialsContent,
   ctaContent,
+  setHeroContent,
+  setFeaturesContent,
+  setTestimonialsContent,
+  setCtaContent,
+  onSelectSection,
+  onRenameSection,
+  assetUrl,
+  logoUrl,
 }: {
   sections: Section[];
   selectedSection: string | null;
@@ -1071,6 +1256,14 @@ function CanvasContent({
   featuresContent: Array<{ title: string; desc: string }>;
   testimonialsContent: Array<{ quote: string; name: string; role: string }>;
   ctaContent: { title: string; desc: string; buttonText: string };
+  setHeroContent: React.Dispatch<React.SetStateAction<{ badge: string; title: string; description: string; ctaPrimary: string; ctaSecondary: string; stat1Label: string; stat1Value: string; stat2Label: string; stat2Value: string }>>;
+  setFeaturesContent: React.Dispatch<React.SetStateAction<Array<{ title: string; desc: string }>>>;
+  setTestimonialsContent: React.Dispatch<React.SetStateAction<Array<{ quote: string; name: string; role: string }>>>;
+  setCtaContent: React.Dispatch<React.SetStateAction<{ title: string; desc: string; buttonText: string }>>;
+  onSelectSection: (id: string) => void;
+  onRenameSection: (id: string, name: string) => void;
+  assetUrl: string;
+  logoUrl: string;
 }) {
   return (
     <div style={{ fontFamily: theme.fontFamily }} className="min-h-full flex flex-col">
@@ -1085,6 +1278,14 @@ function CanvasContent({
           featuresContent={featuresContent}
           testimonialsContent={testimonialsContent}
           ctaContent={ctaContent}
+          setHeroContent={setHeroContent}
+          setFeaturesContent={setFeaturesContent}
+          setTestimonialsContent={setTestimonialsContent}
+          setCtaContent={setCtaContent}
+          onSelect={() => onSelectSection(section.id)}
+          onRename={(name) => onRenameSection(section.id, name)}
+          assetUrl={assetUrl}
+          logoUrl={logoUrl}
         />
       ))}
     </div>
@@ -1100,6 +1301,14 @@ function SectionRenderer({
   featuresContent,
   testimonialsContent,
   ctaContent,
+  setHeroContent,
+  setFeaturesContent,
+  setTestimonialsContent,
+  setCtaContent,
+  onSelect,
+  onRename,
+  assetUrl,
+  logoUrl,
 }: {
   section: Section;
   isSelected: boolean;
@@ -1109,6 +1318,14 @@ function SectionRenderer({
   featuresContent: Array<{ title: string; desc: string }>;
   testimonialsContent: Array<{ quote: string; name: string; role: string }>;
   ctaContent: { title: string; desc: string; buttonText: string };
+  setHeroContent: React.Dispatch<React.SetStateAction<{ badge: string; title: string; description: string; ctaPrimary: string; ctaSecondary: string; stat1Label: string; stat1Value: string; stat2Label: string; stat2Value: string }>>;
+  setFeaturesContent: React.Dispatch<React.SetStateAction<Array<{ title: string; desc: string }>>>;
+  setTestimonialsContent: React.Dispatch<React.SetStateAction<Array<{ quote: string; name: string; role: string }>>>;
+  setCtaContent: React.Dispatch<React.SetStateAction<{ title: string; desc: string; buttonText: string }>>;
+  onSelect: () => void;
+  onRename: (name: string) => void;
+  assetUrl: string;
+  logoUrl: string;
 }) {
   return (
     <div
@@ -1116,17 +1333,18 @@ function SectionRenderer({
         'relative group cursor-pointer transition-all',
         isSelected && 'outline-[3px] outline-pink outline-offset-[-3px] shadow-[inset_0_0_0_2px_#000]'
       )}
+      onClick={onSelect}
     >
       {/* Navigation Block */}
       {section.type === 'nav' && (
         <nav className="flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 border-black/10 bg-white/80 backdrop-blur-sm">
           <div className="flex items-center gap-2">
-            <div
+            {logoUrl ? <NextImage src={logoUrl} alt={`${siteTitle} logo`} width={32} height={32} unoptimized className="h-8 w-8 rounded-lg object-contain" /> : <div
               style={{ backgroundColor: theme.primaryColor }}
               className="w-7 h-7 rounded-lg border-2 border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-display font-black text-xs text-black"
             >
               {siteTitle.charAt(0)}
-            </div>
+            </div>}
             <span className="font-display font-black text-sm sm:text-base text-ink tracking-tight">
               {siteTitle}
             </span>
@@ -1167,6 +1385,9 @@ function SectionRenderer({
             <div
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-black font-mono text-[10px] sm:text-[11px] font-black uppercase text-black shadow-[2px_2px_0px_#000]"
               style={{ backgroundColor: theme.primaryColor }}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={(e) => setHeroContent((prev) => ({ ...prev, badge: e.currentTarget.innerText }))}
             >
               <span>{heroContent.badge}</span>
             </div>
@@ -1176,6 +1397,7 @@ function SectionRenderer({
               className="font-display text-2xl sm:text-5xl font-black tracking-tight leading-tight outline-none focus:ring-2 focus:ring-pink rounded-lg p-1"
               contentEditable
               suppressContentEditableWarning
+              onInput={(e) => setHeroContent((prev) => ({ ...prev, title: e.currentTarget.innerText }))}
             >
               {heroContent.title}
             </h1>
@@ -1185,6 +1407,7 @@ function SectionRenderer({
               className="font-mono text-xs sm:text-sm opacity-80 max-w-lg mx-auto leading-relaxed outline-none focus:ring-2 focus:ring-pink rounded-lg p-1"
               contentEditable
               suppressContentEditableWarning
+              onInput={(e) => setHeroContent((prev) => ({ ...prev, description: e.currentTarget.innerText }))}
             >
               {heroContent.description}
             </p>
@@ -1196,30 +1419,30 @@ function SectionRenderer({
                 style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
                 className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-black font-display text-xs sm:text-sm font-black text-black shadow-[2.5px_2.5px_0px_#000] flex items-center gap-1.5 cursor-pointer"
               >
-                <span>{heroContent.ctaPrimary}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, ctaPrimary: e.currentTarget.innerText }))}>{heroContent.ctaPrimary}</span>
                 <ArrowUpRight size={14} className="stroke-[3]" />
               </button>
               <button
                 type="button"
                 className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl border-2 border-current bg-white/10 hover:bg-white/20 font-mono text-xs sm:text-sm font-bold transition-all cursor-pointer"
               >
-                {heroContent.ctaSecondary}
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, ctaSecondary: e.currentTarget.innerText }))}>{heroContent.ctaSecondary}</span>
               </button>
             </div>
 
             {/* Live Telemetry Radar Pills */}
             <div className="pt-4 sm:pt-6 grid grid-cols-2 gap-2 sm:gap-3 max-w-md mx-auto text-left">
               <div className="rounded-xl border border-current/20 bg-white/5 p-2.5 sm:p-3 backdrop-blur-sm">
-                <span className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat1Label: e.currentTarget.innerText }))} className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
                   {heroContent.stat1Label}
                 </span>
-                <span className="font-display text-sm sm:text-base font-black">{heroContent.stat1Value}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat1Value: e.currentTarget.innerText }))} className="font-display text-sm sm:text-base font-black">{heroContent.stat1Value}</span>
               </div>
               <div className="rounded-xl border border-current/20 bg-white/5 p-2.5 sm:p-3 backdrop-blur-sm">
-                <span className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat2Label: e.currentTarget.innerText }))} className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
                   {heroContent.stat2Label}
                 </span>
-                <span className="font-display text-sm sm:text-base font-black">{heroContent.stat2Value}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat2Value: e.currentTarget.innerText }))} className="font-display text-sm sm:text-base font-black">{heroContent.stat2Value}</span>
               </div>
             </div>
           </div>
@@ -1230,7 +1453,7 @@ function SectionRenderer({
       {section.type === 'features' && (
         <div className="py-12 sm:py-16 px-4 sm:px-12 bg-white text-black border-y-2 border-black/10">
           <div className="text-center max-w-xl mx-auto mb-8 space-y-1">
-            <h2 className="font-display text-xl sm:text-3xl font-black tracking-tight" contentEditable suppressContentEditableWarning>
+            <h2 className="font-display text-xl sm:text-3xl font-black tracking-tight" contentEditable suppressContentEditableWarning onInput={(e) => onRename(e.currentTarget.innerText)}>
               Engineered for hyper-scale precision.
             </h2>
           </div>
@@ -1247,10 +1470,10 @@ function SectionRenderer({
                 >
                   0{i + 1}
                 </div>
-                <h3 className="font-display font-black text-sm sm:text-base mb-1" contentEditable suppressContentEditableWarning>
+                <h3 className="font-display font-black text-sm sm:text-base mb-1" contentEditable suppressContentEditableWarning onInput={(e) => setFeaturesContent((prev) => prev.map((item, index) => index === i ? { ...item, title: e.currentTarget.innerText } : item))}>
                   {f.title}
                 </h3>
-                <p className="font-mono text-xs text-neutral-600 leading-relaxed" contentEditable suppressContentEditableWarning>
+                <p className="font-mono text-xs text-neutral-600 leading-relaxed" contentEditable suppressContentEditableWarning onInput={(e) => setFeaturesContent((prev) => prev.map((item, index) => index === i ? { ...item, desc: e.currentTarget.innerText } : item))}>
                   {f.desc}
                 </p>
               </div>
@@ -1263,7 +1486,7 @@ function SectionRenderer({
       {section.type === 'testimonials' && (
         <div className="py-12 sm:py-16 px-4 sm:px-12 bg-[#FFFDF8] text-black">
           <div className="text-center max-w-xl mx-auto mb-8">
-            <h2 className="font-display text-xl sm:text-3xl font-black">
+            <h2 className="font-display text-xl sm:text-3xl font-black" contentEditable suppressContentEditableWarning onInput={(e) => onRename(e.currentTarget.innerText)}>
               Trusted by world-class teams.
             </h2>
           </div>
@@ -1276,7 +1499,7 @@ function SectionRenderer({
                     <Star key={i} size={13} className="fill-yellow text-black stroke-[1.5]" />
                   ))}
                 </div>
-                <p className="font-mono text-xs sm:text-[13px] leading-relaxed mb-4 text-neutral-800" contentEditable suppressContentEditableWarning>
+                <p className="font-mono text-xs sm:text-[13px] leading-relaxed mb-4 text-neutral-800" contentEditable suppressContentEditableWarning onInput={(e) => setTestimonialsContent((prev) => prev.map((item, index) => index === idx ? { ...item, quote: e.currentTarget.innerText.replace(/[“”\"]/g, '') } : item))}>
                   &ldquo;{item.quote}&rdquo;
                 </p>
                 <div className="pt-3 border-t border-black/10 flex items-center gap-2">
@@ -1284,8 +1507,8 @@ function SectionRenderer({
                     {item.name.charAt(0)}
                   </div>
                   <div>
-                    <h4 className="font-display font-black text-xs text-black">{item.name}</h4>
-                    <p className="font-mono text-[9px] sm:text-[10px] text-neutral-500">{item.role}</p>
+                    <h4 contentEditable suppressContentEditableWarning onInput={(e) => setTestimonialsContent((prev) => prev.map((entry, index) => index === idx ? { ...entry, name: e.currentTarget.innerText } : entry))} className="font-display font-black text-xs text-black">{item.name}</h4>
+                    <p contentEditable suppressContentEditableWarning onInput={(e) => setTestimonialsContent((prev) => prev.map((entry, index) => index === idx ? { ...entry, role: e.currentTarget.innerText } : entry))} className="font-mono text-[9px] sm:text-[10px] text-neutral-500">{item.role}</p>
                   </div>
                 </div>
               </div>
@@ -1298,10 +1521,10 @@ function SectionRenderer({
       {section.type === 'cta' && (
         <div className="py-12 sm:py-16 px-4 sm:px-12 bg-black text-white text-center relative overflow-hidden">
           <div className="relative z-10 max-w-lg mx-auto space-y-3">
-            <h2 className="font-display text-xl sm:text-3xl font-black" contentEditable suppressContentEditableWarning>
+            <h2 className="font-display text-xl sm:text-3xl font-black" contentEditable suppressContentEditableWarning onInput={(e) => setCtaContent((prev) => ({ ...prev, title: e.currentTarget.innerText }))}>
               {ctaContent.title}
             </h2>
-            <p className="font-mono text-xs sm:text-sm text-neutral-400" contentEditable suppressContentEditableWarning>
+            <p className="font-mono text-xs sm:text-sm text-neutral-400" contentEditable suppressContentEditableWarning onInput={(e) => setCtaContent((prev) => ({ ...prev, desc: e.currentTarget.innerText }))}>
               {ctaContent.desc}
             </p>
             <div className="pt-2">
@@ -1310,7 +1533,7 @@ function SectionRenderer({
                 style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
                 className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-white font-display text-xs sm:text-sm font-black text-black shadow-[3px_3px_0px_#FFFFFF] cursor-pointer"
               >
-                {ctaContent.buttonText}
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setCtaContent((prev) => ({ ...prev, buttonText: e.currentTarget.innerText }))}>{ctaContent.buttonText}</span>
               </button>
             </div>
           </div>
@@ -1331,6 +1554,48 @@ function SectionRenderer({
             <span className="hover:text-black cursor-pointer">Security</span>
           </div>
         </footer>
+      )}
+      {['gallery', 'pricing', 'contact'].includes(section.type) && (
+        <section className="py-12 sm:py-16 px-4 sm:px-12 bg-[#FAF9F6] text-black">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-8">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-widest" style={{ color: theme.primaryColor }}>{siteTitle}</p>
+              <h2 contentEditable suppressContentEditableWarning onInput={(e) => onRename(e.currentTarget.innerText)} className="font-display text-2xl sm:text-3xl font-black mt-2">
+                {section.name}
+              </h2>
+              <p className="font-mono text-xs text-neutral-600 mt-2">Thoughtfully selected for your everyday, made to last.</p>
+            </div>
+            {section.type === 'contact' ? (
+              <form className="max-w-lg mx-auto grid gap-3" onSubmit={(event) => { event.preventDefault(); window.alert('Thanks for reaching out!'); }}>
+                <input required aria-label="Your name" placeholder="Your name" className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
+                <input required type="email" aria-label="Email address" placeholder="Email address" className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
+                <textarea required aria-label="Message" placeholder="How can we help?" rows={4} className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
+                <button className="rounded-xl border-2 border-black px-4 py-3 font-display font-black shadow-[3px_3px_0px_#000]" style={{ backgroundColor: theme.primaryColor }}>Send message</button>
+              </form>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                {['Everyday Essential', 'Signature Piece', 'The New Classic'].map((product, index) => (
+                  <article key={product} className="overflow-hidden rounded-2xl border-2 border-black bg-white shadow-[3px_3px_0px_#000]">
+                    <div className="h-36 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${theme.primaryColor}55, ${theme.primaryColor}15)` }}>
+                      {assetUrl ? <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={assetUrl} alt={product} className="h-full w-full object-cover" />
+                      </> : <span className="font-display text-4xl font-black" aria-hidden="true">{['01', '02', '03'][index]}</span>}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-display font-black">{product}</h3>
+                      <p className="font-mono text-xs text-neutral-500 mt-1">Premium materials · Made with care</p>
+                      <div className="flex items-center justify-between mt-4">
+                        <span className="font-display font-black">${[68, 124, 92][index]}.00</span>
+                        <button type="button" onClick={() => window.alert(`${product} added to your bag`)} className="rounded-lg border-2 border-black px-3 py-1.5 font-mono text-[10px] font-black" style={{ backgroundColor: theme.primaryColor }}>Add to bag</button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
       )}
     </div>
   );
@@ -1364,20 +1629,20 @@ function SectionProperties({
           Typography
         </div>
         <div className="flex items-center gap-1.5">
-          <button type="button" className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+          <button type="button" title="Bold selection" onMouseDown={(event) => { event.preventDefault(); document.execCommand('bold'); }} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
             <Bold size={13} className="stroke-[3]" />
           </button>
-          <button type="button" className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+          <button type="button" title="Italicize selection" onMouseDown={(event) => { event.preventDefault(); document.execCommand('italic'); }} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
             <Italic size={13} className="stroke-[3]" />
           </button>
           <div className="flex-1 h-px bg-black/10" />
-          <button type="button" className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+          <button type="button" title="Align left" onMouseDown={(event) => { event.preventDefault(); document.execCommand('justifyLeft'); }} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
             <AlignLeft size={13} />
           </button>
-          <button type="button" className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+          <button type="button" title="Align center" onMouseDown={(event) => { event.preventDefault(); document.execCommand('justifyCenter'); }} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
             <AlignCenter size={13} />
           </button>
-          <button type="button" className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+          <button type="button" title="Align right" onMouseDown={(event) => { event.preventDefault(); document.execCommand('justifyRight'); }} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
             <AlignRight size={13} />
           </button>
         </div>
@@ -1448,16 +1713,19 @@ function PublishDialog({
   onClose, 
   siteName, 
   templateId, 
+  isPro,
   sitePayload 
 }: { 
   onClose: () => void; 
   siteName: string; 
   templateId: string; 
+  isPro: boolean;
   sitePayload?: Record<string, unknown>;
 }) {
   const [step, setStep] = useState<'form' | 'publishing' | 'success'>('form');
   const [subdomain, setSubdomain] = useState(siteName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
   const [publishedUrl, setPublishedUrl] = useState('');
+  const [publishError, setPublishError] = useState('');
   const [copied, setCopied] = useState(false);
   const [copiedDomain, setCopiedDomain] = useState(false);
 
@@ -1475,6 +1743,7 @@ function PublishDialog({
   };
 
   const handlePublish = async () => {
+    setPublishError('');
     setStep('publishing');
     // Save to localStorage immediately so live preview works with 100% fidelity
     if (typeof window !== 'undefined' && sitePayload) {
@@ -1504,13 +1773,16 @@ function PublishDialog({
         }),
       });
       const data = await res.json();
-      if (data.site) {
-        setPublishedUrl(`/live/${data.site.subdomain}`);
-      } else {
-        setPublishedUrl(`/live/${subdomain}`);
+      if (!res.ok || !data.site) {
+        setPublishError(data.message || 'We could not publish this site. Please try again.');
+        setStep('form');
+        return;
       }
-    } catch {
-      setPublishedUrl(`/live/${subdomain}`);
+      setPublishedUrl(`/live/${data.site.subdomain}`);
+    } catch (error) {
+      setPublishError(error instanceof Error ? error.message : 'We could not publish this site. Please try again.');
+      setStep('form');
+      return;
     }
     await new Promise(r => setTimeout(r, 1000));
     setStep('success');
@@ -1542,13 +1814,14 @@ function PublishDialog({
 
         {step === 'form' && (
           <div className="space-y-4">
+            {publishError && <p role="alert" className="rounded-xl border-2 border-red-600 bg-red-50 p-3 font-mono text-xs font-bold text-red-800">{publishError}</p>}
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl border-2 border-black bg-pink flex items-center justify-center text-black shadow-[2px_2px_0px_#000]">
                 <Globe size={22} className="stroke-[2.5]" />
               </div>
               <div>
                 <h3 className="font-display font-black text-lg text-black leading-tight">
-                  Launchly Pro Hosting
+                  {isPro ? 'Launchly Pro Hosting' : 'Free Launchly Hosting'}
                 </h3>
                 <p className="font-mono text-xs text-neutral-500">
                   Deploy live directly on our platform domain
@@ -1562,7 +1835,7 @@ function PublishDialog({
                 🔒 HOSTED ON OUR LAUNCHLY DOMAIN
               </div>
               <div className="font-mono text-[11px] text-neutral-700 mt-0.5">
-                Pro accounts are provisioned under <strong>{subdomain}.launchly.site</strong> with instant live edge preview.
+                Your site is hosted at <strong>{subdomain}.launchly.site</strong>. {isPro ? 'Pro publishing has no Launchly watermark.' : 'Free published sites include a Launchly watermark.'}
               </div>
             </div>
 

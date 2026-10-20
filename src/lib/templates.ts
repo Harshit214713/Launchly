@@ -68,7 +68,7 @@ export const TEMPLATES: Template[] = [
     },
     sourceCodeAvailable: true,
     sourceCodeUrl: '/api/templates/luxe-store/source',
-    techStack: ['Next.js 15', 'Tailwind v4', 'TypeScript', 'Framer Motion', 'Stripe', 'Supabase', 'React Query']
+    techStack: ['Next.js 16', 'Tailwind v4', 'TypeScript', 'Framer Motion', 'Stripe', 'Supabase', 'React Query']
   },
   {
     id: 'velvet-boutique',
@@ -111,7 +111,7 @@ export const TEMPLATES: Template[] = [
     },
     sourceCodeAvailable: true,
     sourceCodeUrl: '/api/templates/velvet-boutique/source',
-    techStack: ['Next.js 15', 'Tailwind v4', 'TypeScript', 'Framer Motion', 'Stripe', 'Supabase', 'React Query']
+    techStack: ['Next.js 16', 'Tailwind v4', 'TypeScript', 'Framer Motion', 'Stripe', 'Supabase', 'React Query']
   },
 ];
 
