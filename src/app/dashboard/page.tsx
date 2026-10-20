@@ -11,7 +11,7 @@ import {
   Loader2, ExternalLink, Mail, Zap, CheckCircle2, Crown
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { TEMPLATES } from '@/lib/templates';
+import { getTemplateById, TEMPLATES } from '@/lib/templates';
 import { cn, formatDate } from '@/lib/utils';
 import BrandWordmark from '@/components/BrandWordmark';
 import { scrollToSection } from '@/lib/navigation';
@@ -831,7 +831,7 @@ export default function Dashboard() {
                     <div className="p-3.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#181824] shadow-brutal-xs">
                       <span className="font-mono text-xs font-black text-pink block mb-1">01 / CHOOSE</span>
                       <span className="font-display text-xs font-black text-black dark:text-white block">Pick a Template</span>
-                      <span className="font-mono text-[10px] text-neutral-500">12+ responsive templates ready to deploy.</span>
+                      <span className="font-mono text-[10px] text-neutral-500">Two complete stores, ready to customize and deploy.</span>
                     </div>
 
                     <div className="p-3.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#181824] shadow-brutal-xs">
@@ -876,13 +876,13 @@ export default function Dashboard() {
                       + Create Another Website
                     </div>
                     <div className="font-mono text-[11px] text-neutral-500 mt-0.5">
-                      Choose from 12+ templates
+                      Choose Fresh Crate or Volt Gear
                     </div>
                   </div>
                 </Link>
 
                 {filteredWebsites.map((website) => {
-                  const template = TEMPLATES.find(t => t.id === website.templateId) || TEMPLATES[0];
+                  const template = getTemplateById(website.templateId) || TEMPLATES[0];
 
                   return (
                     <div

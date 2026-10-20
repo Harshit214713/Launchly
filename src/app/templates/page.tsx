@@ -6,7 +6,7 @@ import TemplatesPageContent from './TemplatesPageContent';
 
 export const metadata: Metadata = {
   title: 'Templates — Launchly',
-  description: 'Browse 50+ professionally designed website templates. Filter by category and customize to match your brand.',
+  description: 'Choose a complete ecommerce storefront, then customize every page to match your brand.',
 };
 
 export default function TemplatesPage() {

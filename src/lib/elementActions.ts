@@ -1,4 +1,4 @@
-export type ButtonTarget = 'url' | 'page' | 'anchor' | 'email' | 'phone';
+export type ButtonTarget = 'url' | 'page' | 'anchor' | 'email' | 'phone' | 'whatsapp' | 'telegram' | 'discord' | 'download' | 'back-to-top';
 export type AnimationPreset = 'fade-in' | 'slide-up' | 'slide-left' | 'zoom-in' | 'float' | 'pulse';
 
 const animationClasses: Record<AnimationPreset, string> = {
@@ -16,15 +16,26 @@ export function getAnimationClass(preset?: string): string {
 
 export function resolveButtonHref(target: ButtonTarget, value: string, pages: Array<{ id: string; slug?: string; isHome?: boolean }>, pagePrefix = ''): string {
   const normalized = value.trim();
+  if (target === 'back-to-top') return '#top';
   if (!normalized) return '#';
   if (target === 'email') return `mailto:${normalized.replace(/^mailto:/i, '')}`;
   if (target === 'phone') return `tel:${normalized.replace(/^tel:/i, '')}`;
+  if (target === 'whatsapp') return `https://wa.me/${normalized.replace(/\D/g, '')}`;
+  if (target === 'telegram') return `https://t.me/${normalized.replace(/^@/, '').replace(/^https?:\/\/(www\.)?t\.me\//i, '')}`;
+  if (target === 'discord') return safeWebUrl(normalized);
   if (target === 'anchor') return `#${normalized.replace(/^#/, '')}`;
   if (target === 'page') {
     const page = pages.find((entry) => entry.id === normalized);
-    return page ? `${pagePrefix}${page.isHome ? '' : page.slug}` || '/' : '#';
+    if (!page) return '#';
+    if (page.isHome) return pagePrefix || '/';
+    const slug = (page.slug || '').replace(/^\/+|\/+$/g, '');
+    return `${pagePrefix.replace(/\/$/, '')}/${slug}` || '/';
   }
-  if (/^(https?:\/\/|mailto:|tel:|\/|#)/i.test(normalized)) return normalized;
-  if (/^[a-z][a-z\d+.-]*:/i.test(normalized)) return '#';
-  return `https://${normalized}`;
+  return safeWebUrl(normalized);
+}
+
+function safeWebUrl(value: string): string {
+  if (/^(https?:\/\/|\/|#)/i.test(value)) return value;
+  if (/^[a-z][a-z\d+.-]*:/i.test(value)) return '#';
+  return `https://${value}`;
 }

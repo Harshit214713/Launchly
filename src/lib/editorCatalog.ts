@@ -1,3 +1,5 @@
+import { extraCatalogItems } from '@/lib/editorCatalogExtras';
+
 export type EditorPlan = 'free' | 'pro';
 export type EditorPaletteCategory = 'layout' | 'text' | 'buttons' | 'media' | 'navigation' | 'parts' | 'forms' | 'interactive';
 export type EditorCatalogItem = { id: string; label: string; description: string; category: EditorPaletteCategory; plan: EditorPlan };
@@ -5,7 +7,7 @@ export type EditorCatalogItem = { id: string; label: string; description: string
 const free = (category: EditorPaletteCategory, entries: Array<[string, string, string]>): EditorCatalogItem[] => entries.map(([id, label, description]) => ({ id, label, description, category, plan: 'free' }));
 const pro = (category: EditorPaletteCategory, entries: Array<[string, string, string]>): EditorCatalogItem[] => entries.map(([id, label, description]) => ({ id: `pro:${id}`, label, description, category, plan: 'pro' }));
 
-export const editorCatalog: EditorCatalogItem[] = [
+const editorCatalogCore: EditorCatalogItem[] = [
   ...free('layout', [
     ['layout:section', 'Section', 'Add a full-width section.'], ['layout:columns-1', 'Container', 'Add a single-column content container.'],
     ['layout:columns-2', '2-column row', 'Add a responsive two-column row.'], ['layout:columns-3', '3-column row', 'Add a responsive three-column row.'], ['layout:columns-4', '4-column row', 'Add a responsive four-column row.'],
@@ -29,7 +31,7 @@ export const editorCatalog: EditorCatalogItem[] = [
     ['free:services', 'Services', 'List services and descriptions.'], ['free:logo-cloud', 'Logo cloud', 'Show partner or client logos.'], ['free:not-found', '404 page', 'Add a custom not-found page section.'],
   ]),
   ...free('forms', [
-    ['basic:form', 'Contact form', 'Name, email, and message fields with limited free submissions.'], ['free:newsletter-form', 'Newsletter form', 'Simple email signup with limited free submissions.'],
+    ['basic:form', 'Contact form', 'Collect name, email, and message details.'], ['free:newsletter-form', 'Newsletter form', 'Collect email signups.'],
   ]),
   ...free('interactive', [
     ['free:accordion', 'Accordion', 'Expandable content rows.'], ['free:tabs', 'Tabs', 'Switch between simple content panels.'], ['free:scroll-fade', 'Scroll animation · Fade', 'Fade this section in as visitors scroll.'], ['free:scroll-slide', 'Scroll animation · Slide', 'Slide this section in as visitors scroll.'],
@@ -62,6 +64,11 @@ export const editorCatalog: EditorCatalogItem[] = [
     ['tooltip', 'Tooltip', 'Show contextual helper text.'], ['modal', 'Modal', 'Open interactive dialog content.'], ['parallax', 'Parallax background', 'Move the background at a different scroll speed.'], ['hover-effects', 'Advanced hover effects', 'Animate element states on hover.'], ['toggle', 'Toggle switch', 'Switch between paired content states.'], ['deep-link-tabs', 'Deep-link tabs', 'Link directly to a selected tab.'],
   ]),
 ];
+
+export const editorCatalog: EditorCatalogItem[] = [
+  ...editorCatalogCore,
+  ...extraCatalogItems.filter((extra) => !editorCatalogCore.some((item) => item.label.toLocaleLowerCase() === extra.label.toLocaleLowerCase())),
+].map((item) => ({ ...item, label: item.label.charAt(0).toUpperCase() + item.label.slice(1), plan: 'free' as const }));
 
 export const paletteCategories: Array<{ id: EditorPaletteCategory; label: string }> = [
   { id: 'layout', label: 'Layout' }, { id: 'text', label: 'Text' }, { id: 'buttons', label: 'Buttons' }, { id: 'media', label: 'Media' },

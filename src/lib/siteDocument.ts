@@ -16,7 +16,7 @@ export type SectionStyle = {
 };
 // Section blocks are template-defined; their nested item arrays can contain structured objects.
 export type SectionContent = Record<string, unknown>;
-export type ElementType = 'heading' | 'text' | 'button' | 'image' | 'video' | 'icon' | 'spacer' | 'divider' | 'form' | 'card' | 'gallery' | 'html' | 'list' | 'block';
+export type ElementType = 'heading' | 'text' | 'button' | 'image' | 'video' | 'icon' | 'spacer' | 'divider' | 'form' | 'card' | 'gallery' | 'html' | 'list' | 'block' | 'quote' | 'badge' | 'numbered-list' | 'image-caption' | 'accordion' | 'tabs' | 'social-links' | 'anchor';
 export type Responsive<T> = Partial<Record<Device, T>>;
 export type ElementStyle = {
   color?: string;
@@ -32,11 +32,20 @@ export type ElementStyle = {
   borderRadius?: number;
   shadow?: string;
   maxWidth?: number;
+  width?: number;
+  position?: 'static' | 'relative' | 'absolute' | 'sticky';
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+  zIndex?: number;
   visibility?: Responsive<boolean>;
   animation?: string;
   customClass?: string;
 };
-export type SiteElement = { id: string; type: ElementType; content: SectionContent; style: ElementStyle; hidden?: Responsive<boolean>; locked?: boolean; anchorId?: string; customClass?: string };
+export type ElementPosition = { x: number; y: number; width: number; height: number; rotation: number; zIndex: number };
+export type ElementInteraction = { id: string; trigger: 'click' | 'hover' | 'scroll-into-view'; action: 'navigate' | 'scroll-to' | 'open-modal' | 'toggle' | 'copy' | 'play-video' | 'add-to-cart'; target?: string; value?: string; durationMs?: number; delayMs?: number; easing?: 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' };
+export type SiteElement = { id: string; type: ElementType; name?: string; content: SectionContent; style: ElementStyle; responsive?: Partial<Record<Device, Partial<ElementStyle>>>; position?: Responsive<ElementPosition>; interactions?: ElementInteraction[]; animation?: { entrance?: string; hover?: string; durationMs?: number; delayMs?: number }; hidden?: Responsive<boolean>; locked?: boolean; anchorId?: string; customClass?: string };
 export type Column = { id: string; width: Responsive<number>; style: ElementStyle; elements: SiteElement[]; hidden?: Responsive<boolean> };
 export type Section = {
   id: string;
@@ -49,7 +58,10 @@ export type Section = {
   anchorId?: string;
   customClass?: string;
   locked: boolean;
+  layoutMode?: 'flow' | 'free';
 };
+export type CollectionFieldType = 'text' | 'rich-text' | 'image' | 'gallery' | 'number' | 'price' | 'date' | 'boolean' | 'select' | 'reference' | 'url';
+export type ContentCollection = { id: string; name: string; fields: Array<{ id: string; name: string; type: CollectionFieldType; required?: boolean; options?: string[] }>; records: Array<{ id: string; values: Record<string, unknown> }> };
 export type SitePage = {
   id: string;
   slug: string;
@@ -80,7 +92,7 @@ export type Theme = {
 };
 export type SiteAsset = { id: string; name: string; role: 'logo' | 'favicon' | 'product' | 'image' | 'icon'; src: string; alt: string; sizeBytes?: number; width?: number; height?: number; folder?: string };
 export type SiteDocument = {
-  version: 2;
+  version: 3;
   id: string;
   name: string;
   templateId: string;
@@ -90,6 +102,7 @@ export type SiteDocument = {
   menu: MenuItem[];
   pages: SitePage[];
   assets: SiteAsset[];
+  collections: ContentCollection[];
   settings: { subdomain: string; status: 'draft' | 'published'; customCss: string };
   content: {
     hero: Record<string, string>;
@@ -133,6 +146,7 @@ export function makeSection(type: string, id: string, name?: string, style: Sect
     columns: [{ id: `${id}-column-1`, width: { desktop: 12, tablet: 12, mobile: 12 }, style: {}, elements: [{ id: `${id}-block`, type: 'block', content: { blockType: type, ...structuredClone(content) }, style: {} }] }],
     hidden: { desktop: false, tablet: false, mobile: false },
     locked: false,
+    layoutMode: 'flow',
   };
 }
 
@@ -141,13 +155,14 @@ function normalizeSection(section: Section): Section {
   const primaryColumn = columns[0];
   const blockElement = primaryColumn?.elements.find((element) => element.type === 'block');
   if (blockElement) blockElement.content = { blockType: section.type, ...structuredClone(section.content) };
-  return { ...section, columns };
+  return { ...section, layoutMode: section.layoutMode || 'flow', columns };
 }
 
 function normalizeDocument(document: SiteDocument): SiteDocument {
   return {
     ...document,
-    version: 2,
+    version: 3,
+    collections: document.collections || [],
     pages: document.pages.map((page) => ({ ...page, sections: page.sections.map(normalizeSection) })),
   };
 }
@@ -159,7 +174,7 @@ export function createSiteDocument(input: {
   cta: { title: string; desc: string; buttonText: string };
   sectionSpacing?: Record<string, { top?: number; right?: number; bottom?: number; left?: number }>;
   elements?: SitePage['elements'];
-  pages?: Array<{ id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; noindex?: boolean; ogImage?: string; seoTitle?: string; useSharedHeader?: boolean; useSharedFooter?: boolean; oldSlugs?: string[] }>;
+  pages?: Array<{ id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; noindex?: boolean; ogImage?: string; seoTitle?: string; useSharedHeader?: boolean; useSharedFooter?: boolean; oldSlugs?: string[]; sections?: Section[] }>;
   assetUrl?: string; logoUrl?: string; faviconUrl?: string;
   assets?: SiteAsset[];
 }): SiteDocument {
@@ -177,14 +192,14 @@ export function createSiteDocument(input: {
   const additionalPages = (input.pages || []).filter((page) => page.id !== 'home').map((page) => {
     const slug = ids(page.id || page.title);
     const pageSlug = page.slug?.replace(/^\/+/, '') || slug;
-    return { id: page.id, slug: `/${pageSlug}`, title: page.title, isHome: false, showInMenu: page.showInMenu !== false, seo: { title: page.seoTitle || page.title, description: page.description, ogImage: page.ogImage || '', noindex: page.noindex || false }, sections: [makeSection('hero', `${page.id}-hero`, 'Hero', {}, { title: page.title, description: page.description })], elements: [], useSharedHeader: page.useSharedHeader !== false, useSharedFooter: page.useSharedFooter !== false, oldSlugs: page.oldSlugs || [] } satisfies SitePage;
+    return { id: page.id, slug: `/${pageSlug}`, title: page.title, isHome: false, showInMenu: page.showInMenu !== false, seo: { title: page.seoTitle || page.title, description: page.description, ogImage: page.ogImage || '', noindex: page.noindex || false }, sections: page.sections?.length ? page.sections : [makeSection('hero', `${page.id}-hero`, 'Hero', {}, { title: page.title, description: page.description })], elements: [], useSharedHeader: page.useSharedHeader !== false, useSharedFooter: page.useSharedFooter !== false, oldSlugs: page.oldSlugs || [] } satisfies SitePage;
   });
   const assets: SiteAsset[] = (input.assets || []).filter((asset) => asset.role === 'image' || asset.role === 'icon');
   for (const [role, src] of [['product', input.assetUrl], ['logo', input.logoUrl], ['favicon', input.faviconUrl]] as const) if (src) assets.push({ id: `${role}-asset`, name: role, role, src, alt: role === 'logo' ? `${input.name} logo` : '' });
   return {
-    version: 2, id: input.id, name: input.name, templateId: input.templateId, theme,
+    version: 3, id: input.id, name: input.name, templateId: input.templateId, theme,
     header: { sticky: true, mobileMenu: true }, footer: { enabled: true },
-    menu: additionalPages.filter((page) => page.showInMenu).map((page) => ({ id: `menu-${page.id}`, label: page.title, target: { type: 'page' as const, value: page.id }, newTab: false })), pages: [home, ...additionalPages], assets, settings: { subdomain: ids(input.name), status: 'draft', customCss: '' },
+    menu: additionalPages.filter((page) => page.showInMenu).map((page) => ({ id: `menu-${page.id}`, label: page.title, target: { type: 'page' as const, value: page.id }, newTab: false })), pages: [home, ...additionalPages], assets, collections: [], settings: { subdomain: ids(input.name), status: 'draft', customCss: '' },
     content: { hero: input.hero, features: input.features, testimonials: input.testimonials, cta: input.cta },
   };
 }
@@ -192,8 +207,8 @@ export function createSiteDocument(input: {
 export function migrateSiteDocument(raw: unknown, defaults: SiteDocument): SiteDocument {
   if (!raw || typeof raw !== 'object') return defaults;
   const data = raw as LegacySiteData & { document?: unknown; version?: number };
-  if (data.document && typeof data.document === 'object' && [1, 2].includes((data.document as { version?: number }).version || 0)) return normalizeDocument(data.document as SiteDocument);
-  if ([1, 2].includes(data.version || 0) && Array.isArray((raw as SiteDocument).pages) && (raw as SiteDocument).theme) return normalizeDocument(raw as SiteDocument);
+  if (data.document && typeof data.document === 'object' && [1, 2, 3].includes((data.document as { version?: number }).version || 0)) return normalizeDocument(data.document as SiteDocument);
+  if ([1, 2, 3].includes(data.version || 0) && Array.isArray((raw as SiteDocument).pages) && (raw as SiteDocument).theme) return normalizeDocument(raw as SiteDocument);
   const doc = structuredClone(defaults);
   doc.name = data.siteName || data.name || doc.name;
   doc.templateId = data.templateId || doc.templateId;

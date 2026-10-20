@@ -40,6 +40,11 @@ const definitions: Array<Omit<BlockDefinition, 'defaultStyle'>> = [
   { type: 'image-text', label: 'Image and text', category: 'media', description: 'Pair a photo with a story', defaultContent: { heading: 'Made with intention', body: 'Share the story behind your work and what makes it different.', image: '' } },
   { type: 'divider', label: 'Divider', category: 'structure', description: 'Create visual separation between sections', defaultContent: { label: '' } },
   { type: 'announcement', label: 'Announcement bar', category: 'business', description: 'Share a timely announcement', defaultContent: { text: 'A little something new. Explore what is coming next.', linkLabel: 'Learn more' } },
+  { type: 'anchor', label: 'Anchor point', category: 'structure', description: 'Create a target for on-page links', defaultContent: { heading: 'Anchor point', description: 'Set its ID in section properties.' } },
+  { type: 'breadcrumbs', label: 'Breadcrumbs', category: 'structure', description: 'Show the current page path', defaultContent: { heading: 'Breadcrumbs' } },
+  { type: 'services', label: 'Services', category: 'business', description: 'List your services', defaultContent: { heading: 'Our services', items: [{ title: 'Consulting', desc: 'Practical guidance for your next step.' }, { title: 'Design', desc: 'Thoughtful solutions shaped around your needs.' }, { title: 'Support', desc: 'Help from a team that knows your work.' }] } },
+  { type: 'logo-cloud', label: 'Logo cloud', category: 'media', description: 'Show partner and client logos', defaultContent: { heading: 'Trusted by', items: [{ title: 'Partner one', image: '' }, { title: 'Partner two', image: '' }, { title: 'Partner three', image: '' }] } },
+  { type: 'not-found', label: '404 page', category: 'content', description: 'Add a custom not-found section', defaultContent: { heading: 'Page not found', description: 'The page you are looking for may have moved or no longer exists.', buttonText: 'Back home' } },
 ];
 
 export const blockRegistry: Record<string, BlockDefinition> = Object.fromEntries(definitions.map((block) => [block.type, { ...block, defaultStyle: {} }]));

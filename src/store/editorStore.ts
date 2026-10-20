@@ -75,11 +75,6 @@ function mapColumn(document: SiteDocument, pageId: string, sectionId: string, co
   return mapSection(document, pageId, sectionId, (section) => ({ ...section, columns: (section.columns || []).map((column) => column.id === columnId ? update(column) : column) }));
 }
 
-function mapElement(document: SiteDocument, pageId: string, sectionId: string, columnId: string, elementId: string, update: (element: SiteElement) => SiteElement): SiteDocument {
-  if (!document.pages.some((page) => page.id === pageId && page.sections.some((section) => section.id === sectionId && section.columns?.some((column) => column.id === columnId && column.elements.some((element) => element.id === elementId))))) return document;
-  return mapColumn(document, pageId, sectionId, columnId, (column) => ({ ...column, elements: column.elements.map((element) => element.id === elementId ? update(element) : element) }));
-}
-
 function uniqueSlug(value: string, pages: SitePage[], excludeId?: string): string {
   const base = makeSlug(value);
   const safeBase = reservedSlugs.has(base) ? `${base}-page` : base;
@@ -191,7 +186,18 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
       return { ...column, elements };
     })),
     deleteElement: (pageId, sectionId, columnId, elementId) => commit(set, get, (document) => mapColumn(document, pageId, sectionId, columnId, (column) => ({ ...column, elements: column.elements.filter((element) => element.id !== elementId) }))),
-    updateElement: (pageId, sectionId, columnId, elementId, update, group) => commit(set, get, (document) => mapElement(document, pageId, sectionId, columnId, elementId, update), group),
+    updateElement: (pageId, sectionId, columnId, elementId, update, group) => commit(set, get, (document) => mapSection(document, pageId, sectionId, (section) => {
+      const column = section.columns?.find((entry) => entry.id === columnId);
+      const currentElement = column?.elements.find((entry) => entry.id === elementId);
+      if (!currentElement) return section;
+      const nextElement = update(currentElement);
+      const columns = (section.columns || []).map((entry) => entry.id !== columnId ? entry : ({ ...entry, elements: entry.elements.map((element) => element.id === elementId ? nextElement : element) }));
+      const isSectionRendererElement = section.type !== 'custom' && section.columns?.[0]?.id === columnId && column?.elements[0]?.id === elementId && currentElement.type === 'block';
+      if (!isSectionRendererElement) return { ...section, columns };
+      const content = { ...nextElement.content };
+      delete content.blockType;
+      return { ...section, content, columns };
+    }), group),
     addPage: (title, sections) => {
       const current = get().document;
       const slug = uniqueSlug(title, current.pages);
@@ -268,19 +274,20 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
     restoreVersion: (versionId) => {
       const version = get().versions.find((entry) => entry.id === versionId);
       if (!version) return false;
+      lastGroup = ''; lastEditAt = 0;
       commit(set, get, () => structuredClone(version.document));
       return true;
     },
-    undo: () => set((state) => {
+    undo: () => { lastGroup = ''; lastEditAt = 0; return set((state) => {
       if (!state.past.length) return state;
       const previous = state.past[state.past.length - 1];
       return { document: previous, past: state.past.slice(0, -1), future: [state.document, ...state.future], saveStatus: 'unsaved' };
-    }),
-    redo: () => set((state) => {
+    }); },
+    redo: () => { lastGroup = ''; lastEditAt = 0; return set((state) => {
       if (!state.future.length) return state;
       const [next, ...future] = state.future;
       return { document: next, past: [...state.past, state.document].slice(-50), future, saveStatus: 'unsaved' };
-    }),
+    }); },
     canUndo: () => get().past.length > 0,
     canRedo: () => get().future.length > 0,
   }));

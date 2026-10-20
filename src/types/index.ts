@@ -23,6 +23,7 @@ export interface Template {
   sourceCodeAvailable?: boolean;
   sourceCodeUrl?: string;
   techStack?: string[];
+  products?: Array<{ name: string; category: string; price: number; detail: string }>;
 }
 
 export type TemplateCategory = 'All' | 'SaaS' | 'AI' | 'Agency' | 'Portfolio' | 'Ecommerce' | 'Web3' | 'Media';

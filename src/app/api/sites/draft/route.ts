@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     if (!session?.id) return NextResponse.json({ success: false, message: 'Sign in to save this draft.' }, { status: 401 });
     const body = await request.json() as { document?: SiteDocument };
     const document = body.document;
-    if (!document || ![1, 2].includes(document.version) || !document.templateId || !document.name || !Array.isArray(document.pages) || document.pages.length === 0) {
+    if (!document || ![1, 2, 3].includes(document.version) || !document.templateId || !document.name || !Array.isArray(document.pages) || document.pages.length === 0) {
       return NextResponse.json({ success: false, message: 'The site document is incomplete or has an unsupported version.' }, { status: 400 });
     }
     const result = await saveDraftSite(document.templateId, document.name, document.settings.subdomain, session.id, document as unknown as Record<string, unknown>);

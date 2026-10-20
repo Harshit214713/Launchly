@@ -19,7 +19,7 @@ import {
   Lock,
   X,
 } from 'lucide-react';
-import { TEMPLATES } from '@/lib/templates';
+import { getTemplateById } from '@/lib/templates';
 import { notFound } from 'next/navigation';
 import PaymentModal from '@/components/PaymentModal';
 
@@ -37,7 +37,7 @@ export default function TemplatePreviewPage({
   params: Promise<{ templateId: string }> 
 }) {
   const { templateId } = use(params);
-  const template = TEMPLATES.find((t) => t.id === templateId);
+  const template = getTemplateById(templateId);
 
   if (!template) {
     notFound();
@@ -63,17 +63,7 @@ export default function TemplatePreviewPage({
   }, [template.id, template.pages]);
 
   const currentAccent = COLOR_PALETTES[activePalette].color || template.accent;
-  const products = template.id === 'velvet-boutique'
-    ? [
-        { name: 'The Cashmere Coat', category: 'Outerwear', price: 598, detail: 'Italian cashmere, tailored for a timeless silhouette.' },
-        { name: 'Velvet Evening Bag', category: 'Accessories', price: 248, detail: 'A sculptural velvet clutch with a polished brass clasp.' },
-        { name: 'Heirloom Gold Cuff', category: 'Jewelry', price: 328, detail: 'An everyday statement in recycled 18k gold vermeil.' },
-      ]
-    : [
-        { name: 'Silk Column Dress', category: 'New season', price: 189, detail: 'Fluid silk with a flattering, modern drape.' },
-        { name: 'The Everyday Tote', category: 'Bestseller', price: 128, detail: 'Soft Italian leather, sized for your daily essentials.' },
-        { name: 'Sculpted Gold Hoops', category: 'Jewelry', price: 78, detail: 'Lightweight hoops finished in 14k gold vermeil.' },
-      ];
+  const products = template.products || [];
   const visibleProducts = activeSection.includes('wishlist')
     ? products.filter((product) => wishlist.includes(product.name))
     : products;

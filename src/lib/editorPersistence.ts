@@ -39,6 +39,27 @@ async function writeValue(store: 'drafts' | 'versions', key: string, value: unkn
   });
 }
 
+async function migrateLegacyBrowserBackups(): Promise<void> {
+  if (typeof localStorage === 'undefined') return;
+  let keys: string[];
+  try { keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter((key): key is string => Boolean(key)); }
+  catch { return; }
+  for (const key of keys) {
+    const store = key.startsWith('launchly_site_') ? 'drafts' : key.startsWith('launchly_versions_') ? 'versions' : null;
+    if (!store) continue;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) { localStorage.removeItem(key); continue; }
+      const parsed: unknown = JSON.parse(raw);
+      const value = store === 'versions' && Array.isArray(parsed)
+        ? parsed.slice(-20).map((version) => version && typeof version === 'object' ? { ...version, document: compact((version as { document?: unknown }).document) } : version)
+        : parsed;
+      await writeValue(store, key.replace(store === 'drafts' ? 'launchly_site_' : 'launchly_versions_', ''), value);
+      localStorage.removeItem(key);
+    } catch { /* Keep a backup in browser storage if it cannot be moved safely. */ }
+  }
+}
+
 function compact(value: unknown): unknown {
   if (typeof value === 'string' && value.startsWith('data:image/')) return imageMarker;
   if (Array.isArray(value)) return value.map(compact);
@@ -74,6 +95,7 @@ export async function saveEditorDraft(id: string, document: SiteDocument): Promi
       localStorage.removeItem(`launchly_site_${id}`);
       localStorage.removeItem(`launchly_site_${document.settings.subdomain}`);
     } catch { /* Legacy browser storage can be unavailable. */ }
+    void migrateLegacyBrowserBackups();
     return;
   }
   catch { /* IndexedDB fallback below is size-capped and best-effort. */ }
@@ -87,7 +109,7 @@ export async function saveEditorDraft(id: string, document: SiteDocument): Promi
 export async function loadEditorVersions(id: string): Promise<SiteVersion[]> {
   try {
     const versions = await readValue<SiteVersion[]>('versions', id);
-    if (versions) return versions.slice(-8);
+    if (versions) return versions.slice(-20);
   } catch { /* Fall through to the compact localStorage backup. */ }
   try {
     const raw = localStorage.getItem(`launchly_versions_${id}`);
@@ -96,10 +118,11 @@ export async function loadEditorVersions(id: string): Promise<SiteVersion[]> {
 }
 
 export async function saveEditorVersions(id: string, versions: SiteVersion[]): Promise<boolean> {
-  const limited = versions.slice(-8);
+  const limited = versions.slice(-20);
   try {
     await writeValue('versions', id, limited.map((version) => ({ ...version, document: compact(version.document) as SiteDocument })));
     try { localStorage.removeItem(`launchly_versions_${id}`); } catch { /* Old quota-full entries are best-effort cleanup. */ }
+    void migrateLegacyBrowserBackups();
     return true;
   }
   catch { /* Keep the fallback compact enough for browser storage quotas. */ }
