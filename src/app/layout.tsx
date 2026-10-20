@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import CleanUrlManager from "@/components/CleanUrlManager";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -57,6 +58,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-[#faf8f5] dark:bg-[#0a0b12] text-[#111111] dark:text-[#f4f4f8] font-sans selection:bg-[#111111] selection:text-white dark:selection:bg-white dark:selection:text-black">
+        <CleanUrlManager />
         {children}
       </body>
     </html>

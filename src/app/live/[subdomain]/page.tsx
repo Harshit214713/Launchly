@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 import { Template } from '@/types';
+import SocialShareModal from '@/components/SocialShareModal';
 
 export default function LiveWebsitePage({
   params
@@ -22,6 +23,7 @@ export default function LiveWebsitePage({
   const { subdomain } = use(params);
   const [copied, setCopied] = useState(false);
   const [bannerCollapsed, setBannerCollapsed] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Template matching: match by subdomain or template id
   const template: Template = 
@@ -189,12 +191,12 @@ export default function LiveWebsitePage({
 
           <div className="flex items-center gap-2">
             <button
-              onClick={handleCopyLink}
-              className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-white/80 transition-colors cursor-pointer"
-              title="Copy live link"
+              onClick={() => setShowShareModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition-colors cursor-pointer"
+              title="Share site & dynamic OG card"
             >
-              {copied ? <Check size={12} className="text-mint stroke-[3]" /> : <Share2 size={12} />}
-              <span>{copied ? 'Copied' : 'Share'}</span>
+              <Share2 size={12} />
+              <span>Share &amp; OG Card</span>
             </button>
 
             <Link
@@ -455,6 +457,20 @@ export default function LiveWebsitePage({
           </div>
         </footer>
       </main>
+
+      {/* Social Share & OG Card Modal */}
+      {showShareModal && (
+        <SocialShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          title={siteTitle}
+          description={heroContent.description || 'High-performance digital presence powered by Launchly.'}
+          badge={`${template.category} // LIVE ARCHITECTURE`}
+          accent={theme.primaryColor}
+          bgColor={theme.bgColor}
+          subdomain={subdomain}
+        />
+      )}
     </div>
   );
 }

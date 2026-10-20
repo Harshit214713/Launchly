@@ -107,7 +107,7 @@ export default function PromoBanner({
             </Link>
 
             <Link
-              href="/#templates"
+              href="/templates"
               className="brutal-press inline-flex items-center gap-1.5 rounded-xl border-[2.5px] border-ink bg-card px-4 py-3 font-display text-xs font-black uppercase text-ink shadow-brutal-xs hover:bg-neutral-100 dark:hover:bg-[#1b1c2b]"
             >
               <span>See Her Picks</span>

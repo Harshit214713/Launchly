@@ -82,6 +82,15 @@ Most website builders generate bloated, unmaintainable markup trapped inside pro
 - **WCAG Contrast Checker**: Built-in color accessibility analyzer calculating contrast ratios and offering one-click accessible color recommendations.
 - **History Engine**: Granular Undo/Redo state management to freely experiment with typography, color palettes, and component hierarchy.
 
+### Clean Hash-Free Navigation
+- **Pristine URL Structure**: Transparent section scrolling without hash fragments (`/#how-it-works`, `/#pricing`), maintaining clean address bar URLs across both the public studio and dashboard.
+- **Inter-Page Scroll Teleportation**: Smooth transitions from `/dashboard`, `/checkout`, and `/templates` directly to target sections without fragment jumps.
+- **Automatic Hash Purging**: Instant background URL sanitization preserving browser history integrity.
+
+### Theme-Adaptive Design Lab & Catalog
+- **Dynamic Category Experience**: High-aesthetic neo-brutalist "Coming Soon" telemetry cards with active sprint indicators, 85% completion tracking, architecture tags, and instant VIP drop notifications.
+- **Dual-Theme Fidelity**: Seamless styling tuned for both high-contrast light mode and cyber-dark aesthetics with ambient atmospheric glows.
+
 ### 1-Click Multi-Cloud Deployments
 - **GitHub Repository Creator**: Authenticate with a personal access token to automatically create public or private repositories, initialize commits, and push full project files directly from the browser.
 - **Direct Vercel Deployment**: Push pre-configured production deployments to Vercel API v13 with auto-generated project names and environment presets.
