@@ -204,7 +204,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background dark:bg-[#09090f] text-ink flex flex-col lg:flex-row transition-colors">
       {/* Mobile Drawer Overlay */}
       {mobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-xs"
           onClick={() => setMobileMenuOpen(false)}
         />
@@ -212,16 +212,16 @@ export default function Dashboard() {
 
       {/* Account Settings / Profile Modal - Fully Interactive & Responsive */}
       {profileModalOpen && user && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setProfileModalOpen(false)}
         >
-          <div 
+          <div
             className="w-full max-w-[460px] max-h-[92vh] overflow-y-auto rounded-3xl border-[3px] sm:border-[3.5px] border-black dark:border-[#26283d] bg-[#faf8f5] dark:bg-[#0e0f18] p-4 sm:p-6 shadow-brutal-xl text-ink space-y-3.5 sm:space-y-4 relative"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Ambient Background Grid Pattern */}
-            <div 
+            <div
               className="absolute inset-0 opacity-[0.06] dark:opacity-[0.12] pointer-events-none"
               style={{
                 backgroundImage: 'radial-gradient(#000 1.5px, transparent 1.5px)',
@@ -261,14 +261,14 @@ export default function Dashboard() {
                     {user.name.charAt(0).toUpperCase()}
                   </div>
                   {isPro ? (
-                    <div 
+                    <div
                       className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border border-black bg-yellow text-black flex items-center justify-center shadow-xs"
                       title="Pro Builder"
                     >
                       <Crown size={10} className="stroke-[3]" />
                     </div>
                   ) : (
-                    <div 
+                    <div
                       className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border border-black bg-pink text-black flex items-center justify-center shadow-xs"
                       title="Free Creator"
                     >
@@ -476,12 +476,7 @@ export default function Dashboard() {
                 priority
               />
             </div>
-            <div className="flex flex-col">
-              <BrandWordmark size="sm" />
-              <span className="font-mono text-[9px] font-black uppercase tracking-widest text-pink mt-0.5">
-                DASHBOARD
-              </span>
-            </div>
+            <BrandWordmark size="sm" />
           </Link>
           <button
             type="button"
@@ -542,11 +537,11 @@ export default function Dashboard() {
                   {totalSites}/3 Sites
                 </span>
               </div>
-              
+
               {/* Visual Progress Bar */}
               <div className="h-2 rounded-full border border-black bg-white dark:bg-black overflow-hidden mb-3">
-                <div 
-                  className="h-full bg-pink transition-all" 
+                <div
+                  className="h-full bg-pink transition-all"
                   style={{ width: `${usagePercentage}%` }}
                 />
               </div>
@@ -645,7 +640,7 @@ export default function Dashboard() {
             >
               <Menu size={18} className="stroke-[2.5]" />
             </button>
-            
+
             {/* Live Search Input */}
             <div className="relative flex-1">
               <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
@@ -795,8 +790,8 @@ export default function Dashboard() {
               <div className="rounded-3xl border-[3.5px] border-black dark:border-[#262638] bg-card dark:bg-[#12121a] p-6 sm:p-10 shadow-brutal-lg text-center relative overflow-hidden">
                 <div className="max-w-xl mx-auto space-y-4">
                   <h3 className="font-display text-2xl sm:text-3xl font-black text-black dark:text-white tracking-tight">
-                    {user 
-                      ? `${user.name.split(' ')[0]}, you haven't launched any websites yet!` 
+                    {user
+                      ? `${user.name.split(' ')[0]}, you haven't launched any websites yet!`
                       : 'You haven\'t launched any websites yet'}
                   </h3>
 
@@ -1050,8 +1045,8 @@ export default function Dashboard() {
                   Ready to customize and deploy live in your visual studio workspace.
                 </p>
               </div>
-              <Link 
-                href="/templates" 
+              <Link
+                href="/templates"
                 className="font-mono text-xs font-black uppercase text-pink hover:underline inline-flex items-center gap-1 shrink-0 whitespace-nowrap self-start sm:self-auto"
               >
                 <span>View all ({TEMPLATES.length})</span>
@@ -1069,15 +1064,15 @@ export default function Dashboard() {
                     href={`/editor/${tmpl.id}`}
                     className="group rounded-2xl overflow-hidden border-2 border-black dark:border-[#262638] hover:shadow-brutal-sm transition-all bg-card flex flex-col justify-between hover:-translate-y-0.5"
                   >
-                    <div 
-                      className="h-32 relative flex flex-col justify-between p-3.5 border-b-2 border-black dark:border-[#262638] overflow-hidden" 
-                      style={{ 
+                    <div
+                      className="h-32 relative flex flex-col justify-between p-3.5 border-b-2 border-black dark:border-[#262638] overflow-hidden"
+                      style={{
                         backgroundColor: isDark ? '#0e0f17' : (tmpl.bgColor || '#FAF9F6'),
                       }}
                     >
                       {/* Ambient Accent Glow for Dark Templates */}
                       {isDark && (
-                        <div 
+                        <div
                           className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-2xl opacity-25 pointer-events-none"
                           style={{ backgroundColor: tmpl.accent || '#FF5500' }}
                         />
@@ -1085,7 +1080,7 @@ export default function Dashboard() {
 
                       {/* Top micro badges */}
                       <div className="flex items-center justify-between relative z-10">
-                        <span 
+                        <span
                           className="font-mono text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-black/30 bg-white/20 dark:bg-black/40 backdrop-blur-xs"
                           style={{ color: isDark ? '#FFFFFF' : '#171717' }}
                         >
@@ -1101,13 +1096,13 @@ export default function Dashboard() {
 
                       {/* Center headline */}
                       <div className="my-auto relative z-10 py-1">
-                        <div 
+                        <div
                           className="font-display font-black text-sm tracking-tight leading-tight line-clamp-1"
                           style={{ color: isDark ? '#FFFFFF' : '#171717' }}
                         >
                           {tmpl.name}
                         </div>
-                        <div 
+                        <div
                           className="font-mono text-[10px] opacity-70 line-clamp-1 mt-0.5"
                           style={{ color: isDark ? '#E2E8F0' : '#525252' }}
                         >
