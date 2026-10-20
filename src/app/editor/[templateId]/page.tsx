@@ -20,6 +20,8 @@ import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/co
 import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type MenuItem, type SectionStyle, type SiteAsset, type SiteDocument, type Theme } from '@/lib/siteDocument';
 import { blockRegistry } from '@/lib/blockRegistry';
 import { createEditorStore, type SiteVersion } from '@/store/editorStore';
+import DeployModal from '@/components/DeployModal';
+import SocialShareModal from '@/components/SocialShareModal';
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
 type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'navigation' | 'assets';
@@ -83,6 +85,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [selectedSection, setSelectedSection] = useState<string | null>('hero');
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showDeployModal, setShowDeployModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -808,6 +812,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             disabled={exportingZip || userPlan === 'loading'}
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-yellow hover:bg-yellow/90 font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer disabled:opacity-50"
             title={userPlan === 'pro' ? 'Download Next.js 16 source code as a ZIP archive' : 'Upgrade to Pro to export source code'}
+            disabled={exportingZip}
+            className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-yellow hover:bg-yellow/90 font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer disabled:opacity-50"
+            title="Download Next.js 15 source code as a ZIP archive"
           >
             {exportingZip ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} className="stroke-[2.5]" />}
             <span>{exportingZip ? 'Exporting…' : userPlan === 'loading' ? 'Checking plan…' : userPlan === 'pro' ? 'Export .zip' : 'Export .zip · Pro'}</span>
@@ -1512,6 +1519,38 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           <a href="/checkout?plan=pro" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-black bg-pink px-4 py-3 font-display text-sm font-black shadow-[3px_3px_0_#000] hover:bg-yellow">Upgrade to Pro <ArrowUpRight size={15} /></a>
         </div>
       </div>}
+
+      {/* One-Click GitHub & Vercel Deploy Modal */}
+      {showDeployModal && (
+        <DeployModal
+          isOpen={showDeployModal}
+          onClose={() => setShowDeployModal(false)}
+          siteData={{
+            siteTitle,
+            templateId: template.id,
+            theme,
+            heroContent,
+            featuresContent,
+            testimonialsContent,
+            ctaContent,
+            sectionOrder: sections.map((s) => s.id),
+          }}
+        />
+      )}
+
+      {/* Dynamic Social Share & OG Card Modal */}
+      {showShareModal && (
+        <SocialShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          title={siteTitle}
+          description={heroContent.description || 'High-performance digital presence powered by Launchly.'}
+          badge={heroContent.badge || `${template.category} // PRO`}
+          accent={theme.primaryColor || template.accent}
+          bgColor={theme.bgColor || template.bgColor}
+          subdomain={siteTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || template.id}
+        />
+      )}
 
       {/* Floating Inline Formatting Toolbar */}
       {toolbarPos && (
