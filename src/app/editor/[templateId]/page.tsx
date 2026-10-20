@@ -1337,6 +1337,16 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 selectedTreeElementId={selectedTreeElement?.elementId || null}
                 onSelectTreeElement={(sectionId, columnId, elementId) => { setSelectedSection(sectionId); setSelectedElementId(null); setSelectedTreeElement({ sectionId, columnId, elementId }); setMobileTab('inspector'); }}
                 onUpdateTreeElement={(sectionId, columnId, elementId, update) => setSections((items) => items.map((item) => item.id !== sectionId ? item : ({ ...item, columns: (item.columns || []).map((column) => column.id !== columnId ? column : ({ ...column, elements: column.elements.map((element) => element.id === elementId ? update(element) : element) })) })))}
+                onResizeTreeColumn={(sectionId, columnId, width) => setSections((items) => items.map((item) => item.id !== sectionId ? item : ({ ...item, columns: (item.columns || []).map((column) => column.id !== columnId ? column : ({ ...column, width: { ...column.width, [deviceMode]: Math.max(1, Math.min(12, Math.round(width))) } })) })))}
+                onDuplicateTreeElement={(sectionId, columnId, elementId) => setSections((items) => items.map((item) => item.id !== sectionId ? item : ({ ...item, columns: (item.columns || []).map((column) => {
+                  if (column.id !== columnId) return column;
+                  const index = column.elements.findIndex((element) => element.id === elementId);
+                  if (index < 0) return column;
+                  const duplicate = structuredClone(column.elements[index]); duplicate.id = nextEditorId('element');
+                  const elements = [...column.elements]; elements.splice(index + 1, 0, duplicate);
+                  return { ...column, elements };
+                }) })))}
+                onDeleteTreeElement={(sectionId, columnId, elementId) => { setSections((items) => items.map((item) => item.id !== sectionId ? item : ({ ...item, columns: (item.columns || []).map((column) => column.id !== columnId ? column : ({ ...column, elements: column.elements.filter((element) => element.id !== elementId) })) }))); setSelectedTreeElement((current) => current?.elementId === elementId ? null : current); }}
                 onSelectSection={(id) => { setSelectedSection(id); setSelectedElementId(null); setSelectedTreeElement(null); }}
                 assetUrl={assetUrl}
                 logoUrl={logoUrl}
@@ -1835,6 +1845,9 @@ function SectionRenderer({
   selectedTreeElementId: string | null;
   onSelectTreeElement: (columnId: string, elementId: string) => void;
   onUpdateTreeElement: (columnId: string, elementId: string, update: (element: SiteElement) => SiteElement) => void;
+  onResizeTreeColumn: (columnId: string, width: number) => void;
+  onDuplicateTreeElement: (columnId: string, elementId: string) => void;
+  onDeleteTreeElement: (columnId: string, elementId: string) => void;
   onSelect: () => void;
   assetUrl: string;
   logoUrl: string;
@@ -1890,7 +1903,7 @@ function SectionRenderer({
       )}
       onClick={() => { if (!section.locked) onSelect(); }}
     >
-      {section.type === 'custom' && <TreeSectionRenderer sectionId={section.id} columns={section.columns || []} device={deviceMode} selectedElementId={selectedTreeElementId} onSelectElement={onSelectTreeElement} onUpdateElement={onUpdateTreeElement} />}
+      {section.type === 'custom' && <TreeSectionRenderer sectionId={section.id} columns={section.columns || []} device={deviceMode} selectedElementId={selectedTreeElementId} onSelectElement={onSelectTreeElement} onUpdateElement={onUpdateTreeElement} onResizeColumn={onResizeTreeColumn} onDuplicateElement={onDuplicateTreeElement} onDeleteElement={onDeleteTreeElement} />}
 
       {/* Navigation Block */}
       {section.type === 'nav' && (
