@@ -22,10 +22,10 @@ export async function exportSiteDocumentZip(document: SiteDocument): Promise<Blo
   };
   const siteData = localize(data) as SiteDocument;
   root.file('src/site-data.json', JSON.stringify(siteData, null, 2));
-  root.file('package.json', JSON.stringify({ name: folderName, version: '1.0.0', private: true, scripts: { dev: 'next dev', build: 'next build', start: 'next start', lint: 'eslint' }, dependencies: { next: '^16.4.0', react: '^19.0.0', 'react-dom': '^19.0.0' }, devDependencies: { '@tailwindcss/postcss': '^4.0.0', tailwindcss: '^4.0.0', typescript: '^5.7.0', '@types/node': '^22.0.0', '@types/react': '^19.0.0', '@types/react-dom': '^19.0.0' } }, null, 2));
+  root.file('package.json', JSON.stringify({ name: folderName, version: '1.0.0', private: true, scripts: { dev: 'next dev', build: 'next build', start: 'next start' }, dependencies: { next: '^16.4.0', react: '^19.0.0', 'react-dom': '^19.0.0' }, devDependencies: { '@tailwindcss/turbopack': '^4.0.0', tailwindcss: '^4.0.0', typescript: '^5.7.0', '@types/node': '^22.0.0', '@types/react': '^19.0.0', '@types/react-dom': '^19.0.0' } }, null, 2));
   root.file('tsconfig.json', JSON.stringify({ compilerOptions: { target: 'ES2017', lib: ['dom', 'dom.iterable', 'esnext'], strict: true, noEmit: true, esModuleInterop: true, module: 'esnext', moduleResolution: 'bundler', resolveJsonModule: true, isolatedModules: true, jsx: 'preserve', plugins: [{ name: 'next' }], paths: { '@/*': ['./src/*'] } }, include: ['next-env.d.ts', '**/*.ts', '**/*.tsx', '.next/types/**/*.ts'], exclude: ['node_modules'] }, null, 2));
   root.file('next-env.d.ts', '/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n');
-  root.file('postcss.config.mjs', "export default { plugins: { '@tailwindcss/postcss': {} } };\n");
+  root.file('next.config.ts', `import type { NextConfig } from 'next';\nconst config: NextConfig = { turbopack: { rules: { '*.css': { loaders: ['@tailwindcss/turbopack'], as: '*.css' } } } };\nexport default config;\n`);
   root.file('src/app/globals.css', `@import "tailwindcss";\n* { box-sizing: border-box; }\nhtml { scroll-behavior: smooth; }\nbody { margin: 0; background: ${siteData.theme.bgColor}; color: ${siteData.theme.textColor}; font-family: ${siteData.theme.fontFamily}; }\na { color: inherit; }\n`);
 
   root.file('src/components/SiteRenderer.tsx', `'use client';
