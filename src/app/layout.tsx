@@ -27,8 +27,11 @@ export const metadata: Metadata = {
     description: "Curated aesthetic templates, live visual editing, and instant edge deployment. Build without friction in a playground crafted for creators.",
   },
   icons: {
-    icon: "/brand-logo-clean.png",
-    shortcut: "/brand-logo-clean.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/brand-logo-clean.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/favicon.ico",
     apple: "/brand-logo-clean.png",
   },
 };
