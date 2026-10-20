@@ -16,9 +16,10 @@ import {
   , Heart, Sparkles, Camera, CheckCircle2
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
+import { loadEditorDraft } from '@/lib/editorPersistence';
 import { Template } from '@/types';
 
-type LivePageSection = { id: string; type: string; name: string; content?: Record<string, unknown>; style?: Record<string, unknown>; hidden?: Record<string, boolean>; anchorId?: string };
+type LivePageSection = { id: string; type: string; name: string; content?: Record<string, unknown>; style?: Record<string, unknown>; hidden?: Partial<Record<'desktop' | 'tablet' | 'mobile', boolean>>; anchorId?: string };
 type LivePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; oldSlugs?: string[]; sections?: LivePageSection[] };
 type LiveMenuItem = { id: string; label: string; target: { type: 'page' | 'url' | 'anchor'; value: string }; newTab?: boolean; children?: LiveMenuItem[] };
 
@@ -31,7 +32,7 @@ export default function LiveWebsitePage({
   const routeSlug = slug?.join('/') || '';
   const [copied, setCopied] = useState(false);
   const [bannerCollapsed, setBannerCollapsed] = useState(false);
-  const [siteSections, setSiteSections] = useState([
+  const [siteSections, setSiteSections] = useState<LivePageSection[]>([
     { id: 'nav', name: 'Navigation', type: 'nav' },
     { id: 'hero', name: 'Hero', type: 'hero' },
     { id: 'gallery', name: 'Featured Products', type: 'gallery' },
@@ -61,6 +62,21 @@ export default function LiveWebsitePage({
     const spacing = sectionSpacing[siteSections.find((section) => section.type === type)?.id || ''];
     return spacing ? { paddingTop: `${spacing.top}px`, paddingBottom: `${spacing.bottom}px`, paddingLeft: `${spacing.left}px`, paddingRight: `${spacing.right}px` } : {};
   };
+  const renderHomeExtras = () => siteSections
+    .filter((section) => !['nav', 'hero', 'gallery', 'features', 'testimonials', 'cta', 'footer'].includes(section.type) && !section.hidden?.desktop)
+    .map((section) => {
+      const content = section.content || {};
+      const heading = [content.heading, content.title, section.name].find((value): value is string => typeof value === 'string' && value.length > 0) || section.type.replace(/[-_]/g, ' ');
+      const description = [content.description, content.desc, content.subtitle].find((value): value is string => typeof value === 'string') || '';
+      const items = Array.isArray(content.items) ? content.items.filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null) : [];
+      return <section key={section.id} id={section.anchorId || section.id} className="px-5 py-12 sm:px-12" style={{ order: sectionOrder(section.type), display: sectionVisible(section.type) ? undefined : 'none', backgroundColor: typeof section.style?.backgroundColor === 'string' ? section.style.backgroundColor : undefined, color: theme.textColor, ...sectionPadding(section.type) }}><div className="mx-auto max-w-5xl"><h2 className="text-2xl font-black sm:text-4xl">{heading}</h2>{description && <p className="mt-3 max-w-3xl leading-relaxed opacity-75">{description}</p>}
+        {section.type === 'contact' ? <form className="mt-6 grid max-w-2xl gap-3" onSubmit={async (event) => { event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); setFormMessages((current) => ({ ...current, [section.id]: 'Sending…' })); try { const response = await fetch('/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: data.get('name'), email: data.get('email'), message: data.get('message'), category: `Site contact: ${siteTitle}`, website: data.get('website') }) }); const result = await response.json() as { success?: boolean; message?: string }; if (!response.ok || !result.success) throw new Error(result.message || 'Could not send your message.'); form.reset(); setFormMessages((current) => ({ ...current, [section.id]: String(content.successMessage || 'Thanks for your message.') })); } catch (error) { setFormMessages((current) => ({ ...current, [section.id]: error instanceof Error ? error.message : 'Could not send your message.' })); } }}><input name="name" required maxLength={80} autoComplete="name" placeholder="Name" className="rounded-lg border border-black/20 px-3 py-2.5 text-black"/><input name="email" required type="email" maxLength={254} autoComplete="email" placeholder="Email" className="rounded-lg border border-black/20 px-3 py-2.5 text-black"/><textarea name="message" required maxLength={3000} rows={5} placeholder="Message" className="rounded-lg border border-black/20 px-3 py-2.5 text-black"/><label aria-hidden="true" className="absolute -left-[10000px] h-px w-px overflow-hidden">Leave empty<input name="website" tabIndex={-1} autoComplete="off"/></label><button className="justify-self-start rounded-lg px-5 py-3 font-bold text-black" style={{ backgroundColor: theme.primaryColor }}>{String(content.submitLabel || 'Send message')}</button><p role="status" aria-live="polite" className="text-sm">{formMessages[section.id] || ''}</p></form>
+          : section.type === 'newsletter' ? <form className="mt-6 flex max-w-xl flex-col gap-3 sm:flex-row" onSubmit={async (event) => { event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); setFormMessages((current) => ({ ...current, [section.id]: 'Subscribing…' })); try { const response = await fetch('/api/newsletter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: data.get('email'), source: `site:${subdomain}`, website: data.get('website') }) }); const result = await response.json() as { success?: boolean; message?: string }; if (!response.ok || !result.success) throw new Error(result.message || 'Could not subscribe.'); form.reset(); setFormMessages((current) => ({ ...current, [section.id]: String(content.successMessage || 'You are subscribed. Thank you!') })); } catch (error) { setFormMessages((current) => ({ ...current, [section.id]: error instanceof Error ? error.message : 'Could not subscribe.' })); } }}><input name="email" required type="email" maxLength={254} autoComplete="email" placeholder="Email address" className="min-w-0 flex-1 rounded-lg border border-black/20 px-3 py-2.5 text-black"/><label aria-hidden="true" className="absolute -left-[10000px] h-px w-px overflow-hidden">Leave empty<input name="website" tabIndex={-1} autoComplete="off"/></label><button className="rounded-lg px-5 py-3 font-bold text-black" style={{ backgroundColor: theme.primaryColor }}>{String(content.submitLabel || 'Subscribe')}</button><p role="status" aria-live="polite" className="self-center text-sm">{formMessages[section.id] || ''}</p></form>
+          : section.type === 'faq' ? <div className="mt-6 divide-y divide-black/10">{items.map((item, index) => <details key={index} className="py-4"><summary className="cursor-pointer font-bold">{String(item.question || item.title || `Question ${index + 1}`)}</summary><p className="mt-2 leading-relaxed opacity-75">{String(item.answer || item.description || '')}</p></details>)}</div>
+          : section.type === 'gallery' || section.type === 'product-grid' ? <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.map((item, index) => <article key={index} className="overflow-hidden rounded-xl border border-black/10 bg-white text-black"><div className="flex aspect-[4/3] items-center justify-center bg-neutral-100">{typeof item.src === 'string' && item.src ? <Image src={item.src} alt={String(item.alt || item.title || '')} width={640} height={480} unoptimized className="h-full w-full object-cover"/> : <span className="text-4xl font-black text-neutral-300">0{index + 1}</span>}</div><div className="p-4"><h3 className="font-bold">{String(item.title || item.name || `Item ${index + 1}`)}</h3>{typeof item.description === 'string' && <p className="mt-1 text-sm opacity-75">{item.description}</p>}{typeof item.price === 'string' && <p className="mt-3 font-bold">{item.price}</p>}</div></article>)}</div>
+          : items.length ? <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.map((item, index) => <article key={index} className="rounded-xl border border-black/10 bg-white/80 p-5 text-black"><h3 className="font-bold">{String(item.title || item.name || item.question || `Item ${index + 1}`)}</h3>{typeof item.description === 'string' && <p className="mt-2 text-sm leading-relaxed">{item.description}</p>}{typeof item.answer === 'string' && <p className="mt-2 text-sm leading-relaxed">{item.answer}</p>}{typeof item.quote === 'string' && <blockquote className="mt-2 text-sm leading-relaxed">“{item.quote}”</blockquote>}</article>)}</div>
+          : typeof content.body === 'string' ? <p className="mt-5 whitespace-pre-wrap leading-relaxed">{content.body}</p> : null}</div></section>;
+    });
 
   // Template matching: match by subdomain or template id
   const template: Template = 
@@ -206,10 +222,12 @@ export default function LiveWebsitePage({
       setWatermarkRequired(typeof data.watermarkRequired === 'boolean' ? data.watermarkRequired : true);
     };
     const applyLocalDraft = () => {
+      let foundLocalDraft = false;
       try {
         const saved = localStorage.getItem(`launchly_site_${subdomain.toLowerCase()}`) || localStorage.getItem(`launchly_site_${template.id}`);
-        if (!saved) return;
+        if (!saved) throw new Error('No legacy local draft');
         const draft = JSON.parse(saved);
+        foundLocalDraft = true;
         if (draft.siteName) setSiteTitle(draft.siteName);
         if (draft.theme) setTheme(draft.theme);
         if (draft.heroContent) setHeroContent(draft.heroContent);
@@ -224,6 +242,9 @@ export default function LiveWebsitePage({
         if (draft.logoUrl) setLogoUrl(draft.logoUrl);
         if (draft.faviconUrl) setFaviconUrl(draft.faviconUrl);
       } catch { /* Ignore a malformed local draft and render template defaults. */ }
+      if (!foundLocalDraft) void loadEditorDraft(template.id).then((draft) => {
+        if (draft && typeof draft === 'object') applySite({ name: template.name, site_data: { document: draft } });
+      });
     };
 
     fetch(`/api/sites?subdomain=${encodeURIComponent(subdomain)}`)
@@ -245,7 +266,7 @@ export default function LiveWebsitePage({
         setIsPreview(false);
         setWatermarkRequired(true);
       });
-  }, [subdomain, template.id]);
+  }, [subdomain, template.id, template.name]);
 
   useEffect(() => {
     if (!faviconUrl) return;
@@ -576,6 +597,8 @@ export default function LiveWebsitePage({
             </div>
           </div>
         </section>
+
+        {renderHomeExtras()}
 
         {/* Branded Footer Block */}
         <footer style={{ order: sectionOrder('footer'), display: sectionVisible('footer') ? undefined : 'none', ...sectionPadding('footer') }} className="py-8 px-4 sm:px-12 border-t-2 border-black/10 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs text-neutral-600">

@@ -19,7 +19,8 @@ import { exportTemplateAsZip } from '@/lib/zipExport';
 import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/contrast';
 import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type MenuItem, type SectionStyle, type SiteAsset, type SiteDocument, type Theme } from '@/lib/siteDocument';
 import { blockRegistry } from '@/lib/blockRegistry';
-import { createEditorStore, type SiteVersion } from '@/store/editorStore';
+import { hydrateVersionDocument, loadEditorDraft, loadEditorVersions, saveEditorDraft, saveEditorVersions } from '@/lib/editorPersistence';
+import { createEditorStore } from '@/store/editorStore';
 import DeployModal from '@/components/DeployModal';
 import SocialShareModal from '@/components/SocialShareModal';
 
@@ -190,17 +191,14 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [isHistoryReady, setHistoryReady] = useState(false);
   const [serverDraftReady, setServerDraftReady] = useState(false);
   // Draft restoration is an external-storage synchronization on mount.
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const key = `launchly_site_${template.id}`;
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const savedSite = JSON.parse(raw);
-        try {
-          const savedVersions = localStorage.getItem(`launchly_versions_${template.id}`);
-          if (savedVersions) editorStore.getState().setVersions(JSON.parse(savedVersions) as SiteVersion[]);
-        } catch { /* Ignore a malformed version-history cache. */ }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [savedSite, savedVersions] = await Promise.all([loadEditorDraft(template.id), loadEditorVersions(template.id)]);
+        if (cancelled) return;
+        if (savedVersions.length) editorStore.getState().setVersions(savedVersions);
+        if (savedSite) {
         const migrated = migrateSiteDocument(savedSite, editorStore.getState().document);
         editorStore.getState().replaceDocument(migrated);
         setTheme(migrated.theme);
@@ -219,27 +217,13 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         setLogoUrl(migrated.assets.find((asset) => asset.role === 'logo')?.src || '');
         setFaviconUrl(migrated.assets.find((asset) => asset.role === 'favicon')?.src || '');
         setMediaAssets(migrated.assets.filter((asset) => asset.role === 'image' || asset.role === 'icon'));
-        if (!savedSite.document) {
-          if (savedSite.theme) setTheme(savedSite.theme);
-          if (savedSite.siteName) setSiteTitle(savedSite.siteName);
-          if (savedSite.heroContent) setHeroContent(savedSite.heroContent);
-          if (savedSite.featuresContent) setFeaturesContent(savedSite.featuresContent);
-          if (savedSite.testimonialsContent) setTestimonialsContent(savedSite.testimonialsContent);
-          if (savedSite.ctaContent) setCtaContent(savedSite.ctaContent);
-          if (savedSite.sections?.length) setSections(savedSite.sections);
-          if (savedSite.assetUrl) setAssetUrl(savedSite.assetUrl);
-          if (savedSite.logoUrl) setLogoUrl(savedSite.logoUrl);
-          if (savedSite.faviconUrl) setFaviconUrl(savedSite.faviconUrl);
-          if (savedSite.sectionSpacing) setSectionSpacing(savedSite.sectionSpacing);
-          if (savedSite.canvasElements) setCanvasElements(savedSite.canvasElements);
-          if (savedSite.sitePages) setSitePages(savedSite.sitePages);
         }
-      }
-    } catch { /* Ignore malformed local drafts and keep template defaults. */ }
-    setHistoryReady(true);
+      } catch { /* Ignore malformed local drafts and keep template defaults. */ }
+      finally { if (!cancelled) setHistoryReady(true); }
+    })();
+    return () => { cancelled = true; };
   // Load once for each selected template.
   }, [template.id, editorStore]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!isHistoryReady || !serverDraftReady) return;
@@ -258,14 +242,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       const latestVersion = editorStore.getState().versions.at(-1);
       if (!latestVersion || (Date.now() - Date.parse(latestVersion.createdAt) > 5 * 60 * 1000 && JSON.stringify(latestVersion.document) !== JSON.stringify(currentDocument))) {
         editorStore.getState().captureVersion('Autosave');
-        localStorage.setItem(`launchly_versions_${template.id}`, JSON.stringify(editorStore.getState().versions));
+        void saveEditorVersions(template.id, editorStore.getState().versions);
       }
-      const legacyPayload = { siteName: currentDocument.name, templateId: currentDocument.templateId, theme: currentDocument.theme, heroContent: currentDocument.content.hero, featuresContent: currentDocument.content.features, testimonialsContent: currentDocument.content.testimonials, ctaContent: currentDocument.content.cta, sections: currentDocument.pages[0]?.sections.map(({ id, name, type }) => ({ id, name, type })) || [], sectionSpacing: Object.fromEntries(currentDocument.pages.flatMap((page) => page.sections.filter((section) => section.style.padding).map((section) => [section.id, section.style.padding]))), canvasElements: currentDocument.pages[0]?.elements || [], sitePages: currentDocument.pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo.description })), assetUrl: currentDocument.assets.find((asset) => asset.role === 'product')?.src || '', logoUrl: currentDocument.assets.find((asset) => asset.role === 'logo')?.src || '', faviconUrl: currentDocument.assets.find((asset) => asset.role === 'favicon')?.src || '' };
-      try {
-        localStorage.setItem(`launchly_site_${template.id}`, JSON.stringify({ ...legacyPayload, schemaVersion: 1, document: currentDocument }));
-        localStorage.setItem(`launchly_site_${currentDocument.settings.subdomain}`, JSON.stringify({ ...legacyPayload, schemaVersion: 1, document: currentDocument }));
-      } catch { editorStore.getState().setSaveStatus('offline'); return; }
       editorStore.getState().setSaveStatus('saving');
+      await saveEditorDraft(template.id, currentDocument);
       try {
         const response = await fetch('/api/sites/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document: currentDocument }) });
         editorStore.getState().setSaveStatus(response.ok ? 'saved' : response.status === 401 ? 'saved' : 'offline', new Date().toISOString());
@@ -287,7 +267,21 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     setFeaturesContent(Array.isArray(features) ? features as unknown as typeof featuresContent : document.content.features);
     setTestimonialsContent(Array.isArray(testimonials) ? testimonials as unknown as typeof testimonialsContent : document.content.testimonials);
     setCtaContent({ ...document.content.cta, ...cta });
-    setSections(page.sections.map((section) => ({ ...section })));
+    const restoredSections = page.sections.map((section) => ({ ...section }));
+    const homeSections = document.pages.find((entry) => entry.isHome)?.sections || [];
+    if (page.useSharedHeader && !restoredSections.some((section) => section.type === 'nav')) {
+      const sharedNav = homeSections.find((section) => section.type === 'nav');
+      restoredSections.unshift(sharedNav
+        ? { ...structuredClone(sharedNav), id: `${page.id}-navigation`, name: 'Navigation' }
+        : makeSection('nav', `${page.id}-navigation`, 'Navigation', {}, blockRegistry.nav.defaultContent));
+    }
+    if (page.useSharedFooter && !restoredSections.some((section) => section.type === 'footer')) {
+      const sharedFooter = homeSections.find((section) => section.type === 'footer');
+      restoredSections.push(sharedFooter
+        ? { ...structuredClone(sharedFooter), id: `${page.id}-footer`, name: 'Footer' }
+        : makeSection('footer', `${page.id}-footer`, 'Footer', {}, blockRegistry.footer.defaultContent));
+    }
+    setSections(restoredSections);
     setSectionSpacing(Object.fromEntries(page.sections.filter((section) => section.style.padding).map((section) => [section.id, { top: section.style.padding?.top || 0, right: section.style.padding?.right || 0, bottom: section.style.padding?.bottom || 0, left: section.style.padding?.left || 0 }])));
     setCanvasElements(page.elements || []);
     setSitePages(document.pages.map((entry) => ({ id: entry.isHome ? 'home' : entry.id, title: entry.title, description: entry.seo.description, slug: entry.slug.replace(/^\//, ''), isHome: entry.isHome, showInMenu: entry.showInMenu, noindex: entry.seo.noindex, ogImage: entry.seo.ogImage, seoTitle: entry.seo.title, useSharedHeader: entry.useSharedHeader, useSharedFooter: entry.useSharedFooter, oldSlugs: entry.oldSlugs })));
@@ -298,12 +292,13 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   }, [activePageId, setActivePageId, setTheme, setSiteTitle, setHeroContent, setFeaturesContent, setTestimonialsContent, setCtaContent, setSections, setSectionSpacing, setCanvasElements, setSitePages, setAssetUrl, setLogoUrl, setFaviconUrl, setMediaAssets]);
 
   const serverDraftLookupStarted = useRef(false);
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isHistoryReady || serverDraftLookupStarted.current) return;
     serverDraftLookupStarted.current = true;
-    const localDraft = localStorage.getItem(`launchly_site_${template.id}`);
-    if (localDraft) { setServerDraftReady(true); return; }
+    let cancelled = false;
+    void loadEditorDraft(template.id).then((localDraft) => {
+      if (cancelled) return;
+      if (localDraft) { setServerDraftReady(true); return; }
     const subdomain = siteTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || template.id;
     fetch(`/api/sites/draft?subdomain=${encodeURIComponent(subdomain)}`)
       .then((response) => response.ok ? response.json() : null)
@@ -314,9 +309,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         applyDocumentToEditor(restored);
       })
       .catch(() => editorStore.getState().setSaveStatus('offline'))
-      .finally(() => setServerDraftReady(true));
+      .finally(() => { if (!cancelled) setServerDraftReady(true); });
+    }).catch(() => { if (!cancelled) setServerDraftReady(true); });
+    return () => { cancelled = true; };
   }, [isHistoryReady, siteTitle, template.id, editorStore, applyDocumentToEditor]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleUndo = useCallback(() => {
     if (!editorStore.getState().canUndo()) return;
@@ -449,6 +445,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   // Floating Inline Formatting Toolbar State
   const [toolbarPos, setToolbarPos] = useState<{ x: number; y: number } | null>(null);
+  const [formatSectionId, setFormatSectionId] = useState<string | null>(null);
 
   useEffect(() => {
     const handleSelectionChange = () => {
@@ -463,9 +460,14 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         if (rect && rect.width > 0 && rect.height > 0) {
           const canvasEl = document.querySelector('[data-canvas-frame]');
           if (canvasEl && canvasEl.contains(range.commonAncestorContainer)) {
+            const node = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ? range.commonAncestorContainer as Element : range.commonAncestorContainer.parentElement;
+            setFormatSectionId(node?.closest('[data-section-id]')?.getAttribute('data-section-id') || null);
+            const width = 160;
+            const x = Math.min(Math.max(8, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 8);
+            const y = rect.top >= 54 ? rect.top - 48 : rect.bottom + 8;
             setToolbarPos({
-              x: Math.max(10, rect.left + rect.width / 2 - 110),
-              y: Math.max(10, rect.top - 46),
+              x,
+              y: Math.max(8, Math.min(y, window.innerHeight - 48)),
             });
             return;
           }
@@ -479,46 +481,25 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   }, []);
 
   const applyFormat = (command: string, value: string | undefined = undefined) => {
-    if (!selectedSection) return;
+    const targetSectionId = formatSectionId || selectedSection;
+    if (!targetSectionId) return;
     const changes: Partial<SectionStyle> = command === 'bold' ? { fontWeight: 700 }
       : command === 'italic' ? { fontStyle: 'italic' }
         : command === 'underline' ? { textDecoration: 'underline' }
           : command === 'hiliteColor' ? { highlightColor: value || '#FFD600' }
             : { fontWeight: 400, fontStyle: 'normal', textDecoration: 'none', highlightColor: undefined };
-    setSections((items) => items.map((item) => item.id === selectedSection ? { ...item, style: { ...item.style, ...changes } } : item));
+    setSections((items) => items.map((item) => item.id === targetSectionId ? { ...item, style: { ...item.style, ...changes } } : item));
   };
 
   const handleSave = async () => {
     setSaving(true);
     editorStore.getState().setSaveStatus('saving');
     try {
-      const payload = {
-        siteName: siteTitle,
-        templateId: template.id,
-        theme,
-        heroContent,
-        featuresContent,
-        testimonialsContent,
-        ctaContent,
-        sections,
-        sectionSpacing,
-        canvasElements,
-        sitePages,
-        assetUrl,
-        logoUrl,
-        faviconUrl,
-        schemaVersion: 1,
-        document: editorStore.getState().document,
-      };
-      if (typeof window !== 'undefined') {
-        const versioned = { ...payload, schemaVersion: 1, document: editorStore.getState().document };
-        localStorage.setItem(`launchly_site_${template.id}`, JSON.stringify(versioned));
-        localStorage.setItem(`launchly_site_${siteTitle.toLowerCase().replace(/\s+/g, '-')}`, JSON.stringify(versioned));
-      }
+      await saveEditorDraft(template.id, editorStore.getState().document);
       const response = await fetch('/api/sites/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document: editorStore.getState().document }) });
       editorStore.getState().setSaveStatus(response.ok || response.status === 401 ? 'saved' : 'offline', new Date().toISOString());
       editorStore.getState().captureVersion('Manual save');
-      localStorage.setItem(`launchly_versions_${template.id}`, JSON.stringify(editorStore.getState().versions));
+      await saveEditorVersions(template.id, editorStore.getState().versions);
     } catch { editorStore.getState().setSaveStatus('offline'); }
     await new Promise(r => setTimeout(r, 600));
     setSaving(false);
@@ -821,30 +802,11 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             type="button"
             onClick={() => {
               const subdomain = siteTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || template.id;
-              const payload = {
-                siteName: siteTitle,
-                templateId: template.id,
-                theme,
-                heroContent,
-                featuresContent,
-                testimonialsContent,
-                ctaContent,
-                sections,
-                sectionSpacing,
-                canvasElements,
-                sitePages,
-                assetUrl,
-        logoUrl,
-        faviconUrl,
-                schemaVersion: 1,
-                document: editorStore.getState().document,
-              };
               if (typeof window !== 'undefined') {
-                try {
-                  localStorage.setItem(`launchly_site_${template.id}`, JSON.stringify(payload));
-                  localStorage.setItem(`launchly_site_${subdomain}`, JSON.stringify(payload));
-                } catch {}
-                window.open(`/live/${subdomain}?preview=1`, '_blank');
+                const previewWindow = window.open('about:blank', '_blank');
+                void handleSave().finally(() => {
+                  if (previewWindow) previewWindow.location.href = `/live/${subdomain}?preview=1`;
+                });
               }
             }}
             className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-white hover:bg-yellow font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer"
@@ -1502,8 +1464,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       {showVersionHistory && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="version-history-title">
         <div className="w-full max-w-lg rounded-2xl border-[3px] border-black bg-white p-5 shadow-[8px_8px_0_#000]">
           <div className="mb-4 flex items-center justify-between"><h2 id="version-history-title" className="font-display text-lg font-black">Version history</h2><button type="button" onClick={() => setShowVersionHistory(false)} aria-label="Close version history" className="rounded-lg border border-black p-1 hover:bg-yellow"><X size={16}/></button></div>
-          <p className="mb-3 font-mono text-xs text-neutral-600">Up to 20 autosave and manual snapshots are kept in this browser.</p>
-          <div className="max-h-80 space-y-2 overflow-y-auto">{[...versions].reverse().map((version) => <div key={version.id} className="flex items-center gap-3 rounded-xl border border-black/20 p-3"><div className="min-w-0 flex-1"><p className="truncate font-mono text-xs font-bold">{version.label}</p><p className="text-[10px] text-neutral-500">{new Date(version.createdAt).toLocaleString()}</p></div><button type="button" onClick={() => { if (!window.confirm(`Restore “${version.label}”? This replaces the current editor content.`)) return; if (editorStore.getState().restoreVersion(version.id)) applyDocumentToEditor(editorStore.getState().document); setShowVersionHistory(false); }} className="rounded-lg border-2 border-black bg-yellow px-3 py-1.5 font-mono text-[10px] font-bold">Restore</button></div>)}{versions.length === 0 && <div className="rounded-xl border border-dashed border-black/30 p-8 text-center font-mono text-xs text-neutral-500">No saved versions yet. Versions are captured during autosave and when you save manually.</div>}</div>
+          <p className="mb-3 font-mono text-xs text-neutral-600">Your 8 most recent autosave and manual snapshots are kept in this browser.</p>
+          <div className="max-h-80 space-y-2 overflow-y-auto">{[...versions].reverse().map((version) => <div key={version.id} className="flex items-center gap-3 rounded-xl border border-black/20 p-3"><div className="min-w-0 flex-1"><p className="truncate font-mono text-xs font-bold">{version.label}</p><p className="text-[10px] text-neutral-500">{new Date(version.createdAt).toLocaleString()}</p></div><button type="button" onClick={() => { if (!window.confirm(`Restore “${version.label}”? This replaces the current editor content.`)) return; const state = editorStore.getState(); const hydrated = hydrateVersionDocument(version, state.document); state.setVersions(state.versions.map((item) => item.id === version.id ? { ...item, document: hydrated } : item)); if (editorStore.getState().restoreVersion(version.id)) applyDocumentToEditor(editorStore.getState().document); setShowVersionHistory(false); }} className="rounded-lg border-2 border-black bg-yellow px-3 py-1.5 font-mono text-[10px] font-bold">Restore</button></div>)}{versions.length === 0 && <div className="rounded-xl border border-dashed border-black/30 p-8 text-center font-mono text-xs text-neutral-500">No saved versions yet. Versions are captured during autosave and when you save manually.</div>}</div>
         </div>
       </div>}
 
@@ -1771,6 +1733,7 @@ function SectionRenderer({
   return (
     <div
       id={section.anchorId || section.id}
+      data-section-id={section.id}
       style={{ padding: `${spacing.top * theme.spacingScale}px ${spacing.right * theme.spacingScale}px ${spacing.bottom * theme.spacingScale}px ${spacing.left * theme.spacingScale}px`, backgroundColor: section.style?.highlightColor || section.style?.backgroundColor, color: section.style?.overrides?.[deviceMode]?.color as string | undefined, textAlign: section.style?.textAlign, fontWeight: section.style?.fontWeight, fontStyle: section.style?.fontStyle, textDecoration: section.style?.textDecoration, display: section.hidden?.[deviceMode] ? 'none' : undefined }}
       className={cn(
         'relative group cursor-pointer transition-all',
@@ -2226,22 +2189,6 @@ function PublishDialog({
   const handlePublish = async () => {
     setPublishError('');
     setStep('publishing');
-    // Save to localStorage immediately so live preview works with 100% fidelity
-    if (typeof window !== 'undefined' && sitePayload) {
-      try {
-        localStorage.setItem(`launchly_site_${subdomain}`, JSON.stringify({
-          ...sitePayload,
-          subdomain,
-          siteName,
-        }));
-        localStorage.setItem(`launchly_site_${templateId}`, JSON.stringify({
-          ...sitePayload,
-          subdomain,
-          siteName,
-        }));
-      } catch {}
-    }
-
     try {
       const res = await fetch('/api/sites/publish', {
         method: 'POST',
