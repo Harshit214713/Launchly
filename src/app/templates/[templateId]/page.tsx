@@ -31,6 +31,15 @@ const COLOR_PALETTES = [
   { name: 'Emerald', color: '#10B981' },
 ];
 
+function PreviewProductArt({ fresh, index }: { fresh: boolean; index: number }) {
+  const accent = fresh ? ['#3FA34D', '#E76F51', '#F4A93B'][index % 3] : ['#C6FF3D', '#7C5CFF', '#40D9E8'][index % 3];
+  return <svg viewBox="0 0 480 320" aria-hidden="true" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
+    <defs><linearGradient id={`preview-art-${fresh ? 'fresh' : 'volt'}-${index}`} x1="0" y1="0" x2="1" y2="1"><stop stopColor={fresh ? '#FFF8EC' : '#252C3B'}/><stop offset="1" stopColor={fresh ? '#DCEBD4' : '#11141C'}/></linearGradient></defs>
+    <rect width="480" height="320" fill={`url(#preview-art-${fresh ? 'fresh' : 'volt'}-${index})`}/><circle cx="390" cy="55" r="90" fill={accent} opacity=".15"/>
+    {fresh ? <g><path d="M112 135h256l-24 142H136z" fill="#C3874D"/><path d="M130 158h220M136 205h208M143 251h194" stroke="#8F5C36" strokeWidth="10"/><path d="M155 141c-4-72 51-88 68-25 22-80 83-77 91-5 39-57 84-30 71 30" fill="none" stroke={accent} strokeWidth="15" strokeLinecap="round"/><circle cx="177" cy="165" r="31" fill="#E76F51"/><circle cx="238" cy="155" r="29" fill="#F4A93B"/><circle cx="297" cy="169" r="32" fill="#89B85D"/><circle cx="211" cy="209" r="27" fill="#D84D42"/><circle cx="275" cy="216" r="29" fill="#F2BC47"/></g> : <g><path d="M156 196v-48c0-85 36-124 84-124s84 39 84 124v48" fill="none" stroke={accent} strokeWidth="19" strokeLinecap="round"/><rect x="123" y="166" width="62" height="94" rx="24" fill="#30384A" stroke={accent} strokeWidth="7"/><rect x="295" y="166" width="62" height="94" rx="24" fill="#30384A" stroke={accent} strokeWidth="7"/><path d="M181 277h118" stroke="#8993A7" strokeWidth="8" strokeLinecap="round"/></g>}
+  </svg>;
+}
+
 export default function TemplatePreviewPage({ 
   params 
 }: { 
@@ -288,11 +297,11 @@ export default function TemplatePreviewPage({
                 </span>
               </div>
 
-              {/* Interactive Tab Links */}
-              <div className={`hidden sm:flex items-center gap-5 text-xs font-semibold overflow-x-auto max-w-[55vw] ${
+              {/* Keep primary storefront navigation concise; the page picker contains every preview route. */}
+              <div className={`hidden sm:flex items-center gap-5 text-xs font-semibold ${
                 isDarkTemplate ? 'text-neutral-300' : 'text-[#525252]'
               }`}>
-                {template.pages.map((p) => {
+                {template.pages.filter((page) => ['home', 'shop', 'about', 'contact'].includes(page.toLowerCase())).map((p) => {
                   const key = p.toLowerCase();
                   const isActive = activeSection === key;
                   return (
@@ -310,6 +319,12 @@ export default function TemplatePreviewPage({
                     </button>
                   );
                 })}
+                <details className="group relative py-1">
+                  <summary className="list-none cursor-pointer rounded-lg px-2 py-1 hover:bg-black/5 [&::-webkit-details-marker]:hidden">Pages <span aria-hidden="true">⌄</span></summary>
+                  <div className={`absolute right-0 top-full z-30 mt-2 grid max-h-80 min-w-48 overflow-y-auto rounded-xl border p-1 shadow-xl ${isDarkTemplate ? 'border-white/10 bg-[#171923] text-white' : 'border-black/10 bg-white text-black'}`}>
+                    {template.pages.map((page) => <button key={page} type="button" onClick={() => setActiveSection(page.toLowerCase())} className={`rounded-lg px-3 py-2 text-left capitalize hover:bg-black/5 ${activeSection === page.toLowerCase() ? 'font-bold' : ''}`}>{page}</button>)}
+                  </div>
+                </details>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
@@ -334,19 +349,19 @@ export default function TemplatePreviewPage({
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-2 border-black font-mono text-[11px] sm:text-xs font-black uppercase text-black shadow-[2px_2px_0px_#000] mb-5"
                     style={{ backgroundColor: currentAccent }}
                   >
-                    <span>{template.category.toUpperCase()}{' // '}{template.badge?.toUpperCase() || 'POPULAR'}</span>
+                    <span>{template.id === 'fresh-crate' ? 'FRESH CRATE / LOCAL MARKET' : template.id === 'volt-gear' ? 'VOLT GEAR / FIELD TESTED' : `${template.category.toUpperCase()} / ${template.badge?.toUpperCase() || 'POPULAR'}`}</span>
                   </div>
 
                   <h1 className={`font-display text-4xl sm:text-6xl font-black tracking-tight mb-4 leading-[1.08] ${
                     isDarkTemplate ? 'text-white' : 'text-[#171717]'
                   }`}>
-                    {template.name}
+                    {template.id === 'fresh-crate' ? 'Good food starts close to home.' : template.id === 'volt-gear' ? 'Gear for your next big idea.' : template.name}
                   </h1>
 
                   <p className={`font-mono text-xs sm:text-base opacity-80 max-w-xl mx-auto mb-8 leading-relaxed ${
                     isDarkTemplate ? 'text-neutral-300' : 'text-[#525252]'
                   }`}>
-                    {template.description}
+                    {template.id === 'fresh-crate' ? 'Seasonal produce from nearby farms, thoughtful pantry staples, and a fresh delivery at your door.' : template.id === 'volt-gear' ? 'Thoughtful technology for work, play, and everything you want to build next.' : template.description}
                   </p>
 
                   <div className="flex flex-wrap items-center justify-center gap-3">
@@ -379,10 +394,10 @@ export default function TemplatePreviewPage({
                       <button type="button" onClick={() => setActiveSection(template.pages[1]?.toLowerCase() || 'shop')} className="text-xs font-bold underline underline-offset-4">Shop all</button>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {products.map((product, index) => (
+                      {products.slice(0, 3).map((product, index) => (
                         <article key={product.name} className={`overflow-hidden rounded-2xl border ${isDarkTemplate ? 'bg-white/5 border-white/10' : 'bg-white border-black/10'}`}>
-                          <div className="h-40 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${currentAccent}40, ${currentAccent}10)` }}><span className="font-display text-5xl font-black opacity-60">0{index + 1}</span></div>
-                          <div className="p-4"><span className="font-mono text-[9px] uppercase tracking-wider opacity-60">{product.category}</span><h3 className="font-bold mt-1">{product.name}</h3><p className="text-xs opacity-65 mt-1">{product.detail}</p><div className="flex items-center justify-between mt-4"><span className="font-black">${product.price}</span><button type="button" onClick={() => setCartCount((count) => count + 1)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#111' : '#171717' }}>Add to bag</button></div></div>
+                          <div className="h-40 overflow-hidden"><PreviewProductArt fresh={template.id === 'fresh-crate'} index={index}/></div>
+                          <div className="p-4"><span className="font-mono text-[9px] uppercase tracking-wider opacity-60">{product.category}</span><h3 className="font-bold mt-1">{product.name}</h3><p className="text-xs opacity-65 mt-1">{product.detail}</p><div className="flex items-center justify-between mt-4"><span className="font-black">₹{product.price.toLocaleString('en-IN')}</span><button type="button" onClick={() => setCartCount((count) => count + 1)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#111' : '#171717' }}>Add to {template.id === 'fresh-crate' ? 'crate' : 'bag'}</button></div></div>
                         </article>
                       ))}
                     </div>
@@ -458,8 +473,8 @@ export default function TemplatePreviewPage({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                     {visibleProducts.length ? visibleProducts.map((product, index) => (
                       <article key={product.name} className={`overflow-hidden rounded-2xl border ${isDarkTemplate ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-black/10 text-black'}`}>
-                        <div className="h-48 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${currentAccent}40, ${currentAccent}10)` }}><span className="font-display text-6xl font-black opacity-50">0{index + 1}</span></div>
-                        <div className="p-4"><span className="font-mono text-[9px] uppercase tracking-wider opacity-60">{product.category}</span><h3 className="font-bold mt-1">{product.name}</h3><p className="text-xs opacity-65 mt-1">{product.detail}</p><div className="flex items-center justify-between mt-4"><span className="font-black">${product.price}</span><div className="flex gap-2"><button type="button" aria-label={`Save ${product.name}`} onClick={() => setWishlist((items) => items.includes(product.name) ? items.filter((item) => item !== product.name) : [...items, product.name])} className="rounded-lg border px-2 py-1 text-xs">{wishlist.includes(product.name) ? '♥' : '♡'}</button><button type="button" onClick={() => setCartCount((count) => count + 1)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-black" style={{ backgroundColor: currentAccent }}>Add to bag</button></div></div></div>
+                        <div className="h-48 overflow-hidden"><PreviewProductArt fresh={template.id === 'fresh-crate'} index={index}/></div>
+                        <div className="p-4"><span className="font-mono text-[9px] uppercase tracking-wider opacity-60">{product.category}</span><h3 className="font-bold mt-1">{product.name}</h3><p className="text-xs opacity-65 mt-1">{product.detail}</p><div className="flex items-center justify-between mt-4"><span className="font-black">₹{product.price.toLocaleString('en-IN')}</span><div className="flex gap-2"><button type="button" aria-label={`Save ${product.name}`} onClick={() => setWishlist((items) => items.includes(product.name) ? items.filter((item) => item !== product.name) : [...items, product.name])} className="rounded-lg border px-2 py-1 text-xs">{wishlist.includes(product.name) ? '♥' : '♡'}</button><button type="button" onClick={() => setCartCount((count) => count + 1)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-black" style={{ backgroundColor: currentAccent }}>Add to {template.id === 'fresh-crate' ? 'crate' : 'bag'}</button></div></div></div>
                       </article>
                   )) : <p className="col-span-full py-12 text-center text-sm opacity-60">No saved items yet. Tap the heart on a piece to add it to your wishlist.</p>}
                   </div>
