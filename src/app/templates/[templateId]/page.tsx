@@ -153,6 +153,18 @@ export default function TemplatePreviewPage({
             ))}
           </div>
 
+          <label className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-card px-2 py-1.5 font-mono text-[10px] font-bold text-ink shadow-brutal-xs shrink-0">
+            <span className="hidden sm:inline">Preview page</span>
+            <select
+              aria-label="Choose preview page"
+              value={activeSection}
+              onChange={(event) => setActiveSection(event.target.value)}
+              className="max-w-24 sm:max-w-32 cursor-pointer bg-transparent outline-none"
+            >
+              {template.pages.map((page) => <option key={page} value={page.toLowerCase()}>{page}</option>)}
+            </select>
+          </label>
+
           {/* Right: Palette & Actions (Compact, fits comfortably on 1366px screen) */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Color Palette Switcher */}
@@ -319,18 +331,9 @@ export default function TemplatePreviewPage({
                     </button>
                   );
                 })}
-                <details className="group relative py-1">
-                  <summary className="list-none cursor-pointer rounded-lg px-2 py-1 hover:bg-black/5 [&::-webkit-details-marker]:hidden">Pages <span aria-hidden="true">⌄</span></summary>
-                  <div className={`absolute right-0 top-full z-30 mt-2 grid max-h-80 min-w-48 overflow-y-auto rounded-xl border p-1 shadow-xl ${isDarkTemplate ? 'border-white/10 bg-[#171923] text-white' : 'border-black/10 bg-white text-black'}`}>
-                    {template.pages.map((page) => <button key={page} type="button" onClick={() => setActiveSection(page.toLowerCase())} className={`rounded-lg px-3 py-2 text-left capitalize hover:bg-black/5 ${activeSection === page.toLowerCase() ? 'font-bold' : ''}`}>{page}</button>)}
-                  </div>
-                </details>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                <select aria-label="Choose preview page" value={activeSection} onChange={(event) => setActiveSection(event.target.value)} className="sm:hidden max-w-28 rounded-lg border px-2 py-2 text-[10px] font-bold bg-transparent">
-                  {template.pages.map((page) => <option key={page} value={page.toLowerCase()}>{page}</option>)}
-                </select>
                 <button type="button" onClick={() => setActiveSection(template.pages.find((page) => page.toLowerCase().includes('cart'))?.toLowerCase() || template.pages[0].toLowerCase())} className="relative rounded-full border px-3 py-2 text-xs font-bold" aria-label={`Shopping bag, ${cartCount} items`}>
                   Bag{cartCount > 0 && <span className="ml-1 rounded-full px-1.5 py-0.5 text-[9px] text-black" style={{ backgroundColor: currentAccent }}>{cartCount}</span>}
                 </button>
