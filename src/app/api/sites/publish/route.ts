@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { publishSite } from '@/lib/db';
+import { findUserByEmail, publishSite } from '@/lib/db';
 import { verifySessionToken } from '@/lib/auth';
 import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
@@ -27,11 +27,14 @@ export async function POST(request: Request) {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('launchly_session');
     let userId: string | undefined = undefined;
+    let isPro = false;
 
     if (sessionCookie?.value) {
       const session = verifySessionToken(sessionCookie.value);
       if (session?.id) {
         userId = session.id;
+        const currentUser = session.email ? await findUserByEmail(session.email).catch(() => null) : null;
+        isPro = (currentUser?.plan ?? session.plan) === 'pro';
       }
     }
 
@@ -42,7 +45,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await publishSite(templateId, name, subdomain, userId, siteData);
+    const publishedData = {
+      ...(siteData && typeof siteData === 'object' ? siteData : {}),
+      watermarkRequired: !isPro,
+      watermarkHidden: false,
+    };
+    const result = await publishSite(templateId, name, subdomain, userId, publishedData);
     if (!result.success) {
       return NextResponse.json(result, { status: 400 });
     }

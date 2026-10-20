@@ -421,7 +421,7 @@ export default function Dashboard() {
                 <p className="font-mono text-[10px] leading-snug mb-2.5">
                   Deploy unlimited websites, hook up custom domains, and download complete source code.
                 </p>
-                <a
+                <Link
                   href="/"
                   onClick={(e) => {
                     e.preventDefault();
@@ -431,7 +431,7 @@ export default function Dashboard() {
                 >
                   <span>Claim Pro Membership</span>
                   <ArrowRight size={12} className="stroke-[3]" />
-                </a>
+                </Link>
               </div>
             )}
 
@@ -546,7 +546,7 @@ export default function Dashboard() {
                 />
               </div>
 
-              <a
+              <Link
                 href="/"
                 onClick={(e) => {
                   e.preventDefault();
@@ -556,7 +556,7 @@ export default function Dashboard() {
               >
                 <ArrowUpRight size={13} className="mr-1 stroke-[2.5]" />
                 Upgrade to Pro
-              </a>
+              </Link>
             </div>
           )}
         </nav>

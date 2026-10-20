@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     // 1. Public lookup for published site by subdomain
     if (requestedSubdomain) {
       const allSites = await getAllSites();
-      const site = allSites.find(s => s.subdomain.toLowerCase() === requestedSubdomain.toLowerCase());
+      const site = allSites.find(s => s.status === 'live' && s.subdomain.toLowerCase() === requestedSubdomain.toLowerCase());
       return NextResponse.json({ success: true, site, found: !!site });
     }
 

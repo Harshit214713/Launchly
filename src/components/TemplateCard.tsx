@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { Eye, ArrowUpRight, ArrowRight } from 'lucide-react';
 import { Template } from '@/types';
 
@@ -253,7 +252,7 @@ function TemplatePreviewCanvas({ template }: { template: Template }) {
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1 text-[6px] text-[#64748B]">
                     <span>•</span>
-                    <span>6.7" OLED Display</span>
+                  <span>6.7&quot; OLED Display</span>
                   </div>
                   <div className="flex items-center gap-1 text-[6px] text-[#64748B]">
                     <span>•</span>

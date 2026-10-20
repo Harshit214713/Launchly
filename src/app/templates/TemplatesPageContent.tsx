@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import { Search, Grid3X3, LayoutList, Loader2, Globe, X } from 'lucide-react';
 import TemplateCard from '@/components/TemplateCard';
 import ComingSoonCard from '@/components/ComingSoonCard';
@@ -23,7 +22,8 @@ export default function TemplatesPageContent() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showPro, setShowPro] = useState<boolean | null>(null);
 
-  // Force sync with URL immediately
+  // URL search parameters are external state; sync them after navigation.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (urlCategory) {
       setActiveCategory(urlCategory);
@@ -32,6 +32,7 @@ export default function TemplatesPageContent() {
       setSearchQuery(urlQuery);
     }
   }, [urlCategory, urlQuery]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Instant URL sync on state change
   useEffect(() => {

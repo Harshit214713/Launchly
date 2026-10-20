@@ -435,6 +435,46 @@ export async function publishSite(
   };
 }
 
+export async function saveDraftSite(
+  templateId: string,
+  siteName: string,
+  subdomain: string,
+  userId: string,
+  siteData: Record<string, unknown>
+): Promise<{ success: boolean; site?: SiteRecord; message: string }> {
+  const cleanSubdomain = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/^-+|-+$/g, '');
+  if (!cleanSubdomain || cleanSubdomain.length < 3) return { success: false, message: 'Choose a site name with at least 3 letters or numbers.' };
+  if (!userId) return { success: false, message: 'Sign in to save this draft.' };
+  const now = new Date().toISOString();
+  try {
+    const { data: existing, error } = await supabaseAdmin.from('sites').select('id, user_id, status, views, created_at, site_data').eq('subdomain', cleanSubdomain).maybeSingle();
+    if (error) console.warn('[Supabase] Draft lookup fallback:', error.message);
+    if (existing?.user_id && existing.user_id !== userId) return { success: false, message: 'This site address belongs to another account.' };
+    const id = existing?.id || sitesCache.find((site) => site.subdomain === cleanSubdomain)?.id || `site_${Date.now()}`;
+    const nextSiteData = existing?.status === 'live'
+      ? { ...((existing.site_data && typeof existing.site_data === 'object' ? existing.site_data : {}) as Record<string, unknown>), draftDocument: siteData, userId }
+      : { ...siteData, userId };
+    const site: SiteRecord = { id, templateId, name: siteName || 'My Launchly Website', subdomain: cleanSubdomain, status: existing?.status === 'live' ? 'live' : 'draft', views: existing?.views || 0, createdAt: existing?.created_at || now, updatedAt: now, siteData: nextSiteData };
+    if (existing) {
+      await supabaseAdmin.from('sites').update({ user_id: userId, template_id: templateId, name: site.name, site_data: site.siteData, updated_at: now }).eq('id', id);
+    } else {
+      const { error: insertError } = await supabaseAdmin.from('sites').insert({ id, user_id: userId, template_id: templateId, name: site.name, subdomain: cleanSubdomain, status: 'draft', views: 0, site_data: site.siteData, created_at: now, updated_at: now });
+      if (insertError) console.warn('[Supabase] Draft insert fallback:', insertError.message);
+    }
+    const index = sitesCache.findIndex((entry) => entry.subdomain === cleanSubdomain);
+    if (index >= 0) sitesCache[index] = site; else sitesCache.unshift(site);
+    return { success: true, site, message: 'Draft saved.' };
+  } catch (error) {
+    console.warn('[Supabase] Draft save using local process cache:', error);
+    const existing = sitesCache.find((site) => site.subdomain === cleanSubdomain);
+    if (existing && existing.siteData?.userId !== userId) return { success: false, message: 'This site address belongs to another account.' };
+    const nextSiteData = existing?.status === 'live' ? { ...(existing.siteData || {}), draftDocument: siteData, userId } : { ...siteData, userId };
+    const site: SiteRecord = { id: existing?.id || `site_${Date.now()}`, templateId, name: siteName || 'My Launchly Website', subdomain: cleanSubdomain, status: existing?.status === 'live' ? 'live' : 'draft', views: existing?.views || 0, createdAt: existing?.createdAt || now, updatedAt: now, siteData: nextSiteData };
+    if (existing) sitesCache[sitesCache.indexOf(existing)] = site; else sitesCache.unshift(site);
+    return { success: true, site, message: 'Draft saved locally for this server process.' };
+  }
+}
+
 interface DbSiteRow {
   id: string;
   user_id?: string;

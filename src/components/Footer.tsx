@@ -47,27 +47,27 @@ export default function Footer() {
             <Link href="/templates" className="hover:text-pink transition-colors">
               Templates
             </Link>
-            <a
+            <Link
               href="/"
               onClick={(e) => handleScrollSection(e, 'live-workspace')}
               className="hover:text-pink transition-colors cursor-pointer"
             >
               Live Studio
-            </a>
-            <a
+            </Link>
+            <Link
               href="/"
               onClick={(e) => handleScrollSection(e, 'how-it-works')}
               className="hover:text-pink transition-colors cursor-pointer"
             >
               How it works
-            </a>
-            <a
+            </Link>
+            <Link
               href="/"
               onClick={(e) => handleScrollSection(e, 'pricing')}
               className="hover:text-pink transition-colors cursor-pointer"
             >
               Pricing
-            </a>
+            </Link>
             <Link href="/dashboard" className="hover:text-pink transition-colors inline-flex items-center gap-1">
               <span>Studio</span>
               <ArrowUpRight size={12} className="stroke-[3]" />

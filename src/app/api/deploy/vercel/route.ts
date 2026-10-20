@@ -98,10 +98,10 @@ export async function POST(req: NextRequest) {
       oneClickUrl,
       message: 'Generated official 1-Click Vercel deployment link.',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Vercel Deploy Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Internal server error while deploying to Vercel.' },
+      { error: error instanceof Error ? error.message : 'Internal server error while deploying to Vercel.' },
       { status: 500 }
     );
   }

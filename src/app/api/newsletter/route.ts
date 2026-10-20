@@ -14,9 +14,12 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    if (typeof body?.website === 'string' && body.website.trim()) {
+      return NextResponse.json({ success: true, message: 'Subscription received.' });
+    }
     const { email, source } = body;
 
-    if (!email || typeof email !== 'string') {
+    if (!email || typeof email !== 'string' || email.length > 254) {
       return NextResponse.json(
         { success: false, message: 'Email address is required.' },
         { status: 400 }

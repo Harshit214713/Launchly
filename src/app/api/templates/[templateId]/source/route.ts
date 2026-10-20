@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getTemplateById } from '@/lib/templates';
 import { verifySessionToken } from '@/lib/auth';
+import { findUserByEmail } from '@/lib/db';
+import { exportTemplateAsZip } from '@/lib/zipExport';
 
 export async function GET(
   request: Request,
@@ -17,30 +19,72 @@ export async function GET(
     );
   }
 
-  // Paywall enforcement: Pro templates require active Pro subscription
-  if (template.isPro) {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('launchly_session');
-    const session = sessionCookie?.value ? verifySessionToken(sessionCookie.value) : null;
+  // Source archive downloads are a Pro feature for every template.
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get('launchly_session');
+  const session = sessionCookie?.value ? verifySessionToken(sessionCookie.value) : null;
 
-    if (!session || session.plan !== 'pro') {
-      return NextResponse.json(
-        {
-          success: false,
-          isPro: true,
-          message: `"${template.name}" is a Pro template. Please upgrade to Launchly Pro to access the production source code.`,
-          upgradeUrl: `/checkout?plan=pro&templateId=${template.id}`
-        },
-        { status: 403 }
-      );
-    }
+  const currentUser = session?.email ? await findUserByEmail(session.email).catch(() => null) : null;
+  if (!session || (currentUser?.plan ?? session.plan) !== 'pro') {
+    return NextResponse.json(
+      {
+        success: false,
+        isPro: true,
+        message: 'Source code export is a Launchly Pro feature. Upgrade to download this project.',
+        upgradeUrl: `/checkout?plan=pro&templateId=${template.id}`
+      },
+      { status: 403 }
+    );
+  }
+
+  const features = template.features.map((title) => ({
+    title,
+    desc: `${title} is thoughtfully integrated into the ${template.name} shopping experience.`,
+  }));
+  if (new URL(request.url).searchParams.get('format') === 'download') {
+    const archive = await exportTemplateAsZip({
+      siteTitle: template.name,
+      templateId: template.id,
+      theme: {
+        primaryColor: template.accent,
+        bgColor: template.bgColor,
+        textColor: template.textColor,
+        fontFamily: 'Inter, sans-serif',
+        borderRadius: '16px',
+      },
+      heroContent: {
+        badge: `${template.category} // ${template.badge || 'FEATURED'}`,
+        title: template.name,
+        description: template.description,
+        ctaPrimary: 'Shop the collection',
+        ctaSecondary: 'Discover the details',
+      },
+      featuresContent: features,
+      testimonialsContent: template.topReview
+        ? [{ quote: template.topReview.comment, name: template.topReview.author, role: template.topReview.role }]
+        : [],
+      ctaContent: {
+        title: `Discover ${template.name}.`,
+        desc: `Explore the ${template.name} collection and find your next favorite.`,
+        buttonText: 'Shop the collection',
+      },
+      sectionOrder: ['nav', 'hero', 'gallery', 'features', 'testimonials', 'cta', 'footer'],
+      pages: template.pages,
+    });
+    return new NextResponse(archive, {
+      headers: {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="${template.id}-launchly-store.zip"`,
+        'Cache-Control': 'private, no-store',
+      },
+    });
   }
 
   // Generates source code package metadata and files
   const projectArchive = {
     name: `${template.id}-launchly-project`,
     templateName: template.name,
-    framework: 'Next.js 15 (App Router)',
+    framework: 'Next.js 16 (App Router)',
     styling: 'Tailwind CSS v4',
     language: 'TypeScript',
     license: 'Commercial & Personal Royalty-Free',
@@ -56,10 +100,10 @@ export async function GET(
           dev: 'next dev',
           build: 'next build',
           start: 'next start',
-          lint: 'next lint'
+          lint: 'eslint'
         },
         dependencies: {
-          next: '^15.0.0',
+          next: '^16.4.0',
           react: '^19.0.0',
           'react-dom': '^19.0.0',
           'lucide-react': '^1.54.0',
@@ -67,7 +111,10 @@ export async function GET(
           'tailwind-merge': '^3.0.0'
         },
         devDependencies: {
+          '@tailwindcss/postcss': '^4.0.0',
           typescript: '^5.0.0',
+          eslint: '^9.0.0',
+          'eslint-config-next': '^16.4.0',
           '@types/node': '^20.0.0',
           '@types/react': '^19.0.0',
           tailwindcss: '^4.0.0'
@@ -81,7 +128,7 @@ export async function GET(
   return NextResponse.json({
     success: true,
     template,
-    downloadUrl: `/api/templates/${template.id}/source/download`,
+    downloadUrl: `/api/templates/${template.id}/source?format=download`,
     project: projectArchive,
     message: `Source code package for "${template.name}" generated successfully.`
   });
