@@ -54,7 +54,7 @@ export type Theme = {
   darkMode: boolean;
   borderRadius: string;
 };
-export type SiteAsset = { id: string; name: string; role: 'logo' | 'favicon' | 'product' | 'image' | 'icon'; src: string; alt: string };
+export type SiteAsset = { id: string; name: string; role: 'logo' | 'favicon' | 'product' | 'image' | 'icon'; src: string; alt: string; sizeBytes?: number; width?: number; height?: number; folder?: string };
 export type SiteDocument = {
   version: 1;
   id: string;
@@ -112,6 +112,7 @@ export function createSiteDocument(input: {
   elements?: SitePage['elements'];
   pages?: Array<{ id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; noindex?: boolean; ogImage?: string; seoTitle?: string; useSharedHeader?: boolean; useSharedFooter?: boolean; oldSlugs?: string[] }>;
   assetUrl?: string; logoUrl?: string; faviconUrl?: string;
+  assets?: SiteAsset[];
 }): SiteDocument {
   const primaryColor = input.theme.primaryColor || '#FF5588';
   const theme: Theme = { primaryColor, secondaryColor: '#111111', bgColor: input.theme.bgColor || '#FFFFFF', surfaceColor: '#FFFFFF', textColor: input.theme.textColor || '#111111', mutedColor: '#737373', fontFamily: input.theme.fontFamily || 'Inter, sans-serif', headingFont: input.theme.fontFamily || 'Inter, sans-serif', radius: input.theme.borderRadius || '16px', borderRadius: input.theme.borderRadius || '16px', buttonStyle: 'solid', spacingScale: 1, darkMode: false, ...input.theme };
@@ -129,7 +130,7 @@ export function createSiteDocument(input: {
     const pageSlug = page.slug?.replace(/^\/+/, '') || slug;
     return { id: page.id, slug: `/${pageSlug}`, title: page.title, isHome: false, showInMenu: page.showInMenu !== false, seo: { title: page.seoTitle || page.title, description: page.description, ogImage: page.ogImage || '', noindex: page.noindex || false }, sections: [makeSection('hero', `${page.id}-hero`, 'Hero', {}, { title: page.title, description: page.description })], elements: [], useSharedHeader: page.useSharedHeader !== false, useSharedFooter: page.useSharedFooter !== false, oldSlugs: page.oldSlugs || [] } satisfies SitePage;
   });
-  const assets: SiteAsset[] = [];
+  const assets: SiteAsset[] = (input.assets || []).filter((asset) => asset.role === 'image' || asset.role === 'icon');
   for (const [role, src] of [['product', input.assetUrl], ['logo', input.logoUrl], ['favicon', input.faviconUrl]] as const) if (src) assets.push({ id: `${role}-asset`, name: role, role, src, alt: role === 'logo' ? `${input.name} logo` : '' });
   return {
     version: 1, id: input.id, name: input.name, templateId: input.templateId, theme,

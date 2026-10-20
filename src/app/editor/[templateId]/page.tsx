@@ -17,7 +17,7 @@ import { TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
 import { exportTemplateAsZip } from '@/lib/zipExport';
 import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/contrast';
-import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type MenuItem, type SectionStyle, type SiteDocument, type Theme } from '@/lib/siteDocument';
+import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type MenuItem, type SectionStyle, type SiteAsset, type SiteDocument, type Theme } from '@/lib/siteDocument';
 import { blockRegistry } from '@/lib/blockRegistry';
 import { createEditorStore, type SiteVersion } from '@/store/editorStore';
 
@@ -92,6 +92,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [logoUrl, setLogoUrl] = useState('');
   const [faviconUrl, setFaviconUrl] = useState('');
+  const [mediaAssets, setMediaAssets] = useState<SiteAsset[]>([]);
+  const [mediaError, setMediaError] = useState('');
+  const [mediaQuery, setMediaQuery] = useState('');
 
   // AI Prompt State
   const [aiPrompt, setAiPrompt] = useState('');
@@ -160,7 +163,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     id: template.id, name: siteTitle, templateId: template.id, theme,
     sections: withBlockDefaults(sections), sectionSpacing, elements: canvasElements, pages: sitePages,
     hero: heroContent, features: featuresContent, testimonials: testimonialsContent, cta: ctaContent,
-    assetUrl, logoUrl, faviconUrl,
+    assetUrl, logoUrl, faviconUrl, assets: mediaAssets,
   })));
   const editorDocument = useStore(editorStore, (state) => state.document);
   const saveStatus = useStore(editorStore, (state) => state.saveStatus);
@@ -172,12 +175,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     theme: typeof theme; siteTitle: string; heroContent: typeof heroContent; featuresContent: typeof featuresContent;
     testimonialsContent: typeof testimonialsContent; ctaContent: typeof ctaContent; sections: Section[];
     sectionSpacing: Record<string, SectionSpacing>; canvasElements: CanvasElement[]; sitePages: SitePage[];
-    assetUrl: string; logoUrl: string; faviconUrl: string;
+    assetUrl: string; logoUrl: string; faviconUrl: string; mediaAssets: SiteAsset[];
   }): SiteDocument => createSiteDocument({
     id: template.id, name: source.siteTitle, templateId: template.id, theme: source.theme,
       sections: withBlockDefaults(source.sections), sectionSpacing: source.sectionSpacing, elements: source.canvasElements, pages: source.sitePages,
     hero: source.heroContent, features: source.featuresContent, testimonials: source.testimonialsContent, cta: source.ctaContent,
-    assetUrl: source.assetUrl, logoUrl: source.logoUrl, faviconUrl: source.faviconUrl,
+    assetUrl: source.assetUrl, logoUrl: source.logoUrl, faviconUrl: source.faviconUrl, assets: source.mediaAssets,
   }), [template.id]);
 
   const [isHistoryReady, setHistoryReady] = useState(false);
@@ -211,6 +214,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         setAssetUrl(migrated.assets.find((asset) => asset.role === 'product')?.src || '');
         setLogoUrl(migrated.assets.find((asset) => asset.role === 'logo')?.src || '');
         setFaviconUrl(migrated.assets.find((asset) => asset.role === 'favicon')?.src || '');
+        setMediaAssets(migrated.assets.filter((asset) => asset.role === 'image' || asset.role === 'icon'));
         if (!savedSite.document) {
           if (savedSite.theme) setTheme(savedSite.theme);
           if (savedSite.siteName) setSiteTitle(savedSite.siteName);
@@ -235,12 +239,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   useEffect(() => {
     if (!isHistoryReady || !serverDraftReady) return;
-    const nextDocument = documentFromState({ theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, sectionSpacing, canvasElements, sitePages, assetUrl, logoUrl, faviconUrl });
+    const nextDocument = documentFromState({ theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, sectionSpacing, canvasElements, sitePages, assetUrl, logoUrl, faviconUrl, mediaAssets });
     editorStore.getState().updateDocument((current) => {
       const merged = mergeEditorProjection(current, nextDocument, activePageId);
       return JSON.stringify(current) === JSON.stringify(merged) ? current : merged;
     }, 'editor-sync');
-  }, [isHistoryReady, serverDraftReady, editorStore, documentFromState, theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, sectionSpacing, canvasElements, sitePages, assetUrl, logoUrl, faviconUrl, activePageId]);
+  }, [isHistoryReady, serverDraftReady, editorStore, documentFromState, theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, sectionSpacing, canvasElements, sitePages, assetUrl, logoUrl, faviconUrl, mediaAssets, activePageId]);
 
   useEffect(() => {
     if (!isHistoryReady || !serverDraftReady) return;
@@ -286,7 +290,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     setAssetUrl(document.assets.find((asset) => asset.role === 'product')?.src || '');
     setLogoUrl(document.assets.find((asset) => asset.role === 'logo')?.src || '');
     setFaviconUrl(document.assets.find((asset) => asset.role === 'favicon')?.src || '');
-  }, [activePageId, setActivePageId, setTheme, setSiteTitle, setHeroContent, setFeaturesContent, setTestimonialsContent, setCtaContent, setSections, setSectionSpacing, setCanvasElements, setSitePages, setAssetUrl, setLogoUrl, setFaviconUrl]);
+    setMediaAssets(document.assets.filter((asset) => asset.role === 'image' || asset.role === 'icon'));
+  }, [activePageId, setActivePageId, setTheme, setSiteTitle, setHeroContent, setFeaturesContent, setTestimonialsContent, setCtaContent, setSections, setSectionSpacing, setCanvasElements, setSitePages, setAssetUrl, setLogoUrl, setFaviconUrl, setMediaAssets]);
 
   const serverDraftLookupStarted = useRef(false);
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -383,12 +388,19 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     setSelectedElementId(id);
   };
   const updateCanvasElement = (id: string, patch: Partial<CanvasElement>) => setCanvasElements((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
+  const readLocalImageFile = (file: File | undefined, onLoaded: (src: string) => void) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setMediaError('Choose an image file.'); return; }
+    const maxBytes = userPlan === 'pro' ? 5 * 1024 * 1024 : 2 * 1024 * 1024;
+    if (file.size > maxBytes) { setMediaError(`This image exceeds the ${userPlan === 'pro' ? '5 MB' : '2 MB'} per-file limit.`); return; }
+    const reader = new FileReader();
+    reader.onerror = () => setMediaError(`Could not read ${file.name}.`);
+    reader.onload = () => { setMediaError(''); onLoaded(String(reader.result || '')); };
+    reader.readAsDataURL(file);
+  };
   const readElementUpload = (id: string, file?: File) => {
     if (!file) return;
-    if (!file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = () => updateCanvasElement(id, { src: String(reader.result || ''), name: file.name });
-    reader.readAsDataURL(file);
+    readLocalImageFile(file, (src) => updateCanvasElement(id, { src, name: file.name }));
   };
 
   // 1-Click ZIP Export
@@ -605,6 +617,46 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const changePageSlug = (pageId: string, rawSlug: string) => {
     const slug = editorStore.getState().setPageSlug(pageId, rawSlug);
     updatePage(pageId, { slug: slug.replace(/^\//, '') });
+  };
+  const uploadMediaFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setMediaError('');
+    const additions = Array.from(files);
+    const maxTotal = userPlan === 'pro' ? 4 * 1024 * 1024 : 2 * 1024 * 1024;
+    const currentBytes = mediaAssets.reduce((total, asset) => total + (asset.sizeBytes || 0), 0);
+    const addedBytes = additions.reduce((total, file) => total + file.size, 0);
+    if (currentBytes + addedBytes > maxTotal) {
+      setMediaError(`Local media is limited to ${userPlan === 'pro' ? '4 MB' : '2 MB'} total in this editor. Remove an image or use a smaller file.`);
+      return;
+    }
+    if (additions.some((file) => !file.type.startsWith('image/'))) { setMediaError('Choose image files only.'); return; }
+    try {
+      const assets = await Promise.all(additions.map((file) => new Promise<SiteAsset>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+        reader.onload = () => {
+          const src = String(reader.result || '');
+          const preview = new window.Image();
+          const asset: SiteAsset = { id: `image-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: file.name, role: 'image', src, alt: file.name.replace(/\.[^.]+$/, ''), sizeBytes: file.size };
+          preview.onload = () => resolve({ ...asset, width: preview.naturalWidth, height: preview.naturalHeight });
+          preview.onerror = () => resolve(asset);
+          preview.src = src;
+        };
+        reader.readAsDataURL(file);
+      })));
+      setMediaAssets((current) => [...current, ...assets]);
+    } catch (error) { setMediaError(error instanceof Error ? error.message : 'Upload failed.'); }
+  };
+  const deleteMediaAsset = (asset: SiteAsset) => {
+    const used = asset.src === assetUrl || asset.src === logoUrl || asset.src === faviconUrl || JSON.stringify({ sections, canvasElements }).includes(asset.src);
+    if (used && !window.confirm(`${asset.name} is currently used by this site. Delete it anyway?`)) return;
+    if (asset.src === assetUrl) setAssetUrl('');
+    if (asset.src === logoUrl) setLogoUrl('');
+    if (asset.src === faviconUrl) setFaviconUrl('');
+    const stripSource = (value: unknown): unknown => value === asset.src ? '' : Array.isArray(value) ? value.map(stripSource) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, nested]) => [key, stripSource(nested)])) : value;
+    setSections((items) => items.map((item) => ({ ...item, content: item.content ? stripSource(item.content) as Record<string, unknown> : item.content })));
+    setCanvasElements((items) => items.map((item) => item.src === asset.src ? { ...item, src: '' } : item));
+    setMediaAssets((items) => items.filter((entry) => entry.id !== asset.id));
   };
   const currentPage = sitePages.find((page) => page.id === activePageId) || sitePages[0];
   const updateMenuItem = (id: string, update: (item: (typeof editorDocument.menu)[number]) => (typeof editorDocument.menu)[number]) => {
@@ -1144,28 +1196,35 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             {(leftPanel === 'assets' || mobileTab === 'assets') && (
               <div className="space-y-3">
                 <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Brand identity</p>
-                <label className="block cursor-pointer rounded-xl border-2 border-dashed border-black/40 bg-white p-3 text-center font-mono text-xs font-bold text-black hover:bg-yellow">Upload site logo<input type="file" accept="image/*" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setLogoUrl(String(reader.result || '')); reader.readAsDataURL(file); }} /></label>
-                <label className="block cursor-pointer rounded-xl border-2 border-dashed border-black/40 bg-white p-3 text-center font-mono text-xs font-bold text-black hover:bg-yellow">Upload favicon<input type="file" accept="image/png,image/x-icon,image/svg+xml,image/jpeg" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => setFaviconUrl(String(reader.result || '')); reader.readAsDataURL(file); }} /></label>
+                <label className="block cursor-pointer rounded-xl border-2 border-dashed border-black/40 bg-white p-3 text-center font-mono text-xs font-bold text-black hover:bg-yellow">Upload site logo<input type="file" accept="image/*" className="sr-only" onChange={(e) => readLocalImageFile(e.target.files?.[0], setLogoUrl)} /></label>
+                <label className="block cursor-pointer rounded-xl border-2 border-dashed border-black/40 bg-white p-3 text-center font-mono text-xs font-bold text-black hover:bg-yellow">Upload favicon<input type="file" accept="image/png,image/x-icon,image/svg+xml,image/jpeg" className="sr-only" onChange={(e) => readLocalImageFile(e.target.files?.[0], setFaviconUrl)} /></label>
+                {mediaError && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-2 font-mono text-[10px] text-red-700">{mediaError}</p>}
                 {logoUrl && <div className="flex items-center gap-2 rounded-xl border border-black/20 bg-white p-2"><NextImage src={logoUrl} alt="Site logo preview" width={40} height={40} unoptimized className="h-10 w-10 rounded object-contain" /><button type="button" onClick={() => setLogoUrl('')} className="font-mono text-xs underline">Remove logo</button></div>}
                 {faviconUrl && <div className="flex items-center gap-2 rounded-xl border border-black/20 bg-white p-2"><NextImage src={faviconUrl} alt="Favicon preview" width={32} height={32} unoptimized className="h-8 w-8 rounded object-contain" /><button type="button" onClick={() => setFaviconUrl('')} className="font-mono text-xs underline">Remove favicon</button></div>}
                 <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Product image asset</p>
                 <input type="url" value={assetUrl} onChange={(e) => setAssetUrl(e.target.value)} placeholder="Paste an image URL" className="w-full rounded-xl border-2 border-black bg-white px-3 py-2 font-mono text-xs text-black" />
                 <label className="block cursor-pointer rounded-xl border-2 border-dashed border-black/40 bg-white p-4 text-center font-mono text-xs font-bold text-black hover:bg-yellow">
-                  Upload image<input type="file" accept="image/*" className="sr-only" onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = () => setAssetUrl(String(reader.result || ''));
-                    reader.readAsDataURL(file);
-                  }} />
+                  Upload image<input type="file" accept="image/*" className="sr-only" onChange={(e) => readLocalImageFile(e.target.files?.[0], setAssetUrl)} />
                 </label>
                 {assetUrl && <div className="space-y-2">
                   {/* Dynamic user-provided images can come from any host or a local data URL. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={assetUrl} alt="Selected product asset preview" className="w-full h-36 rounded-xl border-2 border-black object-cover" />
+                  <NextImage src={assetUrl} alt="Selected product asset preview" width={800} height={360} unoptimized className="w-full h-36 rounded-xl border-2 border-black object-cover" />
                   <button type="button" onClick={() => setAssetUrl('')} className="w-full rounded-lg border border-black bg-white py-2 font-mono text-xs font-bold">Remove image</button>
                 </div>}
                 <p className="font-mono text-[10px] text-neutral-500">The selected image appears on featured product cards and is saved with your draft.</p>
+                <div className="space-y-2 border-t-2 border-black/15 pt-3">
+                  <div className="flex items-center justify-between"><p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Media library</p><span className="font-mono text-[9px] text-neutral-400">{(mediaAssets.reduce((sum, item) => sum + (item.sizeBytes || 0), 0) / 1024 / 1024).toFixed(1)} MB</span></div>
+                  <label className="block cursor-pointer rounded-xl border-2 border-dashed border-black/40 bg-white p-3 text-center font-mono text-xs font-bold hover:bg-yellow">＋ Upload images<input type="file" accept="image/*" multiple className="sr-only" onChange={(event) => { void uploadMediaFiles(event.target.files); event.target.value = ''; }} /></label>
+                  <input type="search" value={mediaQuery} onChange={(event) => setMediaQuery(event.target.value)} placeholder="Search images" aria-label="Search media library" className="w-full rounded-lg border border-black/30 bg-white px-3 py-2 font-mono text-xs" />
+                  {mediaError && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-2 font-mono text-[10px] text-red-700">{mediaError}</p>}
+                  {!mediaAssets.length && <p className="rounded-lg bg-white p-3 font-mono text-[10px] text-neutral-500">Uploaded images appear here. Local uploads are capped at {userPlan === 'pro' ? '4 MB' : '2 MB'} total.</p>}
+                  <div className="space-y-2">{mediaAssets.filter((asset) => `${asset.name} ${asset.alt} ${asset.folder || ''}`.toLowerCase().includes(mediaQuery.toLowerCase())).map((asset) => <div key={asset.id} className="space-y-2 rounded-xl border-2 border-black/15 bg-white p-2">
+                    <div className="flex items-center gap-2"><NextImage src={asset.src} alt={asset.alt} width={64} height={52} unoptimized className="h-13 w-16 rounded-lg border border-black/15 object-cover"/><div className="min-w-0 flex-1"><input aria-label="Rename media file" value={asset.name} onChange={(event) => setMediaAssets((items) => items.map((item) => item.id === asset.id ? { ...item, name: event.target.value } : item))} className="w-full truncate rounded border border-black/15 px-2 py-1 font-mono text-[10px] font-bold"/><p className="mt-1 font-mono text-[9px] text-neutral-500">{asset.width && asset.height ? `${asset.width}×${asset.height} · ` : ''}{((asset.sizeBytes || 0) / 1024).toFixed(0)} KB</p></div><button type="button" aria-label={`Delete ${asset.name}`} onClick={() => deleteMediaAsset(asset)} className="rounded p-1 text-red-600 hover:bg-red-50"><Trash2 size={14}/></button></div>
+                    <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Alt text<input aria-label={`Alt text for ${asset.name}`} value={asset.alt} onChange={(event) => setMediaAssets((items) => items.map((item) => item.id === asset.id ? { ...item, alt: event.target.value } : item))} className="mt-1 w-full rounded border border-black/15 px-2 py-1 font-sans text-xs font-normal normal-case text-black" placeholder="Describe the image" /></label>
+                    <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Folder<input aria-label={`Folder for ${asset.name}`} value={asset.folder || ''} onChange={(event) => setMediaAssets((items) => items.map((item) => item.id === asset.id ? { ...item, folder: event.target.value } : item))} className="mt-1 w-full rounded border border-black/15 px-2 py-1 font-sans text-xs font-normal normal-case text-black" placeholder="Unsorted" /></label>
+                    <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setAssetUrl(asset.src)} className="rounded border border-black bg-yellow py-1 font-mono text-[9px] font-bold">Use as product image</button><button type="button" onClick={() => setLogoUrl(asset.src)} className="rounded border border-black py-1 font-mono text-[9px] font-bold">Use as logo</button><button type="button" onClick={() => setFaviconUrl(asset.src)} className="rounded border border-black py-1 font-mono text-[9px] font-bold">Use as favicon</button><button type="button" onClick={() => navigator.clipboard?.writeText(asset.src)} className="rounded border border-black py-1 font-mono text-[9px] font-bold">Copy image URL</button></div>
+                  </div>)}</div>
+                </div>
               </div>
             )}
           </div>
@@ -1259,7 +1318,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
-            {selectedElementId ? (() => { const item = canvasElements.find((element) => element.id === selectedElementId); return item ? <ElementProperties item={item} onChange={(patch) => updateCanvasElement(item.id, patch)} /> : null; })() : selectedSection ? (
+            {selectedElementId ? (() => { const item = canvasElements.find((element) => element.id === selectedElementId); return item ? <ElementProperties item={item} onChange={(patch) => updateCanvasElement(item.id, patch)} onUpload={(file) => { if (file) readLocalImageFile(file, (src) => updateCanvasElement(item.id, { src, name: file.name })); }} /> : null; })() : selectedSection ? (
               <SectionProperties
                 sectionId={selectedSection}
                 sections={sections}
@@ -1585,13 +1644,13 @@ function CanvasContent({
   );
 }
 
-function ElementProperties({ item, onChange }: { item: CanvasElement; onChange: (patch: Partial<CanvasElement>) => void }) {
+function ElementProperties({ item, onChange, onUpload }: { item: CanvasElement; onChange: (patch: Partial<CanvasElement>) => void; onUpload: (file?: File) => void }) {
   const fields: Array<[keyof Pick<CanvasElement, 'x' | 'y' | 'width' | 'height'>, string]> = [['x','Horizontal position'],['y','Vertical position'],['width','Width'],['height','Height']];
   return <div className="space-y-4">
     <label className="block text-xs font-bold">Name<input value={item.name} onChange={(e) => onChange({ name: e.target.value })} className="mt-1 w-full rounded-lg border-2 border-black px-3 py-2 font-mono text-xs" /></label>
     {item.type === 'icon' && <label className="block text-xs font-bold">Icon<input value={item.icon || 'Star'} onChange={(e) => onChange({ icon: e.target.value, src: '' })} list="editor-icon-options" className="mt-1 w-full rounded-lg border-2 border-black px-3 py-2 font-mono text-xs" /><datalist id="editor-icon-options">{['Star','Heart','Sparkles','Camera','CheckCircle2','ArrowUpRight'].map((icon) => <option key={icon} value={icon}/>)}</datalist></label>}
     <label className="block text-xs font-bold">{item.type === 'image' ? 'Image URL' : 'Custom icon image URL'}<input type="url" value={item.src?.startsWith('data:') ? '' : item.src || ''} onChange={(e) => onChange({ src: e.target.value })} placeholder="https://…" className="mt-1 w-full rounded-lg border-2 border-black px-3 py-2 font-mono text-xs" /></label>
-    <label className="block cursor-pointer rounded-lg border-2 border-dashed border-black p-3 text-center font-mono text-xs font-bold">Upload {item.type === 'image' ? 'image' : 'icon image'}<input type="file" accept="image/*" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => onChange({ src: String(reader.result || ''), name: file.name }); reader.readAsDataURL(file); }} /></label>
+    <label className="block cursor-pointer rounded-lg border-2 border-dashed border-black p-3 text-center font-mono text-xs font-bold">Upload {item.type === 'image' ? 'image' : 'icon image'}<input type="file" accept="image/*" className="sr-only" onChange={(e) => onUpload(e.target.files?.[0])} /></label>
     <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Position & size (px)</p>
     <div className="grid grid-cols-2 gap-2">{fields.map(([key, label]) => <label key={key} className="text-[10px] font-bold">{label}<input type="number" min={key === 'width' || key === 'height' ? 16 : 0} value={item[key]} onChange={(e) => onChange({ [key]: Math.max(key === 'width' || key === 'height' ? 16 : 0, Number(e.target.value) || 0) })} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs" /></label>)}</div>
     <button type="button" onClick={() => onChange({ x: 0 })} className="w-full rounded-lg border border-black bg-white py-2 font-mono text-xs">Align to left edge</button>
