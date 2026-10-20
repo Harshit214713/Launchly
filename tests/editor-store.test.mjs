@@ -47,6 +47,20 @@ test('page CRUD enforces unique slugs and keeps a home page', () => {
   assert.equal(store.getState().removePage(firstId), true);
 });
 
+test('changing the home page preserves both pages and updates navigation targets', () => {
+  const store = createEditorStore(fixture());
+  const aboutId = store.getState().addPage('About', [makeSection('hero', 'about-hero')]);
+  store.getState().setHomePage(aboutId);
+  const doc = store.getState().document;
+  const home = doc.pages.find((page) => page.isHome);
+  const oldHome = doc.pages.find((page) => page.id === aboutId);
+  assert.equal(home?.id, 'home');
+  assert.equal(home?.title, 'About');
+  assert.equal(oldHome?.isHome, false);
+  assert.equal(oldHome?.slug, '/home-page');
+  assert.ok(doc.menu.some((item) => item.target.type === 'page' && item.target.value === aboutId));
+});
+
 test('legacy drafts migrate content, section order, spacing, assets, and pages', () => {
   const migrated = migrateSiteDocument({
     siteName: 'Old Store', templateId: 'legacy',

@@ -17,7 +17,7 @@ import { TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
 import { exportTemplateAsZip } from '@/lib/zipExport';
 import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/contrast';
-import { createSiteDocument, mergeEditorProjection, migrateSiteDocument, type SiteDocument } from '@/lib/siteDocument';
+import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type SectionStyle, type SiteDocument } from '@/lib/siteDocument';
 import { createEditorStore, type SiteVersion } from '@/store/editorStore';
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
@@ -34,10 +34,12 @@ interface Section {
   id: string;
   name: string;
   type: string;
+  content?: Record<string, unknown>;
+  style?: SectionStyle;
 }
 type SectionSpacing = { top: number; bottom: number; left: number; right: number };
 type CanvasElement = { id: string; type: 'image' | 'icon'; name: string; src?: string; icon?: string; x: number; y: number; width: number; height: number };
-type SitePage = { id: string; title: string; description: string };
+type SitePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; noindex?: boolean };
 const DEFAULT_SPACING: SectionSpacing = { top: 0, bottom: 0, left: 0, right: 0 };
 
 const DEFAULT_SECTIONS: Section[] = [
@@ -61,6 +63,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [sectionSpacing, setSectionSpacing] = useState<Record<string, SectionSpacing>>({});
   const [canvasElements, setCanvasElements] = useState<CanvasElement[]>([]);
   const [sitePages, setSitePages] = useState<SitePage[]>(() => template.pages.map((name, index) => ({ id: index ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'home', title: name, description: index ? `Explore ${name.toLowerCase()} at ${template.name}.` : template.description })));
+  const [activePageId, setActivePageId] = useState('home');
+  const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
   const [selectedSection, setSelectedSection] = useState<string | null>('hero');
@@ -149,7 +153,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     assetUrl: string; logoUrl: string; faviconUrl: string;
   }): SiteDocument => createSiteDocument({
     id: template.id, name: source.siteTitle, templateId: template.id, theme: source.theme,
-    sections: source.sections, sectionSpacing: source.sectionSpacing, elements: source.canvasElements, pages: source.sitePages,
+      sections: source.sections, sectionSpacing: source.sectionSpacing, elements: source.canvasElements, pages: source.sitePages,
     hero: source.heroContent, features: source.featuresContent, testimonials: source.testimonialsContent, cta: source.ctaContent,
     assetUrl: source.assetUrl, logoUrl: source.logoUrl, faviconUrl: source.faviconUrl,
   }), [template.id]);
@@ -176,26 +180,30 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         setFeaturesContent(migrated.content.features);
         setTestimonialsContent(migrated.content.testimonials);
         setCtaContent(migrated.content.cta);
-        if (migrated.pages[0]?.sections.length) setSections(migrated.pages[0].sections.map(({ id, name, type }) => ({ id, name, type })));
+        const homePage = migrated.pages.find((page) => page.isHome) || migrated.pages[0];
+        if (homePage?.sections.length) setSections(homePage.sections.map(({ id, name, type, content, style }) => ({ id, name, type, content, style })));
         setSectionSpacing(Object.fromEntries(migrated.pages.flatMap((page) => page.sections.filter((section) => section.style.padding).map((section) => [section.id, { top: section.style.padding?.top || 0, right: section.style.padding?.right || 0, bottom: section.style.padding?.bottom || 0, left: section.style.padding?.left || 0 }]))));
-        setCanvasElements(migrated.pages[0]?.elements || []);
-        setSitePages(migrated.pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo.description })));
+        setCanvasElements(homePage?.elements || []);
+        setSitePages(migrated.pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo.description, slug: page.slug.replace(/^\//, ''), isHome: page.isHome, showInMenu: page.showInMenu, noindex: page.seo.noindex })));
+        setActivePageId(homePage?.id || 'home');
         setAssetUrl(migrated.assets.find((asset) => asset.role === 'product')?.src || '');
         setLogoUrl(migrated.assets.find((asset) => asset.role === 'logo')?.src || '');
         setFaviconUrl(migrated.assets.find((asset) => asset.role === 'favicon')?.src || '');
-        if (savedSite.theme) setTheme(savedSite.theme);
-        if (savedSite.siteName) setSiteTitle(savedSite.siteName);
-        if (savedSite.heroContent) setHeroContent(savedSite.heroContent);
-        if (savedSite.featuresContent) setFeaturesContent(savedSite.featuresContent);
-        if (savedSite.testimonialsContent) setTestimonialsContent(savedSite.testimonialsContent);
-        if (savedSite.ctaContent) setCtaContent(savedSite.ctaContent);
-        if (savedSite.sections?.length) setSections(savedSite.sections);
-        if (savedSite.assetUrl) setAssetUrl(savedSite.assetUrl);
-        if (savedSite.logoUrl) setLogoUrl(savedSite.logoUrl);
-        if (savedSite.faviconUrl) setFaviconUrl(savedSite.faviconUrl);
-        if (savedSite.sectionSpacing) setSectionSpacing(savedSite.sectionSpacing);
-        if (savedSite.canvasElements) setCanvasElements(savedSite.canvasElements);
-        if (savedSite.sitePages) setSitePages(savedSite.sitePages);
+        if (!savedSite.document) {
+          if (savedSite.theme) setTheme(savedSite.theme);
+          if (savedSite.siteName) setSiteTitle(savedSite.siteName);
+          if (savedSite.heroContent) setHeroContent(savedSite.heroContent);
+          if (savedSite.featuresContent) setFeaturesContent(savedSite.featuresContent);
+          if (savedSite.testimonialsContent) setTestimonialsContent(savedSite.testimonialsContent);
+          if (savedSite.ctaContent) setCtaContent(savedSite.ctaContent);
+          if (savedSite.sections?.length) setSections(savedSite.sections);
+          if (savedSite.assetUrl) setAssetUrl(savedSite.assetUrl);
+          if (savedSite.logoUrl) setLogoUrl(savedSite.logoUrl);
+          if (savedSite.faviconUrl) setFaviconUrl(savedSite.faviconUrl);
+          if (savedSite.sectionSpacing) setSectionSpacing(savedSite.sectionSpacing);
+          if (savedSite.canvasElements) setCanvasElements(savedSite.canvasElements);
+          if (savedSite.sitePages) setSitePages(savedSite.sitePages);
+        }
       }
     } catch { /* Ignore malformed local drafts and keep template defaults. */ }
     setHistoryReady(true);
@@ -207,10 +215,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     if (!isHistoryReady || !serverDraftReady) return;
     const nextDocument = documentFromState({ theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, sectionSpacing, canvasElements, sitePages, assetUrl, logoUrl, faviconUrl });
     editorStore.getState().updateDocument((current) => {
-      const merged = mergeEditorProjection(current, nextDocument);
+      const merged = mergeEditorProjection(current, nextDocument, activePageId);
       return JSON.stringify(current) === JSON.stringify(merged) ? current : merged;
     }, 'editor-sync');
-  }, [isHistoryReady, serverDraftReady, editorStore, documentFromState, theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, sectionSpacing, canvasElements, sitePages, assetUrl, logoUrl, faviconUrl]);
+  }, [isHistoryReady, serverDraftReady, editorStore, documentFromState, theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, sectionSpacing, canvasElements, sitePages, assetUrl, logoUrl, faviconUrl, activePageId]);
 
   useEffect(() => {
     if (!isHistoryReady || !serverDraftReady) return;
@@ -235,22 +243,28 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     }, 1500);
     return () => window.clearTimeout(timer);
   }, [editorDocument, isHistoryReady, serverDraftReady, editorStore, template.id]);
-  const applyDocumentToEditor = useCallback((document: SiteDocument) => {
-    const home = document.pages.find((page) => page.isHome) || document.pages[0];
+  const applyDocumentToEditor = useCallback((document: SiteDocument, requestedPageId = activePageId) => {
+    const page = document.pages.find((entry) => entry.id === requestedPageId) || document.pages.find((entry) => entry.isHome) || document.pages[0];
+    if (!page) return;
+    setActivePageId(page.id);
     setTheme(document.theme);
     setSiteTitle(document.name);
-    setHeroContent((current) => ({ ...current, ...document.content.hero }));
-    setFeaturesContent(document.content.features);
-    setTestimonialsContent(document.content.testimonials);
-    setCtaContent(document.content.cta);
-    setSections(home?.sections.map(({ id, name, type }) => ({ id, name, type })) || []);
-    setSectionSpacing(Object.fromEntries(document.pages.flatMap((page) => page.sections.filter((section) => section.style.padding).map((section) => [section.id, { top: section.style.padding?.top || 0, right: section.style.padding?.right || 0, bottom: section.style.padding?.bottom || 0, left: section.style.padding?.left || 0 }]))));
-    setCanvasElements(home?.elements || []);
-    setSitePages(document.pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo.description })));
+    const hero = page.sections.find((section) => section.type === 'hero')?.content as Partial<typeof heroContent> | undefined;
+    const features = page.sections.find((section) => section.type === 'features')?.content.items;
+    const testimonials = page.sections.find((section) => section.type === 'testimonials')?.content.items;
+    const cta = page.sections.find((section) => section.type === 'cta')?.content as Partial<typeof ctaContent> | undefined;
+    setHeroContent((current) => ({ ...current, ...document.content.hero, ...hero }));
+    setFeaturesContent(Array.isArray(features) ? features as unknown as typeof featuresContent : document.content.features);
+    setTestimonialsContent(Array.isArray(testimonials) ? testimonials as unknown as typeof testimonialsContent : document.content.testimonials);
+    setCtaContent({ ...document.content.cta, ...cta });
+    setSections(page.sections.map(({ id, name, type, content, style }) => ({ id, name, type, content, style })));
+    setSectionSpacing(Object.fromEntries(page.sections.filter((section) => section.style.padding).map((section) => [section.id, { top: section.style.padding?.top || 0, right: section.style.padding?.right || 0, bottom: section.style.padding?.bottom || 0, left: section.style.padding?.left || 0 }])));
+    setCanvasElements(page.elements || []);
+    setSitePages(document.pages.map((entry) => ({ id: entry.isHome ? 'home' : entry.id, title: entry.title, description: entry.seo.description, slug: entry.slug.replace(/^\//, ''), isHome: entry.isHome, showInMenu: entry.showInMenu, noindex: entry.seo.noindex })));
     setAssetUrl(document.assets.find((asset) => asset.role === 'product')?.src || '');
     setLogoUrl(document.assets.find((asset) => asset.role === 'logo')?.src || '');
     setFaviconUrl(document.assets.find((asset) => asset.role === 'favicon')?.src || '');
-  }, [setTheme, setSiteTitle, setHeroContent, setFeaturesContent, setTestimonialsContent, setCtaContent, setSections, setSectionSpacing, setCanvasElements, setSitePages, setAssetUrl, setLogoUrl, setFaviconUrl]);
+  }, [activePageId, setActivePageId, setTheme, setSiteTitle, setHeroContent, setFeaturesContent, setTestimonialsContent, setCtaContent, setSections, setSectionSpacing, setCanvasElements, setSitePages, setAssetUrl, setLogoUrl, setFaviconUrl]);
 
   const serverDraftLookupStarted = useRef(false);
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -534,6 +548,30 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     if (selectedSection === id) setSelectedSection(null);
   };
 
+  const switchPage = (pageId: string) => {
+    const document = editorStore.getState().document;
+    if (document.pages.some((page) => page.id === pageId)) applyDocumentToEditor(document, pageId);
+  };
+  const addSitePage = (duplicateId?: string) => {
+    if (userPlan !== 'pro' && sitePages.length >= 3) { setShowUpgrade(true); return; }
+    const store = editorStore.getState();
+    let newId: string | null;
+    if (duplicateId) newId = store.duplicatePage(duplicateId);
+    else newId = store.addPage('New Page', [makeSection('hero', `hero-${Date.now()}`, 'Hero', {}, { title: 'New Page', description: 'Add a page introduction.' }), makeSection('cta', `cta-${Date.now()}`, 'Call to Action')]);
+    if (newId) applyDocumentToEditor(editorStore.getState().document, newId);
+  };
+  const deleteSitePage = (pageId: string) => {
+    const page = editorStore.getState().document.pages.find((entry) => entry.id === pageId);
+    if (!page || page.isHome || !window.confirm(`Delete the “${page.title}” page? This cannot be undone after saving.`)) return;
+    if (editorStore.getState().removePage(pageId)) switchPage('home');
+  };
+  const updatePage = (pageId: string, patch: Partial<SitePage>) => setSitePages((items) => items.map((page) => page.id === pageId ? { ...page, ...patch } : page));
+  const changePageSlug = (pageId: string, rawSlug: string) => {
+    const slug = editorStore.getState().setPageSlug(pageId, rawSlug);
+    updatePage(pageId, { slug: slug.replace(/^\//, '') });
+  };
+  const currentPage = sitePages.find((page) => page.id === activePageId) || sitePages[0];
+
   return (
     <div className="h-screen flex flex-col bg-[#FAF9F6] text-[#0F0F11] overflow-hidden">
       {/* Neo-brutalist Top Toolbar - Fully Responsive */}
@@ -562,6 +600,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
               title="Click to rename website"
             />
           </div>
+
+          <select aria-label="Current page" value={activePageId} onChange={(event) => switchPage(event.target.value)} className="hidden sm:block max-w-28 rounded-lg border-2 border-black bg-white px-2 py-1 font-mono text-[10px] font-bold">
+            {sitePages.map((page) => <option key={page.id} value={page.id}>{page.title}</option>)}
+          </select>
 
           <span role="status" aria-live="polite" className="hidden xl:inline-flex items-center gap-1.5 rounded-full border border-black/20 bg-white px-2 py-1 font-mono text-[9px] font-bold text-neutral-600">
             <span className={`h-1.5 w-1.5 rounded-full ${saveStatus === 'saved' ? 'bg-green-500' : saveStatus === 'offline' ? 'bg-red-500' : saveStatus === 'saving' ? 'bg-yellow-500' : 'bg-pink'}`} />
@@ -1006,13 +1048,19 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
             {(leftPanel === 'pages' || mobileTab === 'pages') && (
               <div className="space-y-3">
-                <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Pages included in this site</p>
-                {sitePages.map((page, index) => <div key={`${page.id}-${index}`} className="space-y-2 rounded-xl border-2 border-black/15 bg-white p-3">
-                  <div className="flex items-center justify-between gap-2"><input aria-label="Page navigation label" value={page.title} onChange={(e) => setSitePages((items) => items.map((entry, i) => i === index ? { ...entry, title: e.target.value } : entry))} className="min-w-0 flex-1 rounded-lg border border-black/30 px-2 py-1 font-mono text-xs font-bold" /><span className="text-[9px] text-neutral-500">/{page.id === 'home' ? '' : page.id}</span>{index > 0 && <button type="button" aria-label={`Remove ${page.title}`} onClick={() => setSitePages((items) => items.filter((_, i) => i !== index))}><Trash2 size={14}/></button>}</div>
-                  <input aria-label="Page description" value={page.description} onChange={(e) => setSitePages((items) => items.map((entry, i) => i === index ? { ...entry, description: e.target.value } : entry))} className="w-full rounded-lg border border-black/20 px-2 py-1.5 font-mono text-[10px]" placeholder="Page intro content" />
+                <div className="flex items-center justify-between"><p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Site pages</p><span className="font-mono text-[9px] text-neutral-500">{sitePages.length}{userPlan === 'pro' ? ' · unlimited' : ' / 3 free'}</span></div>
+                {sitePages.map((page, index) => <div key={page.id} draggable onDragStart={() => setDraggedPageId(page.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (!draggedPageId) return; editorStore.getState().reorderPage(draggedPageId, index); setDraggedPageId(null); applyDocumentToEditor(editorStore.getState().document, activePageId); }} className={`space-y-2 rounded-xl border-2 bg-white p-3 ${activePageId === page.id ? 'border-black shadow-[2px_2px_0_#000]' : 'border-black/15'}`}>
+                  <div className="flex items-center gap-2"><button type="button" onClick={() => switchPage(page.id)} className="min-w-0 flex-1 truncate text-left font-mono text-xs font-bold">{page.isHome || page.id === 'home' ? '⌂ ' : '⠿ '}{page.title}</button><button type="button" title="Duplicate page" aria-label={`Duplicate ${page.title}`} onClick={() => addSitePage(page.id)}><Plus size={14}/></button>{!page.isHome && page.id !== 'home' && <button type="button" title="Delete page" aria-label={`Delete ${page.title}`} onClick={() => deleteSitePage(page.id)}><Trash2 size={14}/></button>}</div>
+                  {activePageId === page.id && <div className="space-y-2 border-t border-black/10 pt-2">
+                    <label className="block font-mono text-[9px] font-bold uppercase">Page name<input aria-label="Page name" value={page.title} onChange={(e) => updatePage(page.id, { title: e.target.value })} className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-mono text-xs font-bold" /></label>
+                    <label className="block font-mono text-[9px] font-bold uppercase">URL slug<div className="mt-1 flex items-center rounded-lg border border-black/30 px-2"><span className="font-mono text-xs text-neutral-400">/</span><input aria-label="Page URL slug" value={page.slug || (page.id === 'home' ? '' : page.id)} disabled={page.isHome || page.id === 'home'} onChange={(e) => changePageSlug(page.id, e.target.value)} className="min-w-0 flex-1 bg-transparent py-1.5 font-mono text-xs disabled:text-neutral-400" /></div></label>
+                    <label className="block font-mono text-[9px] font-bold uppercase">Page description<input aria-label="Page description" value={page.description} onChange={(e) => updatePage(page.id, { description: e.target.value })} className="mt-1 w-full rounded-lg border border-black/20 px-2 py-1.5 font-mono text-[10px]" placeholder="Page intro content" /></label>
+                    <div className="flex flex-wrap gap-3 font-mono text-[10px]"><label className="flex items-center gap-1"><input type="checkbox" checked={page.showInMenu !== false && page.id !== 'home'} disabled={page.id === 'home' || page.isHome} onChange={(e) => updatePage(page.id, { showInMenu: e.target.checked })} />Show in menu</label><label className="flex items-center gap-1"><input type="checkbox" checked={page.noindex || false} onChange={(e) => updatePage(page.id, { noindex: e.target.checked })} />Hide from search</label></div>
+                    {!page.isHome && page.id !== 'home' && <button type="button" onClick={() => { editorStore.getState().setHomePage(page.id); applyDocumentToEditor(editorStore.getState().document, page.id); }} className="w-full rounded-lg border border-black bg-white py-1.5 font-mono text-[10px] font-bold hover:bg-yellow">Set as home page</button>}
+                  </div>}
                 </div>)}
-                <button type="button" onClick={() => { const id = `page-${sitePages.length + 1}`; setSitePages((items) => [...items, { id, title: `New Page ${items.length}`, description: 'Add a helpful introduction for this page.' }]); }} className="w-full rounded-xl border-2 border-black bg-yellow p-2 font-mono text-xs font-bold">＋ Add page</button>
-                <p className="text-[10px] font-mono leading-relaxed text-neutral-500">Page names and descriptions save with your site and appear in its navigation.</p>
+                <button type="button" onClick={() => addSitePage()} className="w-full rounded-xl border-2 border-black bg-yellow p-2 font-mono text-xs font-bold">＋ Add page</button>
+                <p className="text-[10px] font-mono leading-relaxed text-neutral-500">Drag pages to reorder. Page links use their saved slugs.</p>
               </div>
             )}
 
@@ -1075,7 +1123,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
               </div>
               <div className="flex items-center gap-1.5 rounded-lg border border-black/20 bg-white px-2.5 py-0.5 font-mono text-[10px] sm:text-[11px] text-neutral-600 truncate max-w-[200px] sm:max-w-xs">
                 <span className="text-mint font-bold">●</span>
-                <span className="truncate">https://{siteTitle.toLowerCase().replace(/\s+/g, '-')}.launchly.site</span>
+                <span className="truncate">https://{siteTitle.toLowerCase().replace(/\s+/g, '-')}.launchly.site{currentPage?.slug ? `/${currentPage.slug}` : ''}</span>
               </div>
               <span className="hidden sm:inline font-mono text-[10px] font-black uppercase text-neutral-400">
                 {deviceMode}
@@ -1092,6 +1140,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 selectedElementId={selectedElementId}
                 onSelectElement={setSelectedElementId}
                 onMoveElement={(id, x, y) => updateCanvasElement(id, { x, y })}
+                onNavigatePage={switchPage}
                 selectedSection={selectedSection}
                 theme={theme}
                 siteTitle={siteTitle}
@@ -1388,6 +1437,7 @@ function CanvasContent({
   selectedElementId,
   onSelectElement,
   onMoveElement,
+  onNavigatePage,
   selectedSection,
   theme,
   siteTitle,
@@ -1412,6 +1462,7 @@ function CanvasContent({
   selectedElementId: string | null;
   onSelectElement: (id: string) => void;
   onMoveElement: (id: string, x: number, y: number) => void;
+  onNavigatePage: (id: string) => void;
   selectedSection: string | null;
   theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
   siteTitle: string;
@@ -1436,6 +1487,7 @@ function CanvasContent({
           key={section.id}
           section={section}
           sitePages={sitePages}
+          onNavigatePage={onNavigatePage}
           spacing={sectionSpacing[section.id] || DEFAULT_SPACING}
           isSelected={selectedSection === section.id}
           theme={theme}
@@ -1481,6 +1533,7 @@ function ElementProperties({ item, onChange }: { item: CanvasElement; onChange: 
 function SectionRenderer({
   section,
   sitePages,
+  onNavigatePage,
   spacing,
   isSelected,
   theme,
@@ -1501,6 +1554,7 @@ function SectionRenderer({
 }: {
   section: Section;
   sitePages: SitePage[];
+  onNavigatePage: (id: string) => void;
   spacing: SectionSpacing;
   isSelected: boolean;
   theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
@@ -1544,10 +1598,10 @@ function SectionRenderer({
           </div>
 
           <div className={cn('hidden sm:flex items-center gap-6 font-mono text-xs font-bold text-neutral-700', deviceMode === 'mobile' && 'hidden')}>
-            {sitePages.map((item) => (
-              <span key={item.id} className="hover:text-black hover:underline cursor-pointer">
+            {sitePages.filter((item) => item.showInMenu !== false && item.id !== 'home').map((item) => (
+              <button key={item.id} type="button" onClick={(event) => { event.stopPropagation(); onNavigatePage(item.id); }} className="hover:text-black hover:underline cursor-pointer">
                 {item.title}
-              </span>
+              </button>
             ))}
           </div>
 

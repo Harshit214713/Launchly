@@ -117,7 +117,7 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
       const id = `page-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const title = `${source.title} copy`;
       const slug = uniqueSlug(title, current.pages);
-      commit(set, get, (document) => ({ ...document, pages: [...document.pages, { ...structuredClone(source), id, slug: `/${slug}`, title, isHome: false, oldSlugs: [] }] }));
+      commit(set, get, (document) => ({ ...document, pages: [...document.pages, { ...structuredClone(source), id, slug: `/${slug}`, title, isHome: false, oldSlugs: [] }], menu: source.showInMenu ? [...document.menu, { id: `menu-${id}`, label: title, target: { type: 'page', value: id }, newTab: false }] : document.menu }));
       return id;
     },
     renamePage: (pageId, title) => commit(set, get, (document) => ({ ...document, pages: document.pages.map((page) => page.id === pageId ? { ...page, title, seo: { ...page.seo, title: page.seo.title === page.title ? title : page.seo.title } } : page), menu: document.menu.map((item) => item.target.type === 'page' && item.target.value === pageId ? { ...item, label: title } : item) })),
@@ -146,8 +146,23 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
       const home = document.pages.find((page) => page.id === pageId);
       if (!home) return document;
       const oldHome = document.pages.find((page) => page.isHome);
-      const pages = document.pages.map((page) => page.id === pageId ? { ...page, isHome: true, slug: '/' } : page.id === oldHome?.id ? { ...page, isHome: false, slug: `/${uniqueSlug(page.slug.replace(/^\//, '') || page.title, document.pages, page.id)}` } : page);
-      return { ...document, pages };
+      if (!oldHome || oldHome.id === pageId) return document;
+      const oldHomeId = oldHome.id;
+      const newHomeSlug = uniqueSlug(oldHome.slug.replace(/^\//, '') || oldHome.title, document.pages, pageId);
+      const pages = document.pages.map((page) => page.id === pageId
+        ? { ...page, id: oldHomeId, isHome: true, slug: '/', showInMenu: false }
+        : page.id === oldHomeId
+          ? { ...page, id: pageId, isHome: false, slug: `/${newHomeSlug}`, showInMenu: true }
+          : page);
+      const menu = document.menu
+        .filter((item) => item.target.type !== 'page' || item.target.value !== pageId)
+        .map((item) => item.target.type === 'page' && item.target.value === oldHomeId
+          ? { ...item, target: { ...item.target, value: pageId }, label: oldHome.title }
+          : item);
+      if (!menu.some((item) => item.target.type === 'page' && item.target.value === pageId)) {
+        menu.push({ id: `menu-${pageId}`, label: oldHome.title, target: { type: 'page', value: pageId }, newTab: false });
+      }
+      return { ...document, pages, menu };
     }),
     setMenu: (menu: MenuItem[]) => commit(set, get, (document) => ({ ...document, menu })),
     setSaveStatus: (saveStatus, lastSavedAt) => set((state) => ({ ...state, saveStatus, lastSavedAt: lastSavedAt ?? state.lastSavedAt })),
