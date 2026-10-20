@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { TEMPLATES } from '@/lib/templates';
 import { cn, formatDate } from '@/lib/utils';
 import BrandWordmark from '@/components/BrandWordmark';
+import { scrollToSection } from '@/lib/navigation';
 
 interface WebsiteItem {
   id: string;
@@ -420,13 +421,17 @@ export default function Dashboard() {
                 <p className="font-mono text-[10px] leading-snug mb-2.5">
                   Deploy unlimited websites, hook up custom domains, and download complete source code.
                 </p>
-                <Link
-                  href="/#pricing"
-                  className="brutal-press inline-flex items-center justify-center gap-1.5 w-full text-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-pink/90 transition-all"
+                <a
+                  href="/"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    scrollToSection('pricing', router);
+                  }}
+                  className="brutal-press inline-flex items-center justify-center gap-1.5 w-full text-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-pink/90 transition-all cursor-pointer"
                 >
                   <span>Claim Pro Membership</span>
                   <ArrowRight size={12} className="stroke-[3]" />
-                </Link>
+                </a>
               </div>
             )}
 
@@ -546,13 +551,17 @@ export default function Dashboard() {
                 />
               </div>
 
-              <Link
-                href="/#pricing"
-                className="brutal-press w-full inline-flex items-center justify-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-pink/90 transition-all"
+              <a
+                href="/"
+                onClick={(e) => {
+                  e.preventDefault();
+                  scrollToSection('pricing', router);
+                }}
+                className="brutal-press w-full inline-flex items-center justify-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-pink/90 transition-all cursor-pointer"
               >
                 <ArrowUpRight size={13} className="mr-1 stroke-[2.5]" />
                 Upgrade to Pro
-              </Link>
+              </a>
             </div>
           )}
         </nav>

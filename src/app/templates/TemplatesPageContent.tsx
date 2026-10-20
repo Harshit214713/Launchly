@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Grid3X3, LayoutList, Loader2, Globe, X } from 'lucide-react';
 import TemplateCard from '@/components/TemplateCard';
+import ComingSoonCard from '@/components/ComingSoonCard';
 import { CATEGORIES, getTemplatesByCategory, searchTemplates, COMING_SOON_CATEGORIES } from '@/lib/templates';
 import { TemplateCategory } from '@/types';
 import { Template } from '@/types';
@@ -276,36 +277,19 @@ export default function TemplatesPageContent() {
               </p>
             </div>
           ) : COMING_SOON_CATEGORIES.includes(activeCategory as TemplateCategory) && !searchQuery ? (
-            // Show Coming Soon message in template area for non-Ecommerce categories
-            <div className="flex flex-col items-center justify-center py-28 text-center bg-card rounded-3xl border-[3px] border-ink p-8 shadow-brutal max-w-lg mx-auto">
-              <div className="text-6xl mb-6">🚧</div>
-              <h3 className="font-display font-black text-3xl text-ink mb-3">Coming Soon!</h3>
-              <p className="font-mono text-sm text-muted-foreground mb-6 max-w-md">
-                The <span className="text-pink font-black">{activeCategory}</span> category is under development. We&apos;re working hard to bring you amazing templates in this category.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center gap-3">
-                <button
-                  onClick={() => { 
-                    setActiveCategory('All'); 
-                    setSearchQuery('');
-                    router.replace('/templates', { scroll: false });
-                  }}
-                  className="brutal-press px-6 py-3 rounded-xl border-[2.5px] border-ink bg-pink font-display text-xs font-black text-black shadow-brutal cursor-pointer"
-                >
-                  Browse All Templates
-                </button>
-                <button
-                  onClick={() => { 
-                    setActiveCategory('Ecommerce'); 
-                    setSearchQuery('');
-                    router.replace('/templates?category=Ecommerce', { scroll: false });
-                  }}
-                  className="brutal-press px-6 py-3 rounded-xl border-[2.5px] border-ink bg-yellow font-display text-xs font-black text-black shadow-brutal cursor-pointer"
-                >
-                  View Ecommerce Templates
-                </button>
-              </div>
-            </div>
+            <ComingSoonCard
+              category={activeCategory}
+              onBrowseAll={() => {
+                setActiveCategory('All');
+                setSearchQuery('');
+                router.replace('/templates', { scroll: false });
+              }}
+              onExploreEcommerce={() => {
+                setActiveCategory('Ecommerce');
+                setSearchQuery('');
+                router.replace('/templates?category=Ecommerce', { scroll: false });
+              }}
+            />
           ) : displayedTemplates.length > 0 ? (
             <div className={
               viewMode === 'grid'

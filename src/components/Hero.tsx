@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
+import { scrollToSection } from '@/lib/navigation';
 
 export default function Hero() {
   return (
@@ -43,12 +44,13 @@ export default function Hero() {
             <ArrowUpRight className="h-4 w-4 sm:h-4.5 sm:w-4.5 stroke-[3] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </Link>
 
-          <a
-            href="#live-workspace"
-            className="brutal-press inline-flex min-h-12 sm:min-h-13 items-center justify-center gap-2 rounded-2xl border-[3px] border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-6 sm:px-7 font-display text-sm sm:text-base font-black text-black dark:text-white shadow-brutal hover:bg-neutral-50 dark:hover:bg-[#1f2136]"
+          <button
+            type="button"
+            onClick={() => scrollToSection('live-workspace')}
+            className="brutal-press inline-flex min-h-12 sm:min-h-13 items-center justify-center gap-2 rounded-2xl border-[3px] border-black dark:border-[#26283d] bg-white dark:bg-[#151726] px-6 sm:px-7 font-display text-sm sm:text-base font-black text-black dark:text-white shadow-brutal hover:bg-neutral-50 dark:hover:bg-[#1f2136] cursor-pointer"
           >
             <span>Live Studio</span>
-          </a>
+          </button>
         </div>
 
         {/* Social Proof */}

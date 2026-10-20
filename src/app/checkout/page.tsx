@@ -17,6 +17,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import BrandWordmark from '@/components/BrandWordmark';
+import { scrollToSection } from '@/lib/navigation';
 
 function CheckoutContent() {
   const router = useRouter();
@@ -176,13 +177,17 @@ function CheckoutContent() {
           <BrandWordmark size="md" />
         </Link>
 
-        <Link
-          href="/#pricing"
-          className="brutal-press inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border-2 border-ink bg-card font-mono text-xs font-black uppercase text-ink shadow-brutal-sm hover:bg-neutral-100"
+        <a
+          href="/"
+          onClick={(e) => {
+            e.preventDefault();
+            scrollToSection('pricing', router);
+          }}
+          className="brutal-press inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border-2 border-ink bg-card font-mono text-xs font-black uppercase text-ink shadow-brutal-sm hover:bg-neutral-100 cursor-pointer"
         >
           <ArrowLeft size={13} className="stroke-[3]" />
           <span>Back to Plans</span>
-        </Link>
+        </a>
       </header>
 
       {/* Main Checkout Area */}
