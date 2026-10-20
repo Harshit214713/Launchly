@@ -17,7 +17,7 @@ import { TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
 import { exportTemplateAsZip } from '@/lib/zipExport';
 import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/contrast';
-import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type MenuItem, type SectionStyle, type SiteDocument } from '@/lib/siteDocument';
+import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type MenuItem, type SectionStyle, type SiteDocument, type Theme } from '@/lib/siteDocument';
 import { blockRegistry } from '@/lib/blockRegistry';
 import { createEditorStore, type SiteVersion } from '@/store/editorStore';
 
@@ -99,13 +99,22 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [aiStep, setAiStep] = useState('');
 
   // Design tokens & content state
-  const [theme, setTheme] = useState({
+  const [theme, setTheme] = useState<Theme>({
     primaryColor: template.accent || '#FF5588',
+    secondaryColor: '#111111',
     bgColor: template.bgColor || '#0F0F11',
+    surfaceColor: '#FFFFFF',
     textColor: template.textColor || '#FFFFFF',
+    mutedColor: '#737373',
     fontFamily: 'Inter, sans-serif',
+    headingFont: 'Inter, sans-serif',
+    radius: '16px',
     borderRadius: '16px',
+    buttonStyle: 'solid',
+    spacingScale: 1,
+    darkMode: false,
   });
+  const setThemeMode = (darkMode: boolean) => setTheme((current) => ({ ...current, darkMode, bgColor: darkMode ? '#111111' : '#FFFFFF', textColor: darkMode ? '#FFFFFF' : '#111111', surfaceColor: darkMode ? '#1F1F1F' : '#FFFFFF' }));
   const [siteTitle, setSiteTitle] = useState(template.name || 'My Website');
   const [assetUrl, setAssetUrl] = useState('');
 
@@ -522,13 +531,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       if (data.success && data.design) {
         const d = data.design;
         setSiteTitle(d.siteTitle);
-        setTheme({
-          primaryColor: d.theme.primaryColor,
-          bgColor: d.theme.bgColor,
-          textColor: d.theme.textColor,
-          fontFamily: d.theme.fontFamily,
-          borderRadius: d.theme.borderRadius,
-        });
+        setTheme((current) => ({ ...current, ...d.theme }));
         setHeroContent(d.hero);
         if (d.features?.length) setFeaturesContent(d.features);
         if (d.testimonials?.length) setTestimonialsContent(d.testimonials);
@@ -991,12 +994,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                         <div className="flex items-center gap-2">
                           <input
                             type="color"
-                            value={theme[key as keyof typeof theme] || '#000000'}
+                            value={typeof theme[key as keyof Theme] === 'string' ? theme[key as keyof Theme] as string : '#000000'}
                             onChange={(e) => setTheme(prev => ({ ...prev, [key]: e.target.value }))}
                             className="w-7 h-7 rounded-lg border border-black cursor-pointer p-0.5"
                           />
                           <span className="font-mono text-[11px] font-bold text-black">
-                            {theme[key as keyof typeof theme]}
+                            {String(theme[key as keyof Theme] ?? '')}
                           </span>
                         </div>
                       </div>
@@ -1036,6 +1039,13 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                     <option value="Georgia, serif">Editorial serif</option>
                     <option value="ui-monospace, monospace">Monospace</option>
                   </select>
+                </div>
+                <div className="space-y-2 rounded-xl border-2 border-black bg-white p-3">
+                  <label htmlFor="editor-heading-font" className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Heading font<select id="editor-heading-font" value={theme.headingFont} onChange={(event) => setTheme((prev) => ({ ...prev, headingFont: event.target.value }))} className="mt-1 w-full rounded-lg border border-black/20 bg-white px-2 py-2 font-mono text-xs text-black">{[['Inter, sans-serif','Inter'],['Arial, Helvetica, sans-serif','Arial'],['Georgia, serif','Georgia'],["'Courier New', monospace",'Courier New'],['Palatino Linotype, Book Antiqua, serif','Palatino']].map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                  <label htmlFor="editor-radius" className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Global corner radius<select id="editor-radius" value={theme.borderRadius} onChange={(event) => setTheme((prev) => ({ ...prev, borderRadius: event.target.value, radius: event.target.value }))} className="mt-1 w-full rounded-lg border border-black/20 bg-white px-2 py-2 font-mono text-xs text-black">{[['8px','Compact'],['16px','Soft'],['24px','Rounded'],['9999px','Pill']].map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                  <label htmlFor="editor-button-style" className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Button style<select id="editor-button-style" value={theme.buttonStyle} onChange={(event) => setTheme((prev) => ({ ...prev, buttonStyle: event.target.value as Theme['buttonStyle'] }))} className="mt-1 w-full rounded-lg border border-black/20 bg-white px-2 py-2 font-mono text-xs text-black"><option value="solid">Solid</option><option value="outline">Outline</option><option value="pill">Pill</option></select></label>
+                  <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Spacing scale · {theme.spacingScale.toFixed(1)}×<input type="range" min="0.75" max="1.5" step="0.05" value={theme.spacingScale} onChange={(event) => setTheme((prev) => ({ ...prev, spacingScale: Number(event.target.value) }))} className="mt-1 w-full accent-pink" /></label>
+                  <button type="button" aria-pressed={theme.darkMode} onClick={() => setThemeMode(!theme.darkMode)} className="w-full rounded-lg border-2 border-black py-2 font-mono text-[10px] font-bold">{theme.darkMode ? 'Switch to light palette' : 'Switch to dark palette'}</button>
                 </div>
 
                 {/* Real-time WCAG Contrast Checker */}
@@ -1527,7 +1537,7 @@ function CanvasContent({
   onMoveElement: (id: string, x: number, y: number) => void;
   onNavigatePage: (id: string) => void;
   selectedSection: string | null;
-  theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
+  theme: Theme;
   siteTitle: string;
   heroContent: Record<string, string>;
   featuresContent: Array<{ title: string; desc: string }>;
@@ -1540,7 +1550,7 @@ function CanvasContent({
   deviceMode: DeviceMode;
 }) {
   return (
-    <div data-editable-canvas style={{ fontFamily: theme.fontFamily }} className="relative min-h-full flex flex-col">
+              <div data-editable-canvas style={{ fontFamily: theme.fontFamily, '--editor-heading-font': theme.headingFont, '--editor-body-font': theme.fontFamily, '--editor-spacing-scale': theme.spacingScale } as React.CSSProperties} className="relative min-h-full flex flex-col">
       {sections.map((section) => (
         <SectionRenderer
           key={section.id}
@@ -1611,7 +1621,7 @@ function SectionRenderer({
   onNavigatePage: (id: string) => void;
   spacing: SectionSpacing;
   isSelected: boolean;
-  theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
+  theme: Theme;
   siteTitle: string;
   heroContent: Record<string, string>;
   featuresContent: Array<{ title: string; desc: string }>;
@@ -1645,6 +1655,7 @@ function SectionRenderer({
     onUpdateSectionContent(section.id, { ...sectionContent, ...next });
   };
   const heading = typeof sectionContent.heading === 'string' ? sectionContent.heading : section.name;
+  const themedButtonStyle: React.CSSProperties = { backgroundColor: theme.buttonStyle === 'outline' ? 'transparent' : theme.primaryColor, borderRadius: theme.buttonStyle === 'pill' ? '9999px' : theme.borderRadius, color: theme.buttonStyle === 'outline' ? theme.primaryColor : undefined };
   const blockItems = Array.isArray(sectionContent.items) ? sectionContent.items as Array<Record<string, unknown>> : [];
   const textValue = (value: unknown, fallback = '') => typeof value === 'string' ? value : fallback;
   const updateBlockItem = (index: number, key: string, value: unknown) => onUpdateSectionContent(section.id, { ...sectionContent, items: blockItems.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) });
@@ -1663,7 +1674,7 @@ function SectionRenderer({
   return (
     <div
       id={section.anchorId || section.id}
-      style={{ padding: `${spacing.top}px ${spacing.right}px ${spacing.bottom}px ${spacing.left}px`, backgroundColor: section.style?.highlightColor || section.style?.backgroundColor, color: section.style?.overrides?.[deviceMode]?.color as string | undefined, textAlign: section.style?.textAlign, fontWeight: section.style?.fontWeight, fontStyle: section.style?.fontStyle, textDecoration: section.style?.textDecoration, display: section.hidden?.[deviceMode] ? 'none' : undefined }}
+      style={{ padding: `${spacing.top * theme.spacingScale}px ${spacing.right * theme.spacingScale}px ${spacing.bottom * theme.spacingScale}px ${spacing.left * theme.spacingScale}px`, backgroundColor: section.style?.highlightColor || section.style?.backgroundColor, color: section.style?.overrides?.[deviceMode]?.color as string | undefined, textAlign: section.style?.textAlign, fontWeight: section.style?.fontWeight, fontStyle: section.style?.fontStyle, textDecoration: section.style?.textDecoration, display: section.hidden?.[deviceMode] ? 'none' : undefined }}
       className={cn(
         'relative group cursor-pointer transition-all',
         section.locked && 'cursor-not-allowed pointer-events-none opacity-75',
@@ -1702,7 +1713,7 @@ function SectionRenderer({
               else if (target?.type === 'anchor') document.getElementById(target.value.replace(/^#/, ''))?.scrollIntoView({ behavior: 'smooth' });
               else if (target?.type === 'url' && /^(https?:|mailto:|tel:)/i.test(target.value)) window.open(target.value, menuItems[0].newTab ? '_blank' : '_self', 'noopener,noreferrer');
             }}
-            style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
+            style={themedButtonStyle}
             className="px-3 sm:px-4 py-1.5 rounded-xl border-2 border-black font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
             Get Started
@@ -1760,7 +1771,7 @@ function SectionRenderer({
             <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
               <button
                 type="button"
-                style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
+                style={themedButtonStyle}
                 className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-black font-display text-xs sm:text-sm font-black text-black shadow-[2.5px_2.5px_0px_#000] flex items-center gap-1.5 cursor-pointer"
               >
                 <span contentEditable suppressContentEditableWarning onInput={(e) => setHero((prev) => ({ ...prev, ctaPrimary: (e.target as HTMLElement).innerText }))}>{sectionHero.ctaPrimary}</span>
@@ -1874,7 +1885,7 @@ function SectionRenderer({
             <div className="pt-2">
               <button
                 type="button"
-                style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
+                style={themedButtonStyle}
                 className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-white font-display text-xs sm:text-sm font-black text-black shadow-[3px_3px_0px_#FFFFFF] cursor-pointer"
               >
                 <span contentEditable suppressContentEditableWarning onInput={(e) => setCta((prev) => ({ ...prev, buttonText: (e.target as HTMLElement).innerText }))}>{sectionCta.buttonText}</span>
@@ -1913,10 +1924,10 @@ function SectionRenderer({
                 <input required aria-label="Your name" placeholder="Your name" className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
                 <input required type="email" aria-label="Email address" placeholder="Email address" className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
                 <textarea required aria-label="Message" placeholder="How can we help?" rows={4} className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
-                <button type="submit" className="rounded-xl border-2 border-black px-4 py-3 font-display font-black shadow-[3px_3px_0px_#000]" style={{ backgroundColor: theme.primaryColor }}>{textValue(sectionContent.submitLabel, 'Send message')}</button>
+                <button type="submit" className="rounded-xl border-2 border-black px-4 py-3 font-display font-black shadow-[3px_3px_0px_#000]" style={themedButtonStyle}>{textValue(sectionContent.submitLabel, 'Send message')}</button>
               </form>
             ) : section.type === 'newsletter' ? (
-              formSubmitted ? <p role="status" className="mx-auto max-w-lg rounded-xl border-2 border-black bg-white p-4 text-center font-mono text-sm">You are subscribed. Thank you!</p> : <form className="mx-auto flex max-w-lg flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); setFormSubmitted(true); }}><label className="sr-only" htmlFor={`newsletter-${section.id}`}>Email address</label><input id={`newsletter-${section.id}`} required type="email" placeholder="Email address" className="min-w-0 flex-1 rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm"/><button type="submit" className="rounded-xl border-2 border-black px-4 py-3 font-display font-black shadow-[3px_3px_0px_#000]" style={{ backgroundColor: theme.primaryColor }}>{textValue(sectionContent.submitLabel, 'Subscribe')}</button></form>
+              formSubmitted ? <p role="status" className="mx-auto max-w-lg rounded-xl border-2 border-black bg-white p-4 text-center font-mono text-sm">You are subscribed. Thank you!</p> : <form className="mx-auto flex max-w-lg flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); setFormSubmitted(true); }}><label className="sr-only" htmlFor={`newsletter-${section.id}`}>Email address</label><input id={`newsletter-${section.id}`} required type="email" placeholder="Email address" className="min-w-0 flex-1 rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm"/><button type="submit" className="rounded-xl border-2 border-black px-4 py-3 font-display font-black shadow-[3px_3px_0px_#000]" style={themedButtonStyle}>{textValue(sectionContent.submitLabel, 'Subscribe')}</button></form>
             ) : section.type === 'pricing' ? (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">{blockItems.map((item, index) => <article key={`${section.id}-plan-${index}`} className={`rounded-2xl border-2 border-black bg-white p-5 shadow-[3px_3px_0px_#000] ${item.highlighted ? 'ring-2 ring-offset-2' : ''}`} style={item.highlighted ? { outlineColor: theme.primaryColor } : undefined}><h3 contentEditable suppressContentEditableWarning onInput={(e) => updateBlockItem(index, 'title', (e.target as HTMLElement).innerText)} className="font-display text-lg font-black">{textValue(item.title, 'Plan')}</h3><p className="mt-2 font-mono text-xs text-neutral-600">{textValue(item.description)}</p><p className="my-4 font-display text-3xl font-black">{textValue(item.price)}<span className="font-mono text-xs font-normal">{textValue(item.interval)}</span></p><ul className="space-y-2 font-mono text-xs">{(Array.isArray(item.features) ? item.features as string[] : []).map((feature, featureIndex) => <li key={featureIndex}>✓ {feature}</li>)}</ul><p className="mt-4 rounded-lg bg-neutral-100 px-3 py-2 text-center font-mono text-xs">Choose a plan by contacting us.</p></article>)}</div>
             ) : section.type === 'gallery' ? (
@@ -1957,7 +1968,7 @@ function SectionProperties({
 }: {
   sectionId: string;
   sections: Section[];
-  theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
+  theme: Theme;
   setSectionStyle: (style: Partial<SectionStyle>) => void;
   setSectionContent: (content: Record<string, unknown>) => void;
   setSectionSettings: (settings: Partial<Pick<Section, 'hidden' | 'anchorId' | 'customClass' | 'locked'>>) => void;
