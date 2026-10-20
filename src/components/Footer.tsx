@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { ArrowUpRight } from 'lucide-react';
 import BrandWordmark from './BrandWordmark';
-import { scrollToSection } from '@/lib/navigation';
 
 export default function Footer() {
   const router = useRouter();
@@ -13,7 +12,15 @@ export default function Footer() {
 
   const handleScrollSection = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
     e.preventDefault();
-    scrollToSection(sectionId, router, pathname);
+    if (pathname === '/') {
+      const el = document.getElementById(sectionId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+        window.history.replaceState(null, '', '/');
+      }
+    } else {
+      router.push(`/#${sectionId}`);
+    }
   };
 
   return (
@@ -32,12 +39,7 @@ export default function Footer() {
                 className="w-full h-full object-contain"
               />
             </div>
-            <div className="flex flex-col justify-center">
-              <BrandWordmark size="md" />
-              <span className="font-mono text-[9px] font-bold tracking-[0.16em] text-muted-foreground uppercase mt-0.5">
-                VISUAL WEB STUDIO
-              </span>
-            </div>
+            <BrandWordmark size="md" />
           </Link>
 
           {/* Navigation Links - Single clean row with proper spacing */}
@@ -76,14 +78,15 @@ export default function Footer() {
           <div className="flex items-center gap-3 shrink-0">
             <div className="flex items-center gap-2">
               <a
-                href="https://twitter.com/launchly"
+                href="https://x.com/simplyvardaan_"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Twitter / X"
-                className="brutal-press h-8 w-8 rounded-xl border-2 border-ink bg-card flex items-center justify-center text-ink shadow-brutal-sm hover:bg-yellow cursor-pointer"
+                aria-label="X (@simplyvardaan_)"
+                title="X (@simplyvardaan_)"
+                className="brutal-press h-8 w-8 rounded-xl border-2 border-ink bg-card flex items-center justify-center text-ink shadow-brutal-sm hover:bg-yellow cursor-pointer transition-colors"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
               </a>
               <a

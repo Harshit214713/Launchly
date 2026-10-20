@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
-import { 
-  Menu, 
-  X, 
-  Moon, 
-  Sun, 
+import {
+  Menu,
+  X,
+  Moon,
+  Sun,
   ArrowUpRight,
   LayoutGrid,
   Sliders,
@@ -37,7 +37,7 @@ export default function Navbar() {
       .then((d) => {
         if (d.authenticated && d.user) setUser(d.user);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     // Fetch live stars from GitHub repository
     fetch('https://api.github.com/repos/simplyvardaan/Launchly')
@@ -47,7 +47,7 @@ export default function Navbar() {
           setGithubStars(data.stargazers_count);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const toggleDarkMode = () => {
@@ -83,12 +83,7 @@ export default function Navbar() {
               priority
             />
           </div>
-          <div className="flex flex-col justify-center">
-            <BrandWordmark size="md" />
-            <span className="font-mono text-[8px] sm:text-[9px] font-black tracking-[0.18em] text-neutral-600 dark:text-neutral-400 uppercase mt-0.5 leading-none">
-              VISUAL WEB STUDIO
-            </span>
-          </div>
+          <BrandWordmark size="md" />
         </Link>
 
         {/* Center Nav Links (Desktop) */}

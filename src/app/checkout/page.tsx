@@ -28,7 +28,7 @@ function CheckoutContent() {
   const emailParam = searchParams.get('email');
 
   const itemName = itemParam || (plan === 'pro' ? `Launchly Pro Creator (${billing === 'yearly' ? 'Annual' : 'Monthly'})` : 'Launchly Pro Creator');
-  
+
   const inrAmount = billing === 'yearly' ? 11999 : 1499;
   const priceDisplay = billing === 'yearly' ? '₹11,999 / year ($159)' : '₹1,499 / month ($19)';
 
@@ -54,7 +54,7 @@ function CheckoutContent() {
           setEmail(data.user.email);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [emailParam]);
 
   const payeeVpa = '7428938113@ptaxis';
@@ -135,9 +135,8 @@ function CheckoutContent() {
 
     const interval = setInterval(async () => {
       try {
-        const queryUrl = `/api/payments/status?sessionId=${encodeURIComponent(orderSessionId)}${
-          email ? `&email=${encodeURIComponent(email)}` : ''
-        }`;
+        const queryUrl = `/api/payments/status?sessionId=${encodeURIComponent(orderSessionId)}${email ? `&email=${encodeURIComponent(email)}` : ''
+          }`;
         const res = await fetch(queryUrl);
         if (res.ok) {
           const data = await res.json();
@@ -147,7 +146,7 @@ function CheckoutContent() {
             setCheckCount((prev) => prev + 1);
           }
         }
-      } catch {}
+      } catch { }
     }, 4000);
 
     return () => clearInterval(interval);
