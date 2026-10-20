@@ -9,11 +9,11 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-export function DraggablePaletteButton({ id, label, description, onClick }: { id: string; label: string; description: string; onClick: () => void }) {
-  const drag = useDraggable({ id: `palette:${id}`, data: { kind: 'palette', type: id, label } });
-  return <button ref={drag.setNodeRef} type="button" {...drag.listeners} {...drag.attributes} onClick={onClick} title={`${description} · Drag onto the page or click to add`} className={`flex min-h-10 items-center justify-center gap-1 rounded-lg border border-black bg-white px-2 py-1.5 font-mono text-[11px] font-bold text-black shadow-[1.5px_1.5px_0_#000] transition-colors hover:bg-yellow active:translate-x-0.5 active:translate-y-0.5 active:shadow-none ${drag.isDragging ? 'opacity-40' : ''}`}>
+export function DraggablePaletteButton({ id, label, description, onClick, isPro = false, isLocked = false }: { id: string; label: string; description: string; onClick: () => void; isPro?: boolean; isLocked?: boolean }) {
+  const drag = useDraggable({ id: `palette:${id}`, disabled: isLocked, data: { kind: 'palette', type: id, label } });
+  return <button ref={drag.setNodeRef} type="button" {...drag.listeners} {...drag.attributes} onClick={onClick} title={isLocked ? `${description} · Pro plan required` : `${description} · Drag onto the page or click to add`} className={`relative flex min-h-10 items-center justify-center gap-1 rounded-lg border border-black bg-white px-2 py-1.5 font-mono text-[11px] font-bold text-black shadow-[1.5px_1.5px_0_#000] transition-colors hover:bg-yellow active:translate-x-0.5 active:translate-y-0.5 active:shadow-none ${drag.isDragging ? 'opacity-40' : ''} ${isLocked ? 'border-dashed opacity-80' : ''}`}>
     <GripVertical size={12} className="shrink-0 text-neutral-400" aria-hidden="true" />
-    <span>{label}</span>
+    <span>{label}</span>{isPro && <span className="ml-0.5 rounded border border-black bg-yellow px-1 py-0.5 text-[8px] font-black uppercase">Pro</span>}
   </button>;
 }
 

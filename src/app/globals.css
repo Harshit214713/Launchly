@@ -305,3 +305,22 @@ body {
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
 }
+
+@keyframes launchly-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes launchly-slide-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes launchly-slide-left { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes launchly-zoom-in { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
+@keyframes launchly-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes launchly-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+.launchly-motion-fade-in { animation: launchly-fade-in .55s ease-out both; }
+.launchly-motion-slide-up { animation: launchly-slide-up .6s ease-out both; }
+.launchly-motion-slide-left { animation: launchly-slide-left .6s ease-out both; }
+.launchly-motion-zoom-in { animation: launchly-zoom-in .55s ease-out both; }
+.launchly-motion-float { animation: launchly-float 3s ease-in-out infinite; }
+.launchly-motion-pulse { animation: launchly-pulse 2.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .launchly-motion-fade-in, .launchly-motion-slide-up, .launchly-motion-slide-left,
+  .launchly-motion-zoom-in, .launchly-motion-float, .launchly-motion-pulse {
+    animation: none !important;
+  }
+}

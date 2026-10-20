@@ -29,11 +29,12 @@ import { DraggablePaletteButton, SectionDropMarker, SortableSectionFrame } from 
 import TreeSectionRenderer from '@/components/editor/TreeSectionRenderer';
 import BrandWordmark from '@/components/BrandWordmark';
 import { getDefaultFormFields, type FormField } from '@/components/SiteForm';
+import { getAnimationClass } from '@/lib/elementActions';
+import { editorCatalog, getEditorCatalogItem, paletteCategories, type EditorPaletteCategory } from '@/lib/editorCatalog';
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
 type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'navigation' | 'assets';
 type MobileTab = 'canvas' | 'sections' | 'styles' | 'inspector' | 'elements' | 'pages' | 'navigation' | 'assets';
-type PaletteCategory = 'layout' | 'basic' | 'blocks';
 
 const DEVICE_WIDTHS = {
   desktop: '100%',
@@ -80,7 +81,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   const [deviceMode, setDeviceMode] = useState<DeviceMode>('desktop');
   const [leftPanel, setLeftPanel] = useState<LeftPanel>('sections');
-  const [paletteCategory, setPaletteCategory] = useState<PaletteCategory>('blocks');
+  const [paletteCategory, setPaletteCategory] = useState<EditorPaletteCategory>('parts');
   const [paletteSearch, setPaletteSearch] = useState('');
   const [mobileTab, setMobileTab] = useState<MobileTab>('canvas');
   const [sections, setSections] = useState<Section[]>(DEFAULT_SECTIONS);
@@ -106,6 +107,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [exportingZip, setExportingZip] = useState(false);
   const [userPlan, setUserPlan] = useState<'loading' | 'free' | 'pro'>('loading');
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState('Pro features');
   const [logoUrl, setLogoUrl] = useState('');
   const [faviconUrl, setFaviconUrl] = useState('');
   const [mediaAssets, setMediaAssets] = useState<SiteAsset[]>([]);
@@ -114,6 +116,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const editorIdSeed = useId().replace(/[^a-z0-9]/gi, '');
   const editorIdCounter = useRef(0);
   const nextEditorId = (prefix: string) => { editorIdCounter.current += 1; return `${prefix}-${editorIdSeed}-${editorIdCounter.current}`; };
+  const requestUpgrade = (feature: string) => { setUpgradeFeature(feature); setShowUpgrade(true); };
 
   // AI Prompt State
   const [aiPrompt, setAiPrompt] = useState('');
@@ -410,7 +413,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   // 1-Click ZIP Export
   const handleExportZip = async () => {
     if (userPlan !== 'pro') {
-      setShowUpgrade(true);
+      requestUpgrade('Source code export');
       return;
     }
     setExportingZip(true);
@@ -571,8 +574,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const addPaletteItem = (type: string, indexOverride?: number) => {
     const id = nextEditorId(`section-${type.replace(/[^a-z0-9]+/gi, '-')}`);
     let section: Section;
-    if (blockRegistry[type]) {
-      section = makeSection(type, id, blockRegistry[type].label, {}, blockRegistry[type].defaultContent);
+    const blockType = type.startsWith('pro:') ? type.slice('pro:'.length) : type;
+    const catalogItem = getEditorCatalogItem(type);
+    if (blockRegistry[blockType]) {
+      section = makeSection(blockType, id, blockRegistry[blockType].label, {}, blockRegistry[blockType].defaultContent);
     } else {
       const layoutMatch = type.match(/^layout:columns-(\d)$/);
       const columnCount = layoutMatch ? Number(layoutMatch[1]) : 1;
@@ -584,11 +589,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         elements: elementType && index === 0 ? [{
           id: `${id}-${elementType}`,
           type: elementType,
-          content: elementType === 'heading' ? { text: 'Your heading' } : elementType === 'text' ? { text: 'Write something for your visitors.' } : elementType === 'button' ? { text: 'Button label', href: '#' } : elementType === 'image' ? { src: '', alt: '' } : elementType === 'icon' ? { icon: 'Star', size: 36 } : elementType === 'spacer' ? { height: 48 } : elementType === 'list' ? { items: ['First item', 'Second item'] } : elementType === 'card' ? { title: 'Card title', description: 'Add a short description.' } : {},
+          content: elementType === 'heading' ? { text: 'Your heading' } : elementType === 'text' ? { text: 'Write something for your visitors.' } : elementType === 'button' ? { text: 'Button label', href: '#' } : elementType === 'image' ? { src: '', alt: '' } : elementType === 'icon' ? { icon: 'Star', size: 36 } : elementType === 'spacer' ? { height: 48 } : elementType === 'list' ? { items: ['First item', 'Second item'] } : elementType === 'card' ? { title: 'Card title', description: 'Add a short description.' } : elementType === 'gallery' ? { images: [], autoplay: true, intervalMs: 4000 } : {},
           style: {},
         }] : [],
       }));
-      section = { ...makeSection('custom', id, layoutMatch ? `${columnCount} column layout` : elementType ? elementType.charAt(0).toUpperCase() + elementType.slice(1) : 'Section'), columns };
+      const sectionName = layoutMatch ? `${columnCount} column layout` : elementType ? elementType.charAt(0).toUpperCase() + elementType.slice(1) : catalogItem?.label || 'Section';
+      section = { ...makeSection('custom', id, sectionName, {}, { heading: sectionName, description: catalogItem?.description || '' }), columns };
     }
     const selectedIndex = sections.findIndex((entry) => entry.id === selectedSection);
     const index = indexOverride ?? (selectedIndex < 0 ? sections.length : selectedIndex + 1);
@@ -608,7 +614,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     if (document.pages.some((page) => page.id === pageId)) applyDocumentToEditor(document, pageId);
   };
   const addSitePage = (duplicateId?: string) => {
-    if (userPlan !== 'pro' && sitePages.length >= 3) { setShowUpgrade(true); return; }
+    if (userPlan !== 'pro' && sitePages.length >= 3) { requestUpgrade('More than 3 site pages'); return; }
     const store = editorStore.getState();
     let newId: string | null;
     if (duplicateId) newId = store.duplicatePage(duplicateId);
@@ -616,7 +622,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     if (newId) applyDocumentToEditor(editorStore.getState().document, newId);
   };
   const addPageFromTemplate = (preset: string) => {
-    if (userPlan !== 'pro' && sitePages.length >= 3) { setShowUpgrade(true); return; }
+    if (userPlan !== 'pro' && sitePages.length >= 3) { requestUpgrade('More than 3 site pages'); return; }
     const presets: Record<string, Array<{ type: string; name?: string }>> = {
       About: [{ type: 'hero' }, { type: 'rich-text', name: 'Our story' }, { type: 'team' }, { type: 'cta' }],
       Services: [{ type: 'hero' }, { type: 'features' }, { type: 'steps' }, { type: 'cta' }],
@@ -686,11 +692,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const selectedTreeElementRecord = selectedTreeElement
     ? sections.find((section) => section.id === selectedTreeElement.sectionId)?.columns?.find((column) => column.id === selectedTreeElement.columnId)?.elements.find((element) => element.id === selectedTreeElement.elementId)
     : undefined;
-  const paletteItems = paletteCategory === 'blocks'
-    ? Object.values(blockRegistry).filter((block) => !['nav', 'footer'].includes(block.type)).map((block) => ({ id: block.type, label: block.label, description: block.description }))
-    : paletteCategory === 'layout'
-      ? [{ id: 'layout:section', label: 'Section', description: 'Add an empty section with one column.' }, ...[2, 3, 4].map((count) => ({ id: `layout:columns-${count}`, label: `${count} columns`, description: `Add a row with ${count} responsive columns.` })), { id: 'basic:spacer', label: 'Spacer', description: 'Add vertical space.' }, { id: 'basic:divider', label: 'Divider', description: 'Add a horizontal rule.' }]
-      : ['heading', 'text', 'button', 'image', 'video', 'icon', 'card', 'gallery', 'list', 'form'].map((type) => ({ id: `basic:${type}`, label: type.charAt(0).toUpperCase() + type.slice(1), description: `Add a ${type} element to a new section.` }));
+  const paletteItems = editorCatalog.filter((item) => item.category === paletteCategory);
   const filteredPaletteItems = paletteItems.filter((item) => `${item.label} ${item.description}`.toLowerCase().includes(paletteSearch.toLowerCase()));
   const updateMenuItem = (id: string, update: (item: (typeof editorDocument.menu)[number]) => (typeof editorDocument.menu)[number]) => {
     editorStore.getState().setMenu(editorStore.getState().document.menu.map((item) => item.id === id ? update(item) : item));
@@ -715,6 +717,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     const activeData = active.data.current;
     const overData = over.data.current;
     if (activeData?.kind === 'palette' && typeof activeData.type === 'string') {
+      const catalogEntry = getEditorCatalogItem(activeData.type);
+      if (catalogEntry?.plan === 'pro' && userPlan !== 'pro') { requestUpgrade(catalogEntry.label); return; }
       if (overData?.kind === 'column-drop' && typeof overData.sectionId === 'string' && typeof overData.columnId === 'string') {
         const basicType = activeData.type.startsWith('basic:') ? activeData.type.slice('basic:'.length) as SiteElement['type'] : null;
         const block = blockRegistry[activeData.type];
@@ -1071,11 +1075,11 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 <div className="space-y-2 border-t-2 border-black/10 pt-3">
                   <div className="font-mono text-[10px] font-bold uppercase tracking-wider text-neutral-500">＋ Add to page · drag or click</div>
                   <div className="grid grid-cols-3 gap-1">
-                    {(['layout', 'basic', 'blocks'] as const).map((category) => <button key={category} type="button" onClick={() => setPaletteCategory(category)} className={`rounded-lg border px-1 py-1.5 font-mono text-[9px] font-bold uppercase ${paletteCategory === category ? 'border-black bg-yellow shadow-[1px_1px_0_#000]' : 'border-black/20 bg-white'}`}>{category}</button>)}
+                    <div className="flex gap-1 overflow-x-auto pb-1">{paletteCategories.map((category) => <button key={category.id} type="button" onClick={() => setPaletteCategory(category.id)} className={`shrink-0 rounded-lg border px-2 py-1.5 font-mono text-[9px] font-bold uppercase ${paletteCategory === category.id ? 'border-black bg-yellow shadow-[1px_1px_0_#000]' : 'border-black/20 bg-white'}`}>{category.label}</button>)}</div>
                   </div>
                   <input value={paletteSearch} onChange={(event) => setPaletteSearch(event.target.value)} placeholder="Search widgets" aria-label="Search widgets" className="w-full rounded-lg border border-black/30 bg-white px-2 py-1.5 font-mono text-[10px]" />
                   <div className="grid grid-cols-2 gap-1.5">
-                    {filteredPaletteItems.map((item) => <DraggablePaletteButton key={item.id} id={item.id} label={item.label} description={item.description} onClick={() => { addPaletteItem(item.id); if (mobileTab === 'sections') setMobileTab('canvas'); }} />)}
+                    {filteredPaletteItems.map((item) => { const isLocked = item.plan === 'pro' && userPlan !== 'pro'; return <DraggablePaletteButton key={item.id} id={item.id} label={item.label} description={item.description} isPro={item.plan === 'pro'} isLocked={isLocked} onClick={() => { if (isLocked) { requestUpgrade(item.label); return; } addPaletteItem(item.id); if (mobileTab === 'sections') setMobileTab('canvas'); }} />; })}
                     {filteredPaletteItems.length === 0 && <p className="col-span-2 py-3 text-center font-mono text-[10px] text-neutral-500">No widgets match your search.</p>}
                   </div>
                 </div>
@@ -1367,7 +1371,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             'bg-white border-l-[3px] border-black flex flex-col z-30 shrink-0 overflow-hidden',
             'w-72 hidden lg:flex', // Desktop default
             // Mobile full screen overlay when tab selected
-            mobileTab === 'inspector' && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white'
+            mobileTab === 'inspector' && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white lg:!static lg:!inset-auto lg:!z-30 lg:!w-72 lg:!h-auto'
           )}
         >
           <div className="p-3.5 border-b-[2px] border-black bg-[#FAF9F6] flex items-center justify-between">
@@ -1573,8 +1577,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         <div className="w-full max-w-sm rounded-3xl border-[3px] border-black bg-white p-6 text-center shadow-[8px_8px_0_#000]">
           <button type="button" onClick={() => setShowUpgrade(false)} aria-label="Close" className="float-right rounded-lg p-1 hover:bg-neutral-100"><X size={18} /></button>
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-black bg-yellow"><Download size={22} /></div>
-          <h2 id="upgrade-title" className="font-display text-xl font-black">Export is a Pro feature</h2>
-          <p className="mt-2 font-mono text-xs text-neutral-600">Upgrade to download your complete site source as a ZIP file.</p>
+          <h2 id="upgrade-title" className="font-display text-xl font-black">{upgradeFeature} is a Pro feature</h2>
+          <p className="mt-2 font-mono text-xs text-neutral-600">Upgrade to Pro to unlock this element and the full advanced editor toolkit.</p>
           <a href="/checkout?plan=pro" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-black bg-pink px-4 py-3 font-display text-sm font-black shadow-[3px_3px_0_#000] hover:bg-yellow">Upgrade to Pro <ArrowUpRight size={15} /></a>
         </div>
       </div>}
@@ -1797,6 +1801,9 @@ function TreeElementProperties({ element, pages, onChange, onUpload }: { element
       {element.type === 'button' && <div className="space-y-2 rounded-xl border border-black/15 bg-neutral-50 p-3"><label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Button action<select value={String(element.content.linkTarget || 'url')} onChange={(event) => { const linkTarget = event.target.value; changeContent('linkTarget', linkTarget); if (linkTarget === 'page') changeContent('linkValue', pages.find((page) => !page.isHome)?.id || ''); else if (linkTarget === 'anchor') changeContent('linkValue', 'section-id'); else changeContent('linkValue', ''); }} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs font-normal normal-case text-black"><option value="url">Website URL</option><option value="page">Site page</option><option value="anchor">Page section</option><option value="email">Email address</option><option value="phone">Phone number</option></select></label>{element.content.linkTarget === 'page' ? <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Destination page<select value={String(element.content.linkValue || '')} onChange={(event) => changeContent('linkValue', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs font-normal normal-case text-black">{pages.map((page) => <option key={page.id} value={page.id}>{page.title}</option>)}</select></label> : <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">{element.content.linkTarget === 'email' ? 'Email address' : element.content.linkTarget === 'phone' ? 'Phone number' : element.content.linkTarget === 'anchor' ? 'Section anchor ID' : 'Destination URL'}<input value={String(element.content.linkValue || element.content.href || '')} onChange={(event) => changeContent('linkValue', event.target.value)} placeholder={element.content.linkTarget === 'anchor' ? 'contact' : element.content.linkTarget === 'email' ? 'hello@example.com' : element.content.linkTarget === 'phone' ? '+1 555 123 4567' : 'https://example.com'} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal normal-case text-black" /></label>}<label className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase text-neutral-500"><input type="checkbox" checked={Boolean(element.content.newTab)} onChange={(event) => changeContent('newTab', event.target.checked)} />Open in new tab</label></div>}
       {element.type === 'form' && <div className="space-y-3 rounded-xl border border-black/15 bg-neutral-50 p-3"><label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Submit to<select value={String(element.content.endpoint || 'contact')} onChange={(event) => changeContent('endpoint', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs font-normal normal-case text-black"><option value="contact">Launchly contact inbox</option><option value="newsletter">Newsletter subscribers</option><option value="custom">Custom API endpoint</option></select></label>{element.content.endpoint === 'custom' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">API URL<input type="url" value={String(element.content.apiUrl || '')} onChange={(event) => changeContent('apiUrl', event.target.value)} placeholder="https://api.example.com/lead" className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal normal-case text-black"/><span className="mt-1 block font-normal normal-case">Submissions are sent from the visitor’s browser as JSON. Don’t put secret API keys here.</span></label>}<p className="font-mono text-[10px] font-black uppercase">Form fields</p>{formFields.map((field) => <div key={field.id} className="space-y-2 rounded-lg border border-black/15 bg-white p-2"><input aria-label="Field label" value={field.label} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, label: event.target.value }))} placeholder="Label" className="w-full rounded border px-2 py-1.5 text-xs"/><div className="grid grid-cols-2 gap-2"><input aria-label="Field key" value={field.name} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, name: event.target.value.replace(/[^a-zA-Z0-9_]/g, '_') }))} placeholder="API field key" className="min-w-0 rounded border px-2 py-1.5 font-mono text-[10px]"/><select aria-label="Field type" value={field.type} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, type: event.target.value as FormField['type'] }))} className="min-w-0 rounded border bg-white px-2 py-1.5 text-[10px]"><option value="text">Text</option><option value="email">Email</option><option value="tel">Phone</option><option value="textarea">Long text</option></select></div><input aria-label="Placeholder" value={field.placeholder} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, placeholder: event.target.value }))} placeholder="Placeholder" className="w-full rounded border px-2 py-1.5 text-xs"/><div className="flex items-center justify-between"><label className="flex items-center gap-1 text-[10px]"><input type="checkbox" checked={field.required} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, required: event.target.checked }))}/>Required</label><button type="button" onClick={() => changeContent('fields', formFields.filter((entry) => entry.id !== field.id))} className="text-[10px] font-bold text-red-700">Remove</button></div></div>)}<button type="button" onClick={addFormField} className="w-full rounded-lg border-2 border-black bg-white px-3 py-2 font-mono text-xs font-bold">+ Add field</button><label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Success message<input value={String(element.content.successMessage || '')} onChange={(event) => changeContent('successMessage', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black"/></label></div>}
       {element.type === 'image' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Alt text<input value={String(element.content.alt || '')} onChange={(event) => changeContent('alt', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
+      {element.type === 'card' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Description<textarea rows={4} value={String(element.content.description || '')} onChange={(event) => changeContent('description', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
+      {element.type === 'list' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">List items<textarea rows={6} value={(Array.isArray(element.content.items) ? element.content.items : []).map(String).join('\n')} onChange={(event) => changeContent('items', event.target.value.split(/\r?\n/).filter((item) => item.trim()))} placeholder="One item per line" className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
+      {element.type === 'gallery' && <><label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Image URLs<textarea rows={6} value={(Array.isArray(element.content.images) ? element.content.images : []).map(String).join('\n')} onChange={(event) => changeContent('images', event.target.value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean))} placeholder="https://example.com/image.jpg" className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal normal-case text-black" /><span className="mt-1 block font-normal normal-case">Enter one image URL per line. The carousel includes arrows and slide dots.</span></label><label className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase text-neutral-600"><input type="checkbox" checked={Boolean(element.content.autoplay)} onChange={(event) => changeContent('autoplay', event.target.checked)} />Auto-scroll gallery</label><label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Slide interval (seconds)<input type="number" min="2" max="20" value={Math.round((Number(element.content.intervalMs) || 4000) / 1000)} onChange={(event) => changeContent('intervalMs', Math.max(2, Math.min(20, Number(event.target.value) || 4)) * 1000)} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label></>}
       {element.type === 'icon' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Icon name<input value={String(element.content.icon || 'Star')} onChange={(event) => changeContent('icon', event.target.value)} list="site-icon-options" className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal normal-case text-black"/><datalist id="site-icon-options">{['Star','Heart','Sparkles','Camera','CheckCircle2','ArrowUpRight','Check','ArrowUp','ArrowDown'].map((name) => <option key={name} value={name}/>)}</datalist></label>}
       {element.type === 'icon' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Icon size<input type="number" min="8" max="256" value={Number(element.content.size || 36)} onChange={(event) => changeContent('size', Math.max(8, Math.min(256, Number(event.target.value) || 36)))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label>}
       {['image', 'icon'].includes(element.type) && <label className="block cursor-pointer rounded-lg border-2 border-dashed border-black p-3 text-center font-mono text-xs font-bold">Upload {element.type}<input type="file" accept="image/*" className="sr-only" onChange={(event) => onUpload(event.target.files?.[0])} /></label>}
@@ -1807,6 +1814,7 @@ function TreeElementProperties({ element, pages, onChange, onUpload }: { element
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Background<input type="color" value={element.style.backgroundColor || '#ffffff'} onChange={(event) => changeStyle('backgroundColor', event.target.value)} className="mt-1 h-9 w-full rounded border-2 border-black" /></label>
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Font size (px)<input type="number" min="8" max="128" value={element.style.fontSize || 16} onChange={(event) => changeStyle('fontSize', Math.max(8, Math.min(128, Number(event.target.value) || 16)))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label>
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Alignment<select value={element.style.textAlign || 'left'} onChange={(event) => changeStyle('textAlign', event.target.value as 'left' | 'center' | 'right')} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs text-black"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label>
+      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Animation<select value={element.style.animation || ''} onChange={(event) => changeStyle('animation', event.target.value || undefined)} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs text-black"><option value="">None</option><option value="fade-in">Fade in</option><option value="slide-up">Slide up</option><option value="slide-left">Slide in from left</option><option value="zoom-in">Zoom in</option><option value="float">Float</option><option value="pulse">Pulse</option></select></label>
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Corner radius (px)<input type="number" min="0" max="100" value={element.style.borderRadius || 0} onChange={(event) => changeStyle('borderRadius', Math.max(0, Number(event.target.value) || 0))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label>
     </div>}
     {tab === 'advanced' && <div className="space-y-3">
@@ -1911,6 +1919,7 @@ function SectionRenderer({
       style={{ padding: `${spacing.top * theme.spacingScale}px ${spacing.right * theme.spacingScale}px ${spacing.bottom * theme.spacingScale}px ${spacing.left * theme.spacingScale}px`, backgroundColor: section.style?.highlightColor || section.style?.backgroundColor, color: section.style?.overrides?.[deviceMode]?.color as string | undefined, textAlign: section.style?.textAlign, fontWeight: section.style?.fontWeight, fontStyle: section.style?.fontStyle, textDecoration: section.style?.textDecoration, display: section.hidden?.[deviceMode] ? 'none' : undefined }}
       className={cn(
         'relative group cursor-pointer transition-all',
+        getAnimationClass(section.style?.animation),
         section.locked && 'cursor-not-allowed pointer-events-none opacity-75',
         isSelected && 'outline-[3px] outline-pink outline-offset-[-3px] shadow-[inset_0_0_0_2px_#000]'
       )}
@@ -2318,6 +2327,7 @@ function SectionProperties({
       </label>
       <div className="space-y-2 rounded-xl border-2 border-black bg-white p-3">
         <p className="font-mono text-[10px] font-black uppercase text-neutral-500">Advanced</p>
+        <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Section animation<select value={section.style?.animation || ''} onChange={(event) => setSectionStyle({ animation: event.target.value || undefined })} className="mt-1 w-full rounded-lg border border-black/30 bg-white px-2 py-1.5 font-mono text-xs font-normal normal-case text-black"><option value="">None</option><option value="fade-in">Fade in</option><option value="slide-up">Slide up</option><option value="slide-left">Slide in from left</option><option value="zoom-in">Zoom in</option><option value="float">Float</option><option value="pulse">Pulse</option></select></label>
         <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Anchor ID<input value={section.anchorId || ''} onChange={(event) => setSectionSettings({ anchorId: event.target.value || undefined })} placeholder={section.id} className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-mono text-xs font-normal normal-case text-black" /></label>
         <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Custom class<input value={section.customClass || ''} onChange={(event) => setSectionSettings({ customClass: event.target.value || undefined })} placeholder="my-section" className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-mono text-xs font-normal normal-case text-black" /></label>
         <p className="font-mono text-[9px] font-bold uppercase text-neutral-500">Hide on device</p>

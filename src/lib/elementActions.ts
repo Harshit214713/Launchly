@@ -1,4 +1,18 @@
 export type ButtonTarget = 'url' | 'page' | 'anchor' | 'email' | 'phone';
+export type AnimationPreset = 'fade-in' | 'slide-up' | 'slide-left' | 'zoom-in' | 'float' | 'pulse';
+
+const animationClasses: Record<AnimationPreset, string> = {
+  'fade-in': 'launchly-motion-fade-in',
+  'slide-up': 'launchly-motion-slide-up',
+  'slide-left': 'launchly-motion-slide-left',
+  'zoom-in': 'launchly-motion-zoom-in',
+  float: 'launchly-motion-float',
+  pulse: 'launchly-motion-pulse',
+};
+
+export function getAnimationClass(preset?: string): string {
+  return preset && preset in animationClasses ? animationClasses[preset as AnimationPreset] : '';
+}
 
 export function resolveButtonHref(target: ButtonTarget, value: string, pages: Array<{ id: string; slug?: string; isHome?: boolean }>, pagePrefix = ''): string {
   const normalized = value.trim();

@@ -10,6 +10,7 @@ export type SectionStyle = {
   fontWeight?: number;
   fontStyle?: 'normal' | 'italic';
   textDecoration?: 'underline' | 'none';
+  animation?: string;
   highlightColor?: string;
   overrides?: Partial<Record<Device, Record<string, string | number>>>;
 };
