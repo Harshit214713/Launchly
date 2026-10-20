@@ -391,9 +391,9 @@ export default function TemplatePreviewPage({
                   <div className="max-w-5xl mx-auto">
                     <div className="flex items-end justify-between mb-5">
                       <div><span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: currentAccent }}>Curated for you</span><h2 className="text-2xl font-black mt-1">Featured pieces</h2></div>
-                      <button type="button" onClick={() => setActiveSection(template.pages[1]?.toLowerCase() || 'shop')} className="text-xs font-bold underline underline-offset-4">Shop all</button>
+                      <button type="button" onClick={() => document.getElementById('template-featured-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="text-xs font-bold underline underline-offset-4">Shop all</button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div id="template-featured-products" className="grid grid-cols-1 scroll-mt-24 sm:grid-cols-3 gap-4">
                       {products.slice(0, 3).map((product, index) => (
                         <article key={product.name} className={`overflow-hidden rounded-2xl border ${isDarkTemplate ? 'bg-white/5 border-white/10' : 'bg-white border-black/10'}`}>
                           <div className="h-40 overflow-hidden"><PreviewProductArt fresh={template.id === 'fresh-crate'} index={index}/></div>
@@ -467,7 +467,7 @@ export default function TemplatePreviewPage({
                 ) : activeSection.includes('cart') ? (
                   <div className={`max-w-xl mx-auto rounded-2xl border p-6 text-center ${isDarkTemplate ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-black/10 text-black'}`}>
                     <h3 className="font-bold text-lg">Your bag</h3><p className="font-mono text-sm mt-2">{cartCount ? `${cartCount} item${cartCount === 1 ? '' : 's'} in your bag` : 'Your bag is currently empty.'}</p>
-                    <button type="button" onClick={() => setActiveSection(template.pages[1]?.toLowerCase() || 'collections')} className="mt-5 rounded-lg px-4 py-2 font-bold text-black" style={{ backgroundColor: currentAccent }}>Continue shopping</button>
+                    <button type="button" onClick={() => { setActiveSection(template.pages[0].toLowerCase()); window.setTimeout(() => document.getElementById('template-featured-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} className="mt-5 rounded-lg px-4 py-2 font-bold text-black" style={{ backgroundColor: currentAccent }}>Continue shopping</button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">

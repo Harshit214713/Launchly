@@ -38,8 +38,8 @@ export const TEMPLATES: Template[] = [
     accent: '#3FA34D',
     bgColor: '#FFF8EC',
     textColor: '#1F2A1B',
-    pages: ['Home', 'Shop', 'Product Details', 'Offers', 'Recipes', 'Recipe Detail', 'Blog', 'Blog Post', 'Cart', 'Checkout', 'Order Confirmation', 'Order Tracking', 'Account', 'Wishlist', 'About', 'Contact', 'FAQ', 'Delivery Areas', 'Privacy & Terms', '404'],
-    features: ['Seasonal farm-to-door storefront', 'Product search and category filters', 'Twelve sample grocery products', 'Product detail and variants', 'Freshness and origin badges', 'Delivery slot selection preview', 'Combo baskets and weekly offers', 'Recipe collection and detail pages', 'Cart and checkout flow preview', 'Order status and tracking pages', 'Customer account and addresses', 'Wishlist and recently viewed', 'Local delivery area checker', 'Farm story and sourcing stats', 'Newsletter and contact forms', 'Responsive navigation and SEO-ready pages'],
+    pages: ['Home'],
+    features: ['Single-page farm-to-door storefront starter', 'Twelve sample grocery products', 'Seasonal product grid with add-to-bag actions', 'Freshness and origin storytelling', 'Combo baskets and weekly offers', 'Delivery area and ordering information', 'Customer testimonials and common questions', 'Newsletter and contact sections', 'Responsive shared navigation and footer', 'Add and customize more pages in the editor'],
     rating: 4.9,
     reviewsCount: 126,
     products: [
@@ -73,8 +73,8 @@ export const TEMPLATES: Template[] = [
     accent: '#C6FF3D',
     bgColor: '#0B0D12',
     textColor: '#F5F7FA',
-    pages: ['Home', 'Shop', 'Product Details', 'Compare', 'Deals', 'Bundles', 'Cart', 'Checkout', 'Order Confirmation', 'Order Tracking', 'Account', 'Wishlist', 'Support', 'Blog', 'Blog Post', 'About', 'Contact', 'Store Locator', 'Privacy & Terms', '404', 'Components'],
-    features: ['Dark drop-style storefront', 'Product search and spec filters', 'Twelve sample technology products', 'Detailed product specs and variants', 'Compare products side by side', 'Limited-drop deal countdown', 'Build-your-setup bundle page', 'Cart, checkout, and order previews', 'Shipment tracking timeline', 'Wishlist and saved comparisons', 'Warranty and support forms', 'Store locator and contact pages', 'Blog and product guides', 'Accessible keyboard-ready navigation', 'Responsive high-contrast layouts', 'Components gallery for reusable blocks'],
+    pages: ['Home'],
+    features: ['Single-page drop-style ecommerce starter', 'Twelve sample technology products', 'High-contrast product grid with add-to-bag actions', 'Clear product specifications and categories', 'Limited-drop campaign storytelling', 'Setup bundle and comparison highlights', 'Customer reviews and support information', 'Newsletter and contact sections', 'Responsive shared navigation and footer', 'Add and customize more pages in the editor'],
     rating: 4.9,
     reviewsCount: 98,
     products: [

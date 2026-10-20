@@ -136,19 +136,5 @@ export function createStorefrontPages(templateId: string, pageNames: string[], p
         : pageSections(id, pageCopy.title, pageCopy.description, pageCopy.detail, products, isFresh),
     };
   });
-  const productPages = products.map((product) => {
-    const productSlug = product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    const id = `product-${productSlug}`;
-    const description = `${product.detail} ${isFresh ? 'Sourced for this week’s market and packed close to delivery.' : 'Selected for dependable everyday performance and a clean setup.'}`;
-    const sections = [
-      section(`${id}-hero`, 'hero', product.name, { badge: product.category.toUpperCase(), title: product.name, heading: product.name, description, ctaPrimary: 'Add to bag', ctaSecondary: 'View delivery details' }),
-      section(`${id}-overview`, 'rich-text', 'Product overview', { heading: 'The details', body: `${product.detail}\n\n${isFresh ? 'Harvest and availability can vary slightly with the season. Your order is packed to keep this item fresh for the route.' : 'Review the specifications and compatibility notes before ordering. Product information is provided to make comparing options simple.'}\n\nPrice: ₹${product.price.toLocaleString('en-IN')}\nCategory: ${product.category}` }),
-      section(`${id}-highlights`, 'features', 'Why it belongs in your basket', { heading: isFresh ? 'A fresh pick for the week' : 'Made to work in your setup', items: [{ title: product.category, desc: product.detail }, { title: isFresh ? 'Seasonal quality' : 'Clear product details', desc: isFresh ? 'Availability is confirmed when your order is packed.' : 'Key information is easy to review before checkout.' }, { title: 'Helpful support', desc: 'Contact our team if you need guidance before ordering.' }] }),
-      section(`${id}-purchase`, 'product-grid', 'You may also like', { heading: 'Pair it with another favorite', items: products.filter((entry) => entry.name !== product.name).slice(0, 4).map((entry) => ({ title: entry.name, name: entry.name, description: entry.detail, price: `₹${entry.price.toLocaleString('en-IN')}`, category: entry.category })) }),
-      section(`${id}-faq`, 'faq', 'Product questions', { heading: 'Before you add it', items: [{ question: isFresh ? 'When is this packed?' : 'How do I check compatibility?', answer: isFresh ? 'We confirm seasonal availability while packing your order close to delivery.' : 'Compare the specifications on this page with the devices and accessories you already use.' }, { question: 'Need a hand?', answer: 'Send the product name to our support team and we will help you choose.' }] }),
-      section(`${id}-newsletter`, 'newsletter', 'Stay in the loop', { heading: isFresh ? 'Get the next market list' : 'Hear about the next drop', description: isFresh ? 'Receive a short note when seasonal picks and delivery slots are updated.' : 'Get release notes and useful setup guides in your inbox.', submitLabel: 'Sign me up' }),
-    ];
-    return { id, slug: `/products/${productSlug}`, title: product.name, description, isHome: false, showInMenu: false, seoTitle: `${product.name} | ${isFresh ? 'Fresh Crate' : 'Volt Gear'}`, noindex: false, sections } satisfies StorefrontPageSeed;
-  });
-  return [...pages, ...productPages];
+  return pages;
 }
