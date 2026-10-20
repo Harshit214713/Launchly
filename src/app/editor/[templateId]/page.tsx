@@ -581,7 +581,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     } else {
       const layoutMatch = type.match(/^layout:columns-(\d)$/);
       const columnCount = layoutMatch ? Number(layoutMatch[1]) : 1;
-      const elementType = type.startsWith('basic:') ? type.slice('basic:'.length) as SiteElement['type'] : null;
+      const elementType = type.startsWith('basic:') ? type.slice('basic:'.length) as SiteElement['type'] : type === 'pro:carousel-gallery' ? 'gallery' as const : null;
       const columns: Column[] = Array.from({ length: columnCount }, (_, index) => ({
         id: `${id}-column-${index + 1}`,
         width: { desktop: Math.floor(12 / columnCount), tablet: columnCount > 2 ? 6 : Math.floor(12 / columnCount), mobile: 12 },
@@ -589,7 +589,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         elements: elementType && index === 0 ? [{
           id: `${id}-${elementType}`,
           type: elementType,
-          content: elementType === 'heading' ? { text: 'Your heading' } : elementType === 'text' ? { text: 'Write something for your visitors.' } : elementType === 'button' ? { text: 'Button label', href: '#' } : elementType === 'image' ? { src: '', alt: '' } : elementType === 'icon' ? { icon: 'Star', size: 36 } : elementType === 'spacer' ? { height: 48 } : elementType === 'list' ? { items: ['First item', 'Second item'] } : elementType === 'card' ? { title: 'Card title', description: 'Add a short description.' } : elementType === 'gallery' ? { images: [], autoplay: true, intervalMs: 4000 } : {},
+          content: elementType === 'heading' ? { text: 'Your heading' } : elementType === 'text' ? { text: 'Write something for your visitors.' } : elementType === 'button' ? { text: 'Button label', href: '#' } : elementType === 'image' ? { src: '', alt: '' } : elementType === 'icon' ? { icon: 'Star', size: 36 } : elementType === 'spacer' ? { height: 48 } : elementType === 'list' ? { items: ['First item', 'Second item'] } : elementType === 'card' ? { title: 'Card title', description: 'Add a short description.' } : elementType === 'gallery' ? { images: [], carousel: type === 'pro:carousel-gallery', autoplay: type === 'pro:carousel-gallery', intervalMs: 4000 } : {},
           style: {},
         }] : [],
       }));
@@ -720,9 +720,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       const catalogEntry = getEditorCatalogItem(activeData.type);
       if (catalogEntry?.plan === 'pro' && userPlan !== 'pro') { requestUpgrade(catalogEntry.label); return; }
       if (overData?.kind === 'column-drop' && typeof overData.sectionId === 'string' && typeof overData.columnId === 'string') {
-        const basicType = activeData.type.startsWith('basic:') ? activeData.type.slice('basic:'.length) as SiteElement['type'] : null;
+        const basicType = activeData.type.startsWith('basic:') ? activeData.type.slice('basic:'.length) as SiteElement['type'] : activeData.type === 'pro:carousel-gallery' ? 'gallery' as const : null;
         const block = blockRegistry[activeData.type];
-        const element: SiteElement = { id: nextEditorId('element'), type: basicType || 'block', content: basicType ? {} : { blockType: block?.type || activeData.type, ...(block?.defaultContent || {}) }, style: {} };
+        const element: SiteElement = { id: nextEditorId('element'), type: basicType || 'block', content: basicType === 'gallery' ? { images: [], carousel: activeData.type === 'pro:carousel-gallery', autoplay: activeData.type === 'pro:carousel-gallery', intervalMs: 4000 } : basicType ? {} : { blockType: block?.type || activeData.type, ...(block?.defaultContent || {}) }, style: {} };
         editorStore.getState().insertElement(activePageId, overData.sectionId, overData.columnId, element, Number(overData.index) || 0);
         applyDocumentToEditor(editorStore.getState().document, activePageId);
         setSelectedTreeElement({ sectionId: overData.sectionId, columnId: overData.columnId, elementId: element.id });
