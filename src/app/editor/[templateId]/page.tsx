@@ -1671,6 +1671,9 @@ function CanvasContent({
   selectedTreeElementId,
   onSelectTreeElement,
   onUpdateTreeElement,
+  onResizeTreeColumn,
+  onDuplicateTreeElement,
+  onDeleteTreeElement,
   onSelectSection,
   assetUrl,
   logoUrl,
@@ -1696,6 +1699,9 @@ function CanvasContent({
   selectedTreeElementId: string | null;
   onSelectTreeElement: (sectionId: string, columnId: string, elementId: string) => void;
   onUpdateTreeElement: (sectionId: string, columnId: string, elementId: string, update: (element: SiteElement) => SiteElement) => void;
+  onResizeTreeColumn: (sectionId: string, columnId: string, width: number) => void;
+  onDuplicateTreeElement: (sectionId: string, columnId: string, elementId: string) => void;
+  onDeleteTreeElement: (sectionId: string, columnId: string, elementId: string) => void;
   onSelectSection: (id: string) => void;
   assetUrl: string;
   logoUrl: string;
@@ -1725,6 +1731,9 @@ function CanvasContent({
           selectedTreeElementId={selectedTreeElementId}
           onSelectTreeElement={(columnId, elementId) => onSelectTreeElement(section.id, columnId, elementId)}
           onUpdateTreeElement={(columnId, elementId, update) => onUpdateTreeElement(section.id, columnId, elementId, update)}
+          onResizeTreeColumn={(columnId, width) => onResizeTreeColumn(section.id, columnId, width)}
+          onDuplicateTreeElement={(columnId, elementId) => onDuplicateTreeElement(section.id, columnId, elementId)}
+          onDeleteTreeElement={(columnId, elementId) => onDeleteTreeElement(section.id, columnId, elementId)}
           onSelect={() => onSelectSection(section.id)}
           assetUrl={assetUrl}
           logoUrl={logoUrl}
@@ -1802,6 +1811,9 @@ function SectionRenderer({
   selectedTreeElementId,
   onSelectTreeElement,
   onUpdateTreeElement,
+  onResizeTreeColumn,
+  onDuplicateTreeElement,
+  onDeleteTreeElement,
   onSelect,
   assetUrl,
   logoUrl,
