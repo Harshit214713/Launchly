@@ -26,6 +26,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Launchly — The Visual Studio for Modern Web Builders",
     description: "Curated aesthetic templates, live visual editing, and instant edge deployment. Build without friction in a playground crafted for creators.",
+    creator: "@simplyvardaan_",
+    site: "@simplyvardaan_",
   },
   icons: {
     icon: [

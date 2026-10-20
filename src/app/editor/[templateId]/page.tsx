@@ -22,6 +22,7 @@ import { blockRegistry } from '@/lib/blockRegistry';
 import { createEditorStore, type SiteVersion } from '@/store/editorStore';
 import DeployModal from '@/components/DeployModal';
 import SocialShareModal from '@/components/SocialShareModal';
+import BrandWordmark from '@/components/BrandWordmark';
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
 type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'navigation' | 'assets';
@@ -681,7 +682,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       <header className="h-14 sm:h-16 bg-white border-b-[3px] border-black flex items-center justify-between px-2.5 sm:px-5 z-50 shrink-0 shadow-[0_2px_0_#000]">
         {/* Left: Logo, Site Name */}
         <div className="flex items-center gap-1.5 sm:gap-3">
-          <Link href="/dashboard" className="flex items-center gap-1.5 group shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-2 group shrink-0">
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-black border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_#000] group-hover:scale-105 transition-transform">
               <NextImage
                 src="/brand-logo-clean.png"
@@ -691,6 +692,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 className="w-full h-full object-contain p-0.5 rounded-lg"
               />
             </div>
+            <span className="hidden xl:inline-flex">
+              <BrandWordmark size="sm" />
+            </span>
           </Link>
 
           {/* Site Name Pill */}
