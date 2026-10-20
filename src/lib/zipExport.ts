@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import type { SiteDocument } from '@/lib/siteDocument';
+import { exportSiteDocumentZip } from '@/lib/siteZipExport';
 
 interface ExportTemplateParams {
   siteTitle: string;
@@ -73,23 +74,7 @@ export async function exportTemplateAsZip({
   document,
 }: ExportTemplateParams): Promise<Blob> {
   if (document) {
-    const home = document.pages.find((page) => page.isHome) || document.pages[0];
-    siteTitle = document.name;
-    templateId = document.templateId;
-    theme = { primaryColor: document.theme.primaryColor, bgColor: document.theme.bgColor, textColor: document.theme.textColor, fontFamily: document.theme.fontFamily, borderRadius: document.theme.radius };
-    heroContent = { ...heroContent, ...document.content.hero };
-    featuresContent = document.content.features;
-    testimonialsContent = document.content.testimonials;
-    ctaContent = document.content.cta;
-    sectionOrder = home?.sections.map((section) => section.type) || sectionOrder;
-    sectionNames = Object.fromEntries(home?.sections.map((section) => [section.type, section.name]) || []);
-    pages = document.pages.map((page) => page.title);
-    sitePages = document.pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo.description }));
-    sectionSpacing = Object.fromEntries(document.pages.flatMap((page) => page.sections.filter((section) => section.style.padding).map((section) => [section.id, { top: section.style.padding?.top || 0, right: section.style.padding?.right || 0, bottom: section.style.padding?.bottom || 0, left: section.style.padding?.left || 0 }])));
-    canvasElements = home?.elements || [];
-    assetUrl = document.assets.find((asset) => asset.role === 'product')?.src || '';
-    logoUrl = document.assets.find((asset) => asset.role === 'logo')?.src || '';
-    faviconUrl = document.assets.find((asset) => asset.role === 'favicon')?.src || '';
+    return exportSiteDocumentZip(document);
   }
   const zip = new JSZip();
   const folderName = siteTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'launchly-site';
