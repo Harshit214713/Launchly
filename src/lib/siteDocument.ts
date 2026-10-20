@@ -194,12 +194,27 @@ export function createSiteDocument(input: {
     const pageSlug = page.slug?.replace(/^\/+/, '') || slug;
     return { id: page.id, slug: `/${pageSlug}`, title: page.title, isHome: false, showInMenu: page.showInMenu !== false, seo: { title: page.seoTitle || page.title, description: page.description, ogImage: page.ogImage || '', noindex: page.noindex || false }, sections: page.sections?.length ? page.sections : [makeSection('hero', `${page.id}-hero`, 'Hero', {}, { title: page.title, description: page.description })], elements: [], useSharedHeader: page.useSharedHeader !== false, useSharedFooter: page.useSharedFooter !== false, oldSlugs: page.oldSlugs || [] } satisfies SitePage;
   });
+  const pageMenu = additionalPages.filter((page) => page.showInMenu).map((page) => ({ id: `menu-${page.id}`, label: page.title, target: { type: 'page' as const, value: page.id }, newTab: false }));
+  const storeAnchorMenu: MenuItem[] = input.templateId === 'fresh-crate'
+    ? [
+        { id: 'menu-shop', label: 'Shop', target: { type: 'anchor', value: 'collection' }, newTab: false },
+        { id: 'menu-how-it-works', label: 'How it works', target: { type: 'anchor', value: 'home-how-it-works' }, newTab: false },
+        { id: 'menu-recipes', label: 'Recipes', target: { type: 'anchor', value: 'home-recipes' }, newTab: false },
+        { id: 'menu-our-story', label: 'Our story', target: { type: 'anchor', value: 'home-story' }, newTab: false },
+      ]
+    : input.templateId === 'volt-gear'
+      ? [
+          { id: 'menu-shop', label: 'Shop gear', target: { type: 'anchor', value: 'collection' }, newTab: false },
+          { id: 'menu-how-it-works', label: 'How it works', target: { type: 'anchor', value: 'home-how-it-works' }, newTab: false },
+          { id: 'menu-our-story', label: 'Our story', target: { type: 'anchor', value: 'home-story' }, newTab: false },
+        ]
+      : [];
   const assets: SiteAsset[] = (input.assets || []).filter((asset) => asset.role === 'image' || asset.role === 'icon');
   for (const [role, src] of [['product', input.assetUrl], ['logo', input.logoUrl], ['favicon', input.faviconUrl]] as const) if (src) assets.push({ id: `${role}-asset`, name: role, role, src, alt: role === 'logo' ? `${input.name} logo` : '' });
   return {
     version: 3, id: input.id, name: input.name, templateId: input.templateId, theme,
     header: { sticky: true, mobileMenu: true }, footer: { enabled: true },
-    menu: additionalPages.filter((page) => page.showInMenu).map((page) => ({ id: `menu-${page.id}`, label: page.title, target: { type: 'page' as const, value: page.id }, newTab: false })), pages: [home, ...additionalPages], assets, collections: [], settings: { subdomain: ids(input.name), status: 'draft', customCss: '' },
+    menu: pageMenu.length ? pageMenu : storeAnchorMenu, pages: [home, ...additionalPages], assets, collections: [], settings: { subdomain: ids(input.name), status: 'draft', customCss: '' },
     content: { hero: input.hero, features: input.features, testimonials: input.testimonials, cta: input.cta },
   };
 }

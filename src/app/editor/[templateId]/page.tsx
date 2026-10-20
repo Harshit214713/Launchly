@@ -32,6 +32,7 @@ import { getDefaultFormFields, type FormField } from '@/components/SiteForm';
 import { getAnimationClass, type ButtonTarget } from '@/lib/elementActions';
 import { editorCatalog, getEditorCatalogItem, paletteCategories, type EditorPaletteCategory } from '@/lib/editorCatalog';
 import { createStorefrontPages } from '@/lib/templateContent';
+import StoreHeroArtwork from '@/components/storefront/StoreHeroArtwork';
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
 type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'navigation' | 'assets' | 'settings';
@@ -1441,6 +1442,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             {/* Editable Content Frame */}
             <div data-canvas-frame className="flex-1 overflow-y-auto">
               <CanvasContent
+                templateId={template.id}
                 sections={sections}
                 sitePages={sitePages}
                 menuItems={editorDocument.menu}
@@ -1802,6 +1804,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 }
 
 function CanvasContent({
+  templateId,
   sections,
   sectionSpacing,
   sitePages,
@@ -1830,6 +1833,7 @@ function CanvasContent({
   logoUrl,
   deviceMode,
 }: {
+  templateId: string;
   sections: Section[];
   sectionSpacing: Record<string, SectionSpacing>;
   sitePages: SitePage[];
@@ -1866,6 +1870,7 @@ function CanvasContent({
         <SectionDropMarker index={index} />
         <SortableSectionFrame id={section.id} index={index} source="canvas" className="group/canvas-section">
         <SectionRenderer
+          templateId={templateId}
           section={section}
           sitePages={sitePages}
           menuItems={menuItems}
@@ -2078,6 +2083,7 @@ function TreeElementProperties({ element, pages, device, onChange, onUpload }: {
 }
 
 function SectionRenderer({
+  templateId,
   section,
   sitePages,
   menuItems,
@@ -2102,6 +2108,7 @@ function SectionRenderer({
   logoUrl,
   deviceMode,
 }: {
+  templateId: string;
   section: Section;
   sitePages: SitePage[];
   menuItems: MenuItem[];
@@ -2127,6 +2134,9 @@ function SectionRenderer({
   deviceMode: DeviceMode;
 }) {
   const sectionContent = section.content || {};
+  const isFreshCrate = templateId === 'fresh-crate';
+  const isVoltGear = templateId === 'volt-gear';
+  const isStorefront = isFreshCrate || isVoltGear;
   const sectionHero = { ...heroContent, ...(sectionContent as Partial<typeof heroContent>) } as typeof heroContent;
   const sectionFeatures = Array.isArray(sectionContent.items) ? sectionContent.items as typeof featuresContent : featuresContent;
   const sectionTestimonials = Array.isArray(sectionContent.items) ? sectionContent.items as typeof testimonialsContent : testimonialsContent;
@@ -2155,6 +2165,11 @@ function SectionRenderer({
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const scrollToAnchor = (value: string) => {
+    const anchorId = value.replace(/^#/, '');
+    const target = document.getElementById(anchorId) || (anchorId === 'collection' ? document.querySelector('[data-section-id*="best-sellers"]') : null);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const renderMenuItem = (item: MenuItem) => {
     if (item.target.type === 'page') {
       const page = sitePages.find((entry) => entry.id === item.target.value);
@@ -2162,7 +2177,7 @@ function SectionRenderer({
     }
     const href = item.target.type === 'anchor' ? `#${item.target.value.replace(/^#/, '')}` : item.target.value;
     const safeHref = item.target.type === 'anchor' || /^(https?:|mailto:|tel:)/i.test(href) ? href : '';
-    return safeHref ? <a key={item.id} href={safeHref} target={item.newTab ? '_blank' : undefined} rel={item.newTab ? 'noopener noreferrer' : undefined} onClick={(event) => event.stopPropagation()} className="hover:text-black hover:underline">{item.label}</a> : null;
+    return safeHref ? <a key={item.id} href={safeHref} target={item.newTab ? '_blank' : undefined} rel={item.newTab ? 'noopener noreferrer' : undefined} onClick={(event) => { event.stopPropagation(); if (item.target.type === 'anchor') { event.preventDefault(); scrollToAnchor(item.target.value); setMobileMenuOpen(false); } }} className="hover:text-black hover:underline">{item.label}</a> : null;
   };
   return (
     <div
@@ -2182,7 +2197,7 @@ function SectionRenderer({
       {/* Navigation Block */}
       {section.type === 'nav' && (
         <>
-        <nav className="flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 border-black/10 bg-white/80 backdrop-blur-sm">
+        <nav style={{ backgroundColor: isFreshCrate ? '#FFF8EC' : isVoltGear ? '#0B0D12' : undefined }} className={cn('flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 backdrop-blur-sm', isVoltGear ? 'border-white/10' : 'border-black/10')}>
           <div className="flex items-center gap-2">
             {logoUrl ? <NextImage src={logoUrl} alt={`${siteTitle} logo`} width={32} height={32} unoptimized className="h-8 w-8 rounded-lg object-contain" /> : <div
               style={{ backgroundColor: theme.primaryColor }}
@@ -2190,12 +2205,12 @@ function SectionRenderer({
             >
               {siteTitle.charAt(0)}
             </div>}
-            <span className="font-display font-black text-sm sm:text-base text-ink tracking-tight">
+            <span className={cn('font-display font-black text-sm sm:text-base tracking-tight', isVoltGear ? 'text-white' : 'text-ink')}>
               {siteTitle}
             </span>
           </div>
 
-          <div aria-label="Site pages" className={cn('hidden sm:flex min-w-0 max-w-[62%] items-center gap-4 overflow-x-auto whitespace-nowrap px-1 font-mono text-xs font-bold text-neutral-700 [scrollbar-width:thin]', deviceMode === 'mobile' && 'hidden')}>
+          <div aria-label="Site pages" className={cn('hidden sm:flex min-w-0 max-w-[62%] items-center gap-4 overflow-x-auto whitespace-nowrap px-1 font-mono text-xs font-bold [scrollbar-width:thin]', isVoltGear ? 'text-white/70' : 'text-neutral-700', deviceMode === 'mobile' && 'hidden')}>
             {menuItems.map(renderMenuItem)}
           </div>
           <button type="button" aria-expanded={mobileMenuOpen} aria-label="Toggle site navigation" onClick={(event) => { event.stopPropagation(); setMobileMenuOpen((open) => !open); }} className="sm:hidden rounded-lg border border-black px-2 py-1 font-mono text-xs font-bold">{mobileMenuOpen ? 'Close' : 'Menu'}</button>
@@ -2207,13 +2222,13 @@ function SectionRenderer({
               event.stopPropagation();
               const target = menuItems[0]?.target;
               if (target?.type === 'page') onNavigatePage(target.value);
-              else if (target?.type === 'anchor') document.getElementById(target.value.replace(/^#/, ''))?.scrollIntoView({ behavior: 'smooth' });
+              else if (target?.type === 'anchor') scrollToAnchor(target.value);
               else if (target?.type === 'url' && /^(https?:|mailto:|tel:)/i.test(target.value)) window.open(target.value, menuItems[0].newTab ? '_blank' : '_self', 'noopener,noreferrer');
             }}
             style={themedButtonStyle}
             className="px-3 sm:px-4 py-1.5 rounded-xl border-2 border-black font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Get Started
+            {isStorefront ? 'Bag' : 'Get Started'}
           </button>
         </nav>
         {mobileMenuOpen && <nav aria-label="Mobile navigation" className="sm:hidden max-h-[65vh] overflow-y-auto border-b-2 border-black bg-white px-4 py-3"><div className="flex flex-col gap-3 font-mono text-xs font-bold">{menuItems.map(renderMenuItem)}</div></nav>}
@@ -2223,16 +2238,19 @@ function SectionRenderer({
       {/* Hero Block */}
       {section.type === 'hero' && (
         <div
-          className="py-12 sm:py-24 px-4 sm:px-12 text-center relative overflow-hidden"
+          className={cn('relative grid items-center gap-10 overflow-hidden px-4 py-12 sm:px-12 sm:py-24', isStorefront ? 'text-left md:grid-cols-2 lg:gap-16' : 'text-center')}
           style={{ background: theme.bgColor, color: theme.textColor }}
         >
           {/* Subtle Ambient Glow */}
           <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-[120px] opacity-25 pointer-events-none"
+            className={cn('absolute top-0 h-[min(80vw,34rem)] w-[min(80vw,34rem)] rounded-full blur-[110px] opacity-25 pointer-events-none', isStorefront ? 'right-[-8rem] left-auto' : 'left-1/2 -translate-x-1/2')}
             style={{ backgroundColor: theme.primaryColor }}
           />
 
-          <div className="relative z-10 max-w-2xl mx-auto space-y-3 sm:space-y-4">
+          {isFreshCrate && <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 -left-20 h-72 w-72 rounded-full border-[28px] border-[#F4A93B]/15" />}
+          {isVoltGear && <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[.12] [background-image:radial-gradient(#C6FF3D_1px,transparent_1px)] [background-size:22px_22px]" />}
+
+          <div className={cn('relative z-10 space-y-3 sm:space-y-5', isStorefront ? 'max-w-2xl' : 'mx-auto max-w-2xl')}>
             {/* Category Pill */}
             <div
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-black font-mono text-[10px] sm:text-[11px] font-black uppercase text-black shadow-[2px_2px_0px_#000]"
@@ -2246,7 +2264,7 @@ function SectionRenderer({
 
             {/* Editable Headline */}
             <h1
-              className="font-display text-2xl sm:text-5xl font-black tracking-tight leading-tight outline-none focus:ring-2 focus:ring-pink rounded-lg p-1"
+              className={cn('font-display font-black tracking-tight leading-tight outline-none focus:ring-2 focus:ring-pink rounded-lg p-1', isStorefront ? 'text-4xl sm:text-6xl lg:text-7xl leading-[1.02]' : 'text-2xl sm:text-5xl')}
               contentEditable
               suppressContentEditableWarning
               onInput={(e) => setHero((prev) => ({ ...prev, title: (e.target as HTMLElement).innerText }))}
@@ -2256,7 +2274,7 @@ function SectionRenderer({
 
             {/* Editable Description */}
             <p
-              className="font-mono text-xs sm:text-sm opacity-80 max-w-lg mx-auto leading-relaxed outline-none focus:ring-2 focus:ring-pink rounded-lg p-1"
+              className={cn('font-mono text-xs sm:text-sm opacity-80 max-w-xl leading-relaxed outline-none focus:ring-2 focus:ring-pink rounded-lg p-1', !isStorefront && 'mx-auto')}
               contentEditable
               suppressContentEditableWarning
               onInput={(e) => setHero((prev) => ({ ...prev, description: (e.target as HTMLElement).innerText }))}
@@ -2265,7 +2283,7 @@ function SectionRenderer({
             </p>
 
             {/* Action Buttons */}
-            <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
+            <div className={cn('pt-2 flex flex-wrap gap-2.5', isStorefront ? 'justify-start' : 'items-center justify-center')}>
               <button
                 type="button"
                 style={themedButtonStyle}
@@ -2283,7 +2301,7 @@ function SectionRenderer({
             </div>
 
             {/* Live Telemetry Radar Pills */}
-            <div className="pt-4 sm:pt-6 grid grid-cols-2 gap-2 sm:gap-3 max-w-md mx-auto text-left">
+            <div className={cn('pt-4 sm:pt-6 grid grid-cols-2 gap-2 sm:gap-3 max-w-lg text-left', !isStorefront && 'mx-auto')}>
               <div className="rounded-xl border border-current/20 bg-white/5 p-2.5 sm:p-3 backdrop-blur-sm">
                 <span contentEditable suppressContentEditableWarning onInput={(e) => setHero((prev) => ({ ...prev, stat1Label: (e.target as HTMLElement).innerText }))} className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
                   {sectionHero.stat1Label}
@@ -2298,6 +2316,7 @@ function SectionRenderer({
               </div>
             </div>
           </div>
+          {isStorefront && <StoreHeroArtwork fresh={isFreshCrate} />}
         </div>
       )}
 

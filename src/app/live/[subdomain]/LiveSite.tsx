@@ -22,7 +22,9 @@ import { Template } from '@/types';
 import type { Column, SiteElement } from '@/lib/siteDocument';
 import SiteForm from '@/components/SiteForm';
 import ImageCarousel from '@/components/ImageCarousel';
+import StoreHeroArtwork from '@/components/storefront/StoreHeroArtwork';
 import { getAnimationClass, resolveButtonHref, type ButtonTarget } from '@/lib/elementActions';
+import { createStorefrontPages } from '@/lib/templateContent';
 
 type LivePageSection = { id: string; type: string; name: string; content?: Record<string, unknown>; style?: Record<string, unknown>; columns?: Column[]; hidden?: Partial<Record<'desktop' | 'tablet' | 'mobile', boolean>>; anchorId?: string };
 type LivePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; oldSlugs?: string[]; sections?: LivePageSection[] };
@@ -169,9 +171,15 @@ export default function LiveWebsitePage({
 }) {
   const { subdomain, slug } = use(params);
   const routeSlug = slug?.join('/') || '';
+  const template: Template = getTemplateById(subdomain.toLowerCase()) || ALL_TEMPLATES.find((entry) => entry.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') === subdomain.toLowerCase()) || TEMPLATES[0];
+  const isFreshCrate = template.id === 'fresh-crate';
+  const isVoltGear = template.id === 'volt-gear';
+  const isBrandedStore = isFreshCrate || isVoltGear;
+  const storeProducts = template.products || [];
+  const initialStoreSections = isBrandedStore ? createStorefrontPages(template.id, template.pages, storeProducts)[0]?.sections : undefined;
   const [copied, setCopied] = useState(false);
   const [bannerCollapsed, setBannerCollapsed] = useState(false);
-  const [siteSections, setSiteSections] = useState<LivePageSection[]>([
+  const [siteSections, setSiteSections] = useState<LivePageSection[]>(() => initialStoreSections || [
     { id: 'nav', name: 'Navigation', type: 'nav' },
     { id: 'hero', name: 'Hero', type: 'hero' },
     { id: 'gallery', name: 'Featured Products', type: 'gallery' },
@@ -241,7 +249,7 @@ export default function LiveWebsitePage({
     return spacing ? { paddingTop: `${spacing.top}px`, paddingBottom: `${spacing.bottom}px`, paddingLeft: `${spacing.left}px`, paddingRight: `${spacing.right}px` } : {};
   };
   const renderHomeExtras = () => siteSections
-    .filter((section) => !['nav', 'hero', 'gallery', 'features', 'testimonials', 'cta', 'footer'].includes(section.type) && !section.hidden?.desktop)
+    .filter((section) => !['nav', 'hero', 'features', 'testimonials', 'cta', 'footer', 'announcement', 'product-grid'].includes(section.type) && !(section.type === 'gallery' && section.id === 'gallery') && !section.hidden?.desktop)
     .map((section) => {
       const content = section.content || {};
       const heading = [content.heading, content.title, section.name].find((value): value is string => typeof value === 'string' && value.length > 0) || section.type.replace(/[-_]/g, ' ');
@@ -262,17 +270,23 @@ export default function LiveWebsitePage({
           : typeof content.body === 'string' ? <p className="mt-5 whitespace-pre-wrap leading-relaxed">{content.body}</p> : null}</div></section>;
     });
 
-  // Template matching: match by subdomain or template id
-  const template: Template = 
-    getTemplateById(subdomain.toLowerCase()) ||
-    ALL_TEMPLATES.find(t => t.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') === subdomain.toLowerCase()) ||
-    TEMPLATES[0];
-  const isFreshCrate = template.id === 'fresh-crate';
-  const isVoltGear = template.id === 'volt-gear';
-  const isBrandedStore = isFreshCrate || isVoltGear;
-  const storeProducts = template.products || [];
-  const productNames = storeProducts.slice(0, 3).map((product) => product.name);
-  const liveNavigation: LiveMenuItem[] = siteMenu.length ? siteMenu : sitePages.length ? sitePages.filter((page) => !page.isHome && page.showInMenu !== false).map((page) => ({ id: page.id, label: page.title, target: { type: 'page', value: page.id } })) : template.pages.slice(1).map((title) => { const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-'); return { id, label: title, target: { type: 'page' as const, value: id } }; });
+  // Template matching is resolved before state initialization so the editor and live fallback share the same starter sections.
+  const configuredProductItems = siteSections.find((section) => section.type === 'product-grid')?.content?.items;
+  const configuredProductNames = Array.isArray(configuredProductItems)
+    ? configuredProductItems.flatMap((item) => {
+        if (typeof item !== 'object' || item === null) return [];
+        const value = item as Record<string, unknown>;
+        const name = value.name || value.title;
+        return typeof name === 'string' && storeProducts.some((product) => product.name === name) ? [name] : [];
+      })
+    : [];
+  const productNames = (configuredProductNames.length ? configuredProductNames : storeProducts.slice(0, 3).map((product) => product.name)).slice(0, 6);
+  const pageNavigation: LiveMenuItem[] = sitePages.filter((page) => !page.isHome && page.showInMenu !== false).map((page) => ({ id: page.id, label: page.title, target: { type: 'page', value: page.id } }));
+  const templateNavigation: LiveMenuItem[] = isFreshCrate
+    ? [{ id: 'menu-shop', label: 'Shop', target: { type: 'anchor', value: 'collection' } }, { id: 'menu-how-it-works', label: 'How it works', target: { type: 'anchor', value: 'home-how-it-works' } }, { id: 'menu-recipes', label: 'Recipes', target: { type: 'anchor', value: 'home-recipes' } }, { id: 'menu-our-story', label: 'Our story', target: { type: 'anchor', value: 'home-story' } }]
+    : isVoltGear ? [{ id: 'menu-shop', label: 'Shop gear', target: { type: 'anchor', value: 'collection' } }, { id: 'menu-how-it-works', label: 'How it works', target: { type: 'anchor', value: 'home-how-it-works' } }, { id: 'menu-our-story', label: 'Our story', target: { type: 'anchor', value: 'home-story' } }]
+      : template.pages.slice(1).map((title) => { const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-'); return { id, label: title, target: { type: 'page' as const, value: id } }; });
+  const liveNavigation: LiveMenuItem[] = siteMenu.length ? siteMenu : pageNavigation.length ? pageNavigation : templateNavigation;
   const navigationHref = (item: LiveMenuItem) => {
     if (item.target.type === 'url') return item.target.value;
     if (item.target.type === 'anchor') return `#${item.target.value.replace(/^#/, '')}`;
@@ -597,6 +611,8 @@ export default function LiveWebsitePage({
 
         {activePage === 'home' ? <>
 
+        {siteSections.filter((section) => section.type === 'announcement' && !section.hidden?.desktop).map((section) => <aside key={section.id} id={section.anchorId || section.id} style={{ order: sectionOrder('announcement'), ...sectionPadding('announcement') }} className={`px-5 py-10 sm:px-12 ${isVoltGear ? 'bg-[#0B0D12]' : 'bg-[#FAF9F6]'}`}><div className="mx-auto max-w-5xl text-center"><p className="font-mono text-[10px] font-bold uppercase tracking-widest" style={{ color: theme.primaryColor }}>{siteTitle}</p><h2 className="mt-2 font-display text-2xl font-black sm:text-3xl">{section.name}</h2><div className="mt-6 flex flex-wrap items-center justify-center gap-2 rounded-xl border-2 border-black px-4 py-4 text-center font-mono text-sm" style={{ backgroundColor: typeof section.style?.backgroundColor === 'string' ? section.style.backgroundColor : theme.primaryColor, color: isVoltGear ? '#0B0D12' : '#1F2A1B' }}><span>{String(section.content?.text || section.content?.description || 'A fresh note from our team.')}</span>{typeof section.content?.linkLabel === 'string' && <a className="font-bold underline underline-offset-4" href={isFreshCrate ? `/live/${subdomain}/delivery-areas` : `/live/${subdomain}/deals`}>{section.content.linkLabel}<span aria-hidden="true"> ↗</span></a>}</div></div></aside>)}
+
         {/* Hero Block — Rich Ambient Lighting, Vibrant Neo-Brutalist Badges, Crisp Typography */}
         <section
           id="home"
@@ -671,31 +687,12 @@ export default function LiveWebsitePage({
               </div>
             </div>
           </div>
-          {isBrandedStore && <div aria-label={isFreshCrate ? 'Fresh Crate seasonal produce illustration' : 'Volt Gear product launch illustration'} className={`relative z-10 mx-auto flex aspect-square w-full max-w-[31rem] items-center justify-center overflow-hidden rounded-[2.25rem] border ${isFreshCrate ? 'border-[#1F2A1B]/10 bg-[#F3E9D7]' : 'border-white/15 bg-[#151923]'}`}>
-            {isFreshCrate ? <>
-              <div aria-hidden="true" className="absolute -right-8 -top-10 h-56 w-56 rounded-full bg-[#F4A93B]/35 blur-sm" />
-              <div aria-hidden="true" className="absolute -bottom-14 -left-14 h-64 w-64 rounded-full bg-[#3FA34D]/25" />
-              <div aria-hidden="true" className="absolute inset-7 rounded-full border border-[#1F2A1B]/10" />
-              <div className="relative grid w-[74%] grid-cols-2 gap-3 rounded-3xl border border-white/80 bg-white/75 p-4 shadow-[0_28px_70px_rgba(31,42,27,.14)] backdrop-blur-sm sm:p-6">
-                {['Garden greens', 'Sun-ripened fruit', 'Bakery mornings', 'Farm favorites'].map((label, index) => <div key={label} className={`flex aspect-square flex-col justify-between rounded-2xl p-3 sm:p-4 ${index % 2 ? 'bg-[#FFF8EC]' : 'bg-[#E7F2DF]'}`}><span aria-hidden="true" className={`block h-12 w-12 rounded-full ${index === 0 ? 'bg-[#3FA34D]' : index === 1 ? 'bg-[#F4A93B]' : index === 2 ? 'bg-[#D99C72]' : 'bg-[#8ABF57]'}`} /><span className="text-xs font-bold text-[#1F2A1B] sm:text-sm">{label}</span></div>)}
-                <div className="absolute -bottom-4 -right-3 rounded-full border border-[#1F2A1B]/10 bg-white px-4 py-2 font-mono text-[10px] font-bold text-[#1F2A1B] shadow-lg">Picked fresh, delivered today</div>
-              </div>
-            </> : <>
-              <div aria-hidden="true" className="absolute h-[72%] w-[72%] rounded-full border border-[#C6FF3D]/20" />
-              <div aria-hidden="true" className="absolute h-[54%] w-[54%] rounded-full border border-[#7C5CFF]/50 shadow-[0_0_90px_rgba(124,92,255,.25)]" />
-              <div aria-hidden="true" className="absolute right-10 top-12 h-20 w-20 rounded-full bg-[#C6FF3D]/15 blur-xl" />
-              <div className="relative flex h-[58%] w-[58%] items-center justify-center rounded-[2rem] border border-white/15 bg-gradient-to-br from-[#252A36] to-[#101218] shadow-[0_30px_90px_rgba(0,0,0,.55)]">
-                <div aria-hidden="true" className="absolute inset-5 rounded-full border-[14px] border-[#C6FF3D] shadow-[0_0_35px_rgba(198,255,61,.16)]" />
-                <span className="relative z-10 font-mono text-xs font-black uppercase tracking-[.35em] text-white/80">V / 01</span>
-                <span className="absolute -bottom-5 right-[-1rem] rounded-xl border border-white/15 bg-[#1C202B] px-4 py-3 font-mono text-[10px] text-white shadow-xl"><strong className="block text-[#C6FF3D]">BUILT FOR THE DROP</strong>Precision audio · 40h battery</span>
-              </div>
-            </>}
-          </div>}
+          {isBrandedStore && <StoreHeroArtwork fresh={isFreshCrate} />}
         </section>
 
-        <section id="collection" style={{ order: sectionOrder('gallery'), display: sectionVisible('gallery') ? undefined : 'none', ...sectionPadding('gallery') }} className={`px-4 py-14 sm:px-12 ${isVoltGear ? 'bg-[#10131A] text-white' : isFreshCrate ? 'bg-[#F3E9D7] text-[#1F2A1B]' : 'bg-[#FAF9F6] text-black'}`}>
+        <section id="collection" style={{ order: Math.max(0, siteSections.findIndex((section) => section.type === 'product-grid' || section.type === 'gallery')), display: siteSections.some((section) => section.type === 'product-grid' || section.type === 'gallery') ? undefined : 'none', ...sectionPadding('product-grid') }} className={`px-4 py-14 sm:px-12 ${isVoltGear ? 'bg-[#10131A] text-white' : isFreshCrate ? 'bg-[#F3E9D7] text-[#1F2A1B]' : 'bg-[#FAF9F6] text-black'}`}>
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-8"><p className="font-mono text-[10px] uppercase tracking-widest" style={{ color: theme.primaryColor }}>Curated for you</p><h2 className="font-display text-2xl sm:text-3xl font-black mt-1">{sectionName('gallery', 'Featured pieces')}</h2></div>
+            <div className="text-center mb-8"><p className="font-mono text-[10px] uppercase tracking-widest" style={{ color: theme.primaryColor }}>Curated for you</p><h2 className="font-display text-2xl sm:text-3xl font-black mt-1">{sectionName('product-grid', sectionName('gallery', 'Featured pieces'))}</h2></div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
               {productNames.map((name, index) => (
                 <article key={name} className={`overflow-hidden rounded-2xl border shadow-[0_12px_35px_rgba(0,0,0,.08)] transition-transform duration-300 hover:-translate-y-1 ${isVoltGear ? 'border-white/10 bg-[#171B25] shadow-[0_14px_36px_rgba(0,0,0,.3)]' : isFreshCrate ? 'border-[#1F2A1B]/10 bg-white' : 'border-black/20 bg-white shadow-[4px_4px_0px_#000]'}`}>
