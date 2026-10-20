@@ -115,6 +115,7 @@ const paletteElementContent = (id: string, elementType: SiteElement['type']): Re
 };
 const paletteWidgetContent = (id: string, label: string, description: string): Record<string, unknown> => {
   const key = `${id} ${label}`.toLowerCase();
+  if (/sidebar menu|navbar|navigation menu|mega menu|dropdown menu|footer menu|mobile menu/.test(key)) return { blockType: id, title: label, description, items: [] };
   if (key.includes('skill bar') || key.includes('progress bar')) return { blockType: id, title: label, description: description || 'Show strengths and progress at a glance.', items: [{ title: 'Design', value: 90 }, { title: 'Development', value: 78 }, { title: 'Strategy', value: 84 }] };
   if (key.includes('faq') || key.includes('accordion')) return { blockType: id, title: label, description, items: [{ title: 'How does it work?', description: 'Get started in a few simple steps.' }, { title: 'Can I get help?', description: 'Our team is here to help when you need us.' }] };
   if (key.includes('stat') || key.includes('counter') || key.includes('kpi')) return { blockType: id, title: label, description, items: [{ title: 'Happy customers', value: '2,400+' }, { title: 'Years of experience', value: '12' }, { title: 'Customer rating', value: '4.9/5' }] };
@@ -127,6 +128,15 @@ const withBlockDefaults = (items: Section[]) => items.map((section) => {
   const definition = blockRegistry[section.type];
   return definition ? { ...section, content: structuredClone(definition.defaultContent) } : section;
 });
+const removeDuplicateTemplateParts = <T extends { type: string }>(items: T[]): T[] => {
+  const seen = new Set<string>();
+  return items.filter((section) => {
+    if (!['nav', 'footer'].includes(section.type)) return true;
+    if (seen.has(section.type)) return false;
+    seen.add(section.type);
+    return true;
+  });
+};
 
 export default function EditorPage({ params }: { params: Promise<{ templateId: string }> }) {
   const { templateId } = use(params);
@@ -318,7 +328,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         if (cancelled) return;
         if (savedVersions.length) editorStore.getState().setVersions(savedVersions);
         if (savedSite) {
-        const migrated = migrateSiteDocument(savedSite, editorStore.getState().document);
+        const migratedDocument = migrateSiteDocument(savedSite, editorStore.getState().document);
+        const migrated = { ...migratedDocument, pages: migratedDocument.pages.map((page) => ({ ...page, sections: removeDuplicateTemplateParts(page.sections) })) };
         editorStore.getState().replaceDocument(migrated);
         setTheme(migrated.theme);
         setSiteTitle(migrated.name);
@@ -328,7 +339,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         setCtaContent(migrated.content.cta);
         const homePage = migrated.pages.find((page) => page.isHome) || migrated.pages[0];
         if (homePage?.sections.length) setSections(homePage.sections.map((section) => ({ ...section })));
-        setSectionSpacing(Object.fromEntries(migrated.pages.flatMap((page) => page.sections.filter((section) => section.style.padding).map((section) => [section.id, { top: section.style.padding?.top || 0, right: section.style.padding?.right || 0, bottom: section.style.padding?.bottom || 0, left: section.style.padding?.left || 0 }]))));
+        setSectionSpacing(Object.fromEntries(migrated.pages.flatMap((page) => page.sections.filter((section) => section.style?.padding).map((section) => [section.id, { top: section.style?.padding?.top || 0, right: section.style?.padding?.right || 0, bottom: section.style?.padding?.bottom || 0, left: section.style?.padding?.left || 0 }]))));
         setCanvasElements(homePage?.elements || []);
         setSitePages(migrated.pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo.description, slug: page.slug.replace(/^\//, ''), isHome: page.isHome, showInMenu: page.showInMenu, noindex: page.seo.noindex, ogImage: page.seo.ogImage, seoTitle: page.seo.title, useSharedHeader: page.useSharedHeader, useSharedFooter: page.useSharedFooter, oldSlugs: page.oldSlugs })));
         setActivePageId(homePage?.id || 'home');
@@ -386,7 +397,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     setFeaturesContent(Array.isArray(features) ? features as unknown as typeof featuresContent : document.content.features);
     setTestimonialsContent(Array.isArray(testimonials) ? testimonials as unknown as typeof testimonialsContent : document.content.testimonials);
     setCtaContent({ ...document.content.cta, ...cta });
-    const restoredSections = page.sections.map((section) => ({ ...section }));
+    const restoredSections = removeDuplicateTemplateParts(page.sections.map((section) => ({ ...section })));
     const homeSections = document.pages.find((entry) => entry.isHome)?.sections || [];
     if (page.useSharedHeader && !restoredSections.some((section) => section.type === 'nav')) {
       const sharedNav = homeSections.find((section) => section.type === 'nav');
@@ -2164,9 +2175,8 @@ function SectionRenderer({
             </span>
           </div>
 
-          <div className={cn('hidden sm:flex min-w-0 items-center gap-4 font-mono text-xs font-bold text-neutral-700', deviceMode === 'mobile' && 'hidden')}>
-            {menuItems.slice(0, 3).map(renderMenuItem)}
-            {menuItems.length > 3 && <details className="relative shrink-0"><summary className="cursor-pointer list-none rounded-lg border border-black/20 bg-white px-2.5 py-1.5 hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink">More <span aria-hidden="true">⌄</span></summary><div className="absolute right-0 top-full z-50 mt-2 flex max-h-[min(65vh,28rem)] min-w-44 flex-col gap-3 overflow-y-auto rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0_#000]">{menuItems.slice(3).map(renderMenuItem)}</div></details>}
+          <div aria-label="Site pages" className={cn('hidden sm:flex min-w-0 max-w-[62%] items-center gap-4 overflow-x-auto whitespace-nowrap px-1 font-mono text-xs font-bold text-neutral-700 [scrollbar-width:thin]', deviceMode === 'mobile' && 'hidden')}>
+            {menuItems.map(renderMenuItem)}
           </div>
           <button type="button" aria-expanded={mobileMenuOpen} aria-label="Toggle site navigation" onClick={(event) => { event.stopPropagation(); setMobileMenuOpen((open) => !open); }} className="sm:hidden rounded-lg border border-black px-2 py-1 font-mono text-xs font-bold">{mobileMenuOpen ? 'Close' : 'Menu'}</button>
 

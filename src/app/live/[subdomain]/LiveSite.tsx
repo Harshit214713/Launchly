@@ -59,6 +59,11 @@ function LiveTreeElement({ element, pages, subdomain }: { element: SiteElement; 
       const actionLabel = String(element.content.buttonText || element.content.cta || '').trim();
       const rawActionHref = String(element.content.href || '').trim();
       const actionHref = /^(https?:\/\/|mailto:|tel:|\/|#)/i.test(rawActionHref) ? rawActionHref : '';
+      if (/sidebar menu|navbar|navigation menu|mega menu|dropdown menu|footer menu|mobile menu/.test(kind)) {
+        const configured: Array<Record<string, unknown>> = items.length ? items : pages.filter((page) => page.showInMenu !== false).map((page) => ({ title: page.title, href: `/live/${subdomain}${page.isHome ? '' : page.slug || `/${page.id}`}` }));
+        const vertical = kind.includes('sidebar') || kind.includes('footer');
+        return <nav aria-label={heading} style={style} className={`rounded-xl border border-current/15 p-4 ${vertical ? 'max-w-xs' : 'overflow-x-auto'}`}><p className="mb-3 font-mono text-[10px] font-bold uppercase tracking-wider opacity-60">{heading}</p><ul className={vertical ? 'space-y-1' : 'flex min-w-max items-center gap-2'}>{configured.map((item, index) => { const rawHref = String(item.href || item.url || '#'); const href = /^(https?:\/\/|mailto:|tel:|\/|#)/i.test(rawHref) ? rawHref : '#'; return <li key={index}><a href={href} className={`block rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-black/10 ${vertical ? 'w-full' : 'whitespace-nowrap'}`}>{String(item.title || item.label || `Page ${index + 1}`)}</a></li>; })}</ul></nav>;
+      }
       if (kind.includes('faq') || kind.includes('accordion')) return <section style={style} className="mx-auto max-w-3xl py-4"><h2 className="mb-5 text-2xl font-black">{heading}</h2><div className="divide-y divide-black/15 border-y border-black/15">{items.map((item,index) => <details key={index} className="group py-4" open={index === 0}><summary className="cursor-pointer list-none font-bold">{String(item.title || `Question ${index + 1}`)}<span aria-hidden="true" className="float-right group-open:rotate-45">＋</span></summary><p className="mt-3 leading-relaxed opacity-75">{String(item.description || item.answer || '')}</p></details>)}</div></section>;
       if (kind.includes('pricing') || kind.includes('plan comparison')) return <section style={style} className="py-5"><h2 className="text-center text-2xl font-black">{heading}</h2>{Boolean(element.content.description) && <p className="mx-auto mt-2 max-w-2xl text-center opacity-75">{String(element.content.description)}</p>}<div className="mt-6 grid gap-4 md:grid-cols-3">{items.map((item,index) => <article key={index} className={`rounded-2xl border-2 p-5 ${item.highlighted ? 'border-black bg-yellow shadow-[4px_4px_0_#000]' : 'border-black/15 bg-white text-black'}`}><h3 className="text-lg font-black">{String(item.title || `Plan ${index + 1}`)}</h3><p className="mt-3 text-3xl font-black">{String(item.price || 'Contact us')}<small className="ml-1 text-xs font-normal">{String(item.interval || '')}</small></p><p className="mt-2 text-sm opacity-75">{String(item.description || '')}</p><ul className="mt-4 space-y-2 text-sm">{(Array.isArray(item.features) ? item.features : []).map((feature,featureIndex) => <li key={featureIndex}>✓ {String(feature)}</li>)}</ul><a href={String(item.href || '#contact')} className="mt-5 inline-flex rounded-lg border-2 border-black bg-white px-4 py-2 text-sm font-bold text-black">{String(item.buttonText || 'Choose plan')}</a></article>)}</div></section>;
       if (kind.includes('testimonial') || kind.includes('review')) return <section style={style} className="py-5"><h2 className="text-center text-2xl font-black">{heading}</h2><div className="mt-6 grid gap-4 md:grid-cols-2">{items.map((item,index) => <figure key={index} className="rounded-2xl border-2 border-black/15 bg-white p-5 text-black"><div aria-label={`${Number(item.rating || 5)} out of 5 stars`} className="text-lg text-amber-500">{'★'.repeat(Math.max(1, Math.min(5, Number(item.rating || 5))))}</div><blockquote className="mt-3 leading-relaxed">“{String(item.quote || item.description || item.desc || '')}”</blockquote><figcaption className="mt-4 border-t border-black/10 pt-3"><strong>{String(item.name || item.title || `Customer ${index + 1}`)}</strong>{Boolean(item.role) && <span className="ml-2 text-sm text-neutral-500">{String(item.role)}</span>}</figcaption></figure>)}</div></section>;
@@ -268,8 +273,6 @@ export default function LiveWebsitePage({
   const storeProducts = template.products || [];
   const productNames = storeProducts.slice(0, 3).map((product) => product.name);
   const liveNavigation: LiveMenuItem[] = siteMenu.length ? siteMenu : sitePages.length ? sitePages.filter((page) => !page.isHome && page.showInMenu !== false).map((page) => ({ id: page.id, label: page.title, target: { type: 'page', value: page.id } })) : template.pages.slice(1).map((title) => { const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-'); return { id, label: title, target: { type: 'page' as const, value: id } }; });
-  const primaryNavigation = liveNavigation.slice(0, 4);
-  const overflowNavigation = liveNavigation.slice(4);
   const navigationHref = (item: LiveMenuItem) => {
     if (item.target.type === 'url') return item.target.value;
     if (item.target.type === 'anchor') return `#${item.target.value.replace(/^#/, '')}`;
@@ -568,8 +571,8 @@ export default function LiveWebsitePage({
             </span>
           </a>
 
-          <div className={`hidden items-center gap-6 font-mono text-xs font-bold sm:flex ${isVoltGear ? 'text-white/70' : isFreshCrate ? 'text-[#53604C]' : 'text-neutral-700'}`}>
-            {primaryNavigation.map(item => (
+          <div aria-label="Site pages" className={`hidden min-w-0 max-w-[65%] items-center gap-5 overflow-x-auto whitespace-nowrap px-1 font-mono text-xs font-bold [scrollbar-width:thin] sm:flex ${isVoltGear ? 'text-white/70' : isFreshCrate ? 'text-[#53604C]' : 'text-neutral-700'}`}>
+            {liveNavigation.map(item => (
               <a
                 key={item.id}
                 href={navigationHref(item)}
@@ -580,12 +583,6 @@ export default function LiveWebsitePage({
                 {item.label}
               </a>
             ))}
-            {overflowNavigation.length > 0 && <details className="group relative py-2">
-              <summary className={`flex cursor-pointer list-none items-center gap-1 ${isVoltGear ? 'hover:text-[#C6FF3D]' : 'hover:text-black'}`}>More <ChevronDown size={13} className="transition-transform group-open:rotate-180" /></summary>
-              <div className={`absolute right-0 top-full z-50 mt-3 grid max-h-[70vh] min-w-56 gap-1 overflow-y-auto rounded-xl border p-2 shadow-xl ${isVoltGear ? 'border-white/10 bg-[#151923] text-white' : isFreshCrate ? 'border-[#1F2A1B]/10 bg-[#FFF8EC] text-[#1F2A1B]' : 'border-black/10 bg-white text-black'}`}>
-                {overflowNavigation.map((item) => <a key={item.id} href={navigationHref(item)} target={item.newTab ? '_blank' : undefined} rel={item.newTab ? 'noreferrer' : undefined} className="rounded-lg px-3 py-2 hover:bg-black/5">{item.label}</a>)}
-              </div>
-            </details>}
           </div>
 
           <button type="button" aria-label={mobileNavigationOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={mobileNavigationOpen} onClick={() => setMobileNavigationOpen((open) => !open)} className={`rounded-lg border p-2 sm:hidden ${isVoltGear ? 'border-white/20 text-white' : 'border-black/20'}`}>
