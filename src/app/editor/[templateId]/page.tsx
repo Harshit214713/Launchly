@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, use, useEffect, useCallback, useRef } from 'react';
+import { useState, use, useEffect, useCallback, useRef, useId } from 'react';
 import { useStore } from 'zustand';
 import Link from 'next/link';
 import NextImage from 'next/image';
+import { closestCenter, DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import {
   Undo2, Redo2, Monitor, Tablet, Smartphone, Save, Globe,
   Layers, Type, Image as ImageIcon, Palette, Settings, Menu as MenuIcon, ExternalLink,
@@ -17,16 +19,19 @@ import { TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
 import { exportTemplateAsZip } from '@/lib/zipExport';
 import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/contrast';
-import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type MenuItem, type SectionStyle, type SiteAsset, type SiteDocument, type Theme } from '@/lib/siteDocument';
+import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type Column, type MenuItem, type SectionStyle, type SiteAsset, type SiteDocument, type SiteElement, type Theme } from '@/lib/siteDocument';
 import { blockRegistry } from '@/lib/blockRegistry';
 import { hydrateVersionDocument, loadEditorDraft, loadEditorVersions, saveEditorDraft, saveEditorVersions } from '@/lib/editorPersistence';
 import { createEditorStore } from '@/store/editorStore';
 import DeployModal from '@/components/DeployModal';
 import SocialShareModal from '@/components/SocialShareModal';
+import { DraggablePaletteButton, SectionDropMarker, SortableSectionFrame } from '@/components/editor/DndItems';
+import TreeSectionRenderer from '@/components/editor/TreeSectionRenderer';
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
 type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'navigation' | 'assets';
 type MobileTab = 'canvas' | 'sections' | 'styles' | 'inspector' | 'elements' | 'pages' | 'navigation' | 'assets';
+type PaletteCategory = 'layout' | 'basic' | 'blocks';
 
 const DEVICE_WIDTHS = {
   desktop: '100%',
@@ -40,6 +45,7 @@ interface Section {
   type: string;
   content?: Record<string, unknown>;
   style?: SectionStyle;
+  columns?: Column[];
   hidden?: Partial<Record<DeviceMode, boolean>>;
   locked?: boolean;
   anchorId?: string;
@@ -72,6 +78,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   const [deviceMode, setDeviceMode] = useState<DeviceMode>('desktop');
   const [leftPanel, setLeftPanel] = useState<LeftPanel>('sections');
+  const [paletteCategory, setPaletteCategory] = useState<PaletteCategory>('blocks');
+  const [paletteSearch, setPaletteSearch] = useState('');
   const [mobileTab, setMobileTab] = useState<MobileTab>('canvas');
   const [sections, setSections] = useState<Section[]>(DEFAULT_SECTIONS);
   const [sectionSpacing, setSectionSpacing] = useState<Record<string, SectionSpacing>>({});
@@ -82,7 +90,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
   const [draggedMenuId, setDraggedMenuId] = useState<string | null>(null);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
-  const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
+  const [selectedTreeElement, setSelectedTreeElement] = useState<{ sectionId: string; columnId: string; elementId: string } | null>(null);
+  const [activeDragLabel, setActiveDragLabel] = useState('');
   const [selectedSection, setSelectedSection] = useState<string | null>('hero');
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
@@ -100,6 +109,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [mediaAssets, setMediaAssets] = useState<SiteAsset[]>([]);
   const [mediaError, setMediaError] = useState('');
   const [mediaQuery, setMediaQuery] = useState('');
+  const editorIdSeed = useId().replace(/[^a-z0-9]/gi, '');
+  const editorIdCounter = useRef(0);
+  const nextEditorId = (prefix: string) => { editorIdCounter.current += 1; return `${prefix}-${editorIdSeed}-${editorIdCounter.current}`; };
 
   // AI Prompt State
   const [aiPrompt, setAiPrompt] = useState('');
@@ -175,6 +187,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const undoCount = useStore(editorStore, (state) => state.past.length);
   const redoCount = useStore(editorStore, (state) => state.future.length);
   const versions = useStore(editorStore, (state) => state.versions);
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const documentFromState = useCallback((source: {
     theme: typeof theme; siteTitle: string; heroContent: typeof heroContent; featuresContent: typeof featuresContent;
@@ -354,20 +370,6 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     const [moved] = reordered.splice(index, 1);
     reordered.splice(targetIndex, 0, moved);
     setSections(reordered);
-  };
-
-  const dropSectionOn = (targetId: string) => {
-    if (!draggedSectionId || draggedSectionId === targetId) return;
-    setSections((current) => {
-      const from = current.findIndex((section) => section.id === draggedSectionId);
-      const to = current.findIndex((section) => section.id === targetId);
-      if (from < 0 || to < 0) return current;
-      const reordered = [...current];
-      const [dragged] = reordered.splice(from, 1);
-      reordered.splice(to, 0, dragged);
-      return reordered;
-    });
-    setDraggedSectionId(null);
   };
 
   const removeDuplicateBlocks = () => {
@@ -555,8 +557,43 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     }
     const definition = blockRegistry[type];
     const newSection: Section = makeSection(type, id, definition?.label, {}, definition?.defaultContent || {});
-    setSections(prev => [...prev, newSection]);
+    setSections((previous) => {
+      const selectedIndex = previous.findIndex((section) => section.id === selectedSection);
+      const next = [...previous];
+      next.splice(selectedIndex < 0 ? next.length : selectedIndex + 1, 0, newSection);
+      return next;
+    });
     setSelectedSection(newSection.id);
+  };
+
+  const addPaletteItem = (type: string, indexOverride?: number) => {
+    const id = nextEditorId(`section-${type.replace(/[^a-z0-9]+/gi, '-')}`);
+    let section: Section;
+    if (blockRegistry[type]) {
+      section = makeSection(type, id, blockRegistry[type].label, {}, blockRegistry[type].defaultContent);
+    } else {
+      const layoutMatch = type.match(/^layout:columns-(\d)$/);
+      const columnCount = layoutMatch ? Number(layoutMatch[1]) : 1;
+      const elementType = type.startsWith('basic:') ? type.slice('basic:'.length) as SiteElement['type'] : null;
+      const columns: Column[] = Array.from({ length: columnCount }, (_, index) => ({
+        id: `${id}-column-${index + 1}`,
+        width: { desktop: Math.floor(12 / columnCount), tablet: columnCount > 2 ? 6 : Math.floor(12 / columnCount), mobile: 12 },
+        style: {},
+        elements: elementType && index === 0 ? [{
+          id: `${id}-${elementType}`,
+          type: elementType,
+          content: elementType === 'heading' ? { text: 'Your heading' } : elementType === 'text' ? { text: 'Write something for your visitors.' } : elementType === 'button' ? { text: 'Button label', href: '#' } : elementType === 'image' ? { src: '', alt: '' } : elementType === 'icon' ? { icon: 'Star', size: 36 } : elementType === 'spacer' ? { height: 48 } : elementType === 'list' ? { items: ['First item', 'Second item'] } : elementType === 'card' ? { title: 'Card title', description: 'Add a short description.' } : {},
+          style: {},
+        }] : [],
+      }));
+      section = { ...makeSection('custom', id, layoutMatch ? `${columnCount} column layout` : elementType ? elementType.charAt(0).toUpperCase() + elementType.slice(1) : 'Section'), columns };
+    }
+    const selectedIndex = sections.findIndex((entry) => entry.id === selectedSection);
+    const index = indexOverride ?? (selectedIndex < 0 ? sections.length : selectedIndex + 1);
+    editorStore.getState().insertSection(activePageId, section as SiteDocument['pages'][number]['sections'][number], index);
+    applyDocumentToEditor(editorStore.getState().document, activePageId);
+    setSelectedSection(section.id);
+    setSelectedTreeElement(section.columns?.[0]?.elements[0] ? { sectionId: section.id, columnId: section.columns[0].id, elementId: section.columns[0].elements[0].id } : null);
   };
 
   const removeSection = (id: string) => {
@@ -644,6 +681,15 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     setMediaAssets((items) => items.filter((entry) => entry.id !== asset.id));
   };
   const currentPage = sitePages.find((page) => page.id === activePageId) || sitePages[0];
+  const selectedTreeElementRecord = selectedTreeElement
+    ? sections.find((section) => section.id === selectedTreeElement.sectionId)?.columns?.find((column) => column.id === selectedTreeElement.columnId)?.elements.find((element) => element.id === selectedTreeElement.elementId)
+    : undefined;
+  const paletteItems = paletteCategory === 'blocks'
+    ? Object.values(blockRegistry).filter((block) => !['nav', 'footer'].includes(block.type)).map((block) => ({ id: block.type, label: block.label, description: block.description }))
+    : paletteCategory === 'layout'
+      ? [{ id: 'layout:section', label: 'Section', description: 'Add an empty section with one column.' }, ...[2, 3, 4].map((count) => ({ id: `layout:columns-${count}`, label: `${count} columns`, description: `Add a row with ${count} responsive columns.` })), { id: 'basic:spacer', label: 'Spacer', description: 'Add vertical space.' }, { id: 'basic:divider', label: 'Divider', description: 'Add a horizontal rule.' }]
+      : ['heading', 'text', 'button', 'image', 'video', 'icon', 'card', 'gallery', 'list'].map((type) => ({ id: `basic:${type}`, label: type.charAt(0).toUpperCase() + type.slice(1), description: `Add a ${type} element to a new section.` }));
+  const filteredPaletteItems = paletteItems.filter((item) => `${item.label} ${item.description}`.toLowerCase().includes(paletteSearch.toLowerCase()));
   const updateMenuItem = (id: string, update: (item: (typeof editorDocument.menu)[number]) => (typeof editorDocument.menu)[number]) => {
     editorStore.getState().setMenu(editorStore.getState().document.menu.map((item) => item.id === id ? update(item) : item));
   };
@@ -656,7 +702,54 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     editorStore.getState().setMenu(menu);
   };
 
+  const handleEditorDragStart = (event: DragStartEvent) => {
+    const data = event.active.data.current;
+    setActiveDragLabel(String(data?.label || data?.sectionId || data?.type || 'Moving item'));
+  };
+  const handleEditorDragEnd = (event: DragEndEvent) => {
+    setActiveDragLabel('');
+    const { active, over } = event;
+    if (!over) return;
+    const activeData = active.data.current;
+    const overData = over.data.current;
+    if (activeData?.kind === 'palette' && typeof activeData.type === 'string') {
+      if (overData?.kind === 'column-drop' && typeof overData.sectionId === 'string' && typeof overData.columnId === 'string') {
+        const basicType = activeData.type.startsWith('basic:') ? activeData.type.slice('basic:'.length) as SiteElement['type'] : null;
+        const block = blockRegistry[activeData.type];
+        const element: SiteElement = { id: nextEditorId('element'), type: basicType || 'block', content: basicType ? {} : { blockType: block?.type || activeData.type, ...(block?.defaultContent || {}) }, style: {} };
+        editorStore.getState().insertElement(activePageId, overData.sectionId, overData.columnId, element, Number(overData.index) || 0);
+        applyDocumentToEditor(editorStore.getState().document, activePageId);
+        setSelectedTreeElement({ sectionId: overData.sectionId, columnId: overData.columnId, elementId: element.id });
+        return;
+      }
+      const insertionIndex = overData?.kind === 'section-drop' || overData?.kind === 'section' ? Number(overData.index) : sections.length;
+      addPaletteItem(activeData.type, insertionIndex);
+      return;
+    }
+    if (activeData?.kind === 'element' && typeof activeData.sectionId === 'string' && typeof activeData.columnId === 'string' && typeof activeData.elementId === 'string') {
+      if (!sections.some((section) => section.id === activeData.sectionId)) return;
+      if (overData?.kind === 'column-drop' && typeof overData.sectionId === 'string' && typeof overData.columnId === 'string') {
+        editorStore.getState().moveElement(activePageId, activeData.sectionId, activeData.columnId, activeData.elementId, overData.columnId, Number(overData.index) || 0);
+      } else if (overData?.kind === 'element' && overData.sectionId === activeData.sectionId && typeof overData.columnId === 'string' && typeof overData.elementId === 'string') {
+        const targetIndex = Number(overData.index) + (activeData.columnId === overData.columnId && Number(activeData.index) < Number(overData.index) ? 0 : 1);
+        editorStore.getState().moveElement(activePageId, activeData.sectionId, activeData.columnId, activeData.elementId, overData.columnId, targetIndex);
+      }
+      applyDocumentToEditor(editorStore.getState().document, activePageId);
+      return;
+    }
+    if (activeData?.kind === 'section' && typeof activeData.sectionId === 'string' && typeof overData?.index === 'number') {
+      const page = editorStore.getState().document.pages.find((entry) => entry.id === activePageId);
+      const sourceIndex = page?.sections.findIndex((section) => section.id === activeData.sectionId) ?? -1;
+      if (sourceIndex < 0) return;
+      const targetIndex = overData.index;
+      if (sourceIndex === targetIndex) return;
+      editorStore.getState().reorderSection(activePageId, activeData.sectionId, targetIndex);
+      applyDocumentToEditor(editorStore.getState().document, activePageId);
+    }
+  };
+
   return (
+    <DndContext sensors={dragSensors} collisionDetection={closestCenter} onDragStart={handleEditorDragStart} onDragEnd={handleEditorDragEnd} onDragCancel={() => setActiveDragLabel('')}>
     <div className="h-screen flex flex-col bg-[#FAF9F6] text-[#0F0F11] overflow-hidden">
       {/* Neo-brutalist Top Toolbar - Fully Responsive */}
       <header className="h-14 sm:h-16 bg-white border-b-[3px] border-black flex items-center justify-between px-2.5 sm:px-5 z-50 shrink-0 shadow-[0_2px_0_#000]">
@@ -913,24 +1006,22 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             {(leftPanel === 'sections' || mobileTab === 'sections') && (
               <div className="space-y-4">
                 {sections.length > new Set(sections.map((section) => section.type)).size && <button type="button" onClick={removeDuplicateBlocks} className="w-full rounded-lg border border-black/20 bg-yellow/50 px-3 py-2 text-left font-mono text-[10px] font-bold text-black hover:bg-yellow">Remove duplicate blocks</button>}
+                <SortableContext items={sections.map((section) => `sidebar-section:${section.id}`)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-1.5">
                   {sections.map((section, idx) => (
+                    <SortableSectionFrame key={section.id} id={section.id} index={idx} source="sidebar" className="rounded-xl">
                     <div
-                      key={section.id}
-                      draggable
-                      onDragStart={(event) => { setDraggedSectionId(section.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', section.id); }}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={(event) => { event.preventDefault(); dropSectionOn(section.id); }}
-                      onDragEnd={() => setDraggedSectionId(null)}
                       onClick={() => {
                         setSelectedSection(section.id);
+                        setSelectedTreeElement(null);
+                        setSelectedElementId(null);
                         if (mobileTab === 'sections') setMobileTab('canvas');
                       }}
                       className={cn(
-                        'group flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-all',
+                        'group flex items-center gap-2 py-2.5 pl-8 pr-3 rounded-xl border-2 cursor-pointer transition-all',
                         `${selectedSection === section.id
                           ? 'border-black bg-pink text-black shadow-[2.5px_2.5px_0px_#000] font-bold'
-                          : 'border-black/15 bg-white hover:border-black hover:bg-neutral-50 text-neutral-800 shadow-xs'} ${draggedSectionId === section.id ? 'opacity-50' : ''}`
+                          : 'border-black/15 bg-white hover:border-black hover:bg-neutral-50 text-neutral-800 shadow-xs'}`
                       )}
                     >
                       {/* Section Reorder Controls */}
@@ -967,29 +1058,20 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                         <Trash2 size={12} />
                       </button>
                     </div>
+                    </SortableSectionFrame>
                   ))}
                 </div>
+                </SortableContext>
 
-                <div className="pt-3 border-t-2 border-black/10">
-                  <div className="font-mono text-[10px] font-bold uppercase text-neutral-500 tracking-wider mb-2">
-                    + Add Block
+                <div className="space-y-2 border-t-2 border-black/10 pt-3">
+                  <div className="font-mono text-[10px] font-bold uppercase tracking-wider text-neutral-500">＋ Add to page · drag or click</div>
+                  <div className="grid grid-cols-3 gap-1">
+                    {(['layout', 'basic', 'blocks'] as const).map((category) => <button key={category} type="button" onClick={() => setPaletteCategory(category)} className={`rounded-lg border px-1 py-1.5 font-mono text-[9px] font-bold uppercase ${paletteCategory === category ? 'border-black bg-yellow shadow-[1px_1px_0_#000]' : 'border-black/20 bg-white'}`}>{category}</button>)}
                   </div>
+                  <input value={paletteSearch} onChange={(event) => setPaletteSearch(event.target.value)} placeholder="Search widgets" aria-label="Search widgets" className="w-full rounded-lg border border-black/30 bg-white px-2 py-1.5 font-mono text-[10px]" />
                   <div className="grid grid-cols-2 gap-1.5">
-                    {Object.values(blockRegistry).filter((block) => !['nav', 'footer'].includes(block.type)).map((block) => (
-                      <button
-                        key={block.type}
-                        type="button"
-                        onClick={() => {
-                          addSection(block.type);
-                          if (mobileTab === 'sections') setMobileTab('canvas');
-                        }}
-                        className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-black bg-white hover:bg-yellow font-mono text-[11px] font-bold text-black shadow-[1.5px_1.5px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
-                        title={block.description}
-                      >
-                        <Plus size={11} className="stroke-[3]" />
-                        <span>{block.label}</span>
-                      </button>
-                    ))}
+                    {filteredPaletteItems.map((item) => <DraggablePaletteButton key={item.id} id={item.id} label={item.label} description={item.description} onClick={() => { addPaletteItem(item.id); if (mobileTab === 'sections') setMobileTab('canvas'); }} />)}
+                    {filteredPaletteItems.length === 0 && <p className="col-span-2 py-3 text-center font-mono text-[10px] text-neutral-500">No widgets match your search.</p>}
                   </div>
                 </div>
               </div>
@@ -1241,7 +1323,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 sectionSpacing={sectionSpacing}
                 canvasElements={canvasElements}
                 selectedElementId={selectedElementId}
-                onSelectElement={setSelectedElementId}
+                onSelectElement={(id) => { setSelectedElementId(id); setSelectedTreeElement(null); }}
                 onMoveElement={(id, x, y) => updateCanvasElement(id, { x, y })}
                 onNavigatePage={switchPage}
                 selectedSection={selectedSection}
@@ -1252,7 +1334,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 testimonialsContent={testimonialsContent}
                 ctaContent={ctaContent}
                 onUpdateSectionContent={(sectionId, content) => setSections((items) => items.map((item) => item.id === sectionId ? { ...item, content } : item))}
-                onSelectSection={(id) => { setSelectedSection(id); setSelectedElementId(null); }}
+                selectedTreeElementId={selectedTreeElement?.elementId || null}
+                onSelectTreeElement={(sectionId, columnId, elementId) => { setSelectedSection(sectionId); setSelectedElementId(null); setSelectedTreeElement({ sectionId, columnId, elementId }); setMobileTab('inspector'); }}
+                onUpdateTreeElement={(sectionId, columnId, elementId, update) => setSections((items) => items.map((item) => item.id !== sectionId ? item : ({ ...item, columns: (item.columns || []).map((column) => column.id !== columnId ? column : ({ ...column, elements: column.elements.map((element) => element.id === elementId ? update(element) : element) })) })))}
+                onSelectSection={(id) => { setSelectedSection(id); setSelectedElementId(null); setSelectedTreeElement(null); }}
                 assetUrl={assetUrl}
                 logoUrl={logoUrl}
                 deviceMode={deviceMode}
@@ -1284,7 +1369,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
-            {selectedElementId ? (() => { const item = canvasElements.find((element) => element.id === selectedElementId); return item ? <ElementProperties item={item} onChange={(patch) => updateCanvasElement(item.id, patch)} onUpload={(file) => { if (file) readLocalImageFile(file, (src) => updateCanvasElement(item.id, { src, name: file.name })); }} /> : null; })() : selectedSection ? (
+            {selectedTreeElementRecord && selectedTreeElement ? <TreeElementProperties element={selectedTreeElementRecord} onChange={(update) => setSections((items) => items.map((section) => section.id !== selectedTreeElement.sectionId ? section : ({ ...section, columns: (section.columns || []).map((column) => column.id !== selectedTreeElement.columnId ? column : ({ ...column, elements: column.elements.map((element) => element.id === selectedTreeElement.elementId ? update(element) : element) })) })))} /> : selectedElementId ? (() => { const item = canvasElements.find((element) => element.id === selectedElementId); return item ? <ElementProperties item={item} onChange={(patch) => updateCanvasElement(item.id, patch)} onUpload={(file) => { if (file) readLocalImageFile(file, (src) => updateCanvasElement(item.id, { src, name: file.name })); }} /> : null; })() : selectedSection ? (
               <SectionProperties
                 sectionId={selectedSection}
                 sections={sections}
@@ -1560,6 +1645,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         </div>
       )}
     </div>
+    <DragOverlay>{activeDragLabel ? <div className="rounded-xl border-2 border-black bg-yellow px-4 py-2 font-mono text-xs font-bold text-black shadow-[3px_3px_0_#000]">{activeDragLabel}</div> : null}</DragOverlay>
+    </DndContext>
   );
 }
 
@@ -1581,6 +1668,9 @@ function CanvasContent({
   testimonialsContent,
   ctaContent,
   onUpdateSectionContent,
+  selectedTreeElementId,
+  onSelectTreeElement,
+  onUpdateTreeElement,
   onSelectSection,
   assetUrl,
   logoUrl,
@@ -1603,6 +1693,9 @@ function CanvasContent({
   testimonialsContent: Array<{ quote: string; name: string; role: string }>;
   ctaContent: { title: string; desc: string; buttonText: string };
   onUpdateSectionContent: (sectionId: string, content: Record<string, unknown>) => void;
+  selectedTreeElementId: string | null;
+  onSelectTreeElement: (sectionId: string, columnId: string, elementId: string) => void;
+  onUpdateTreeElement: (sectionId: string, columnId: string, elementId: string, update: (element: SiteElement) => SiteElement) => void;
   onSelectSection: (id: string) => void;
   assetUrl: string;
   logoUrl: string;
@@ -1610,9 +1703,12 @@ function CanvasContent({
 }) {
   return (
               <div data-editable-canvas style={{ fontFamily: theme.fontFamily, '--editor-heading-font': theme.headingFont, '--editor-body-font': theme.fontFamily, '--editor-spacing-scale': theme.spacingScale } as React.CSSProperties} className="relative min-h-full flex flex-col">
-      {sections.map((section) => (
+      <SortableContext items={sections.map((section) => `canvas-section:${section.id}`)} strategy={verticalListSortingStrategy}>
+      {sections.map((section, index) => (
+        <div key={section.id}>
+        <SectionDropMarker index={index} />
+        <SortableSectionFrame id={section.id} index={index} source="canvas" className="group/canvas-section">
         <SectionRenderer
-          key={section.id}
           section={section}
           sitePages={sitePages}
           menuItems={menuItems}
@@ -1626,12 +1722,19 @@ function CanvasContent({
           testimonialsContent={testimonialsContent}
           ctaContent={ctaContent}
           onUpdateSectionContent={onUpdateSectionContent}
+          selectedTreeElementId={selectedTreeElementId}
+          onSelectTreeElement={(columnId, elementId) => onSelectTreeElement(section.id, columnId, elementId)}
+          onUpdateTreeElement={(columnId, elementId, update) => onUpdateTreeElement(section.id, columnId, elementId, update)}
           onSelect={() => onSelectSection(section.id)}
           assetUrl={assetUrl}
           logoUrl={logoUrl}
           deviceMode={deviceMode}
         />
+        </SortableSectionFrame>
+        </div>
       ))}
+      </SortableContext>
+      <SectionDropMarker index={sections.length} />
       {canvasElements.map((item) => {
         const IconComponent = ({ Star, Heart, Sparkles, Camera, CheckCircle2, ArrowUpRight } as Record<string, typeof Star>)[item.icon || 'Star'] || Star;
         return <div key={item.id} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); onSelectElement(item.id); }} onPointerMove={(event) => { if (event.buttons !== 1) return; const rect = event.currentTarget.parentElement?.getBoundingClientRect(); if (rect) onMoveElement(item.id, Math.max(0, event.clientX - rect.left - item.width / 2), Math.max(0, event.clientY - rect.top - item.height / 2)); }} onClick={() => onSelectElement(item.id)} className={`absolute z-20 cursor-move touch-none ${selectedElementId === item.id ? 'outline outline-2 outline-pink outline-offset-2' : ''}`} style={{ left: item.x, top: item.y, width: item.width, height: item.height }}>
@@ -1655,6 +1758,33 @@ function ElementProperties({ item, onChange, onUpload }: { item: CanvasElement; 
   </div>;
 }
 
+function TreeElementProperties({ element, onChange }: { element: SiteElement; onChange: (update: (element: SiteElement) => SiteElement) => void }) {
+  const [tab, setTab] = useState<'content' | 'style' | 'advanced'>('content');
+  const changeContent = (key: string, value: unknown) => onChange((current) => ({ ...current, content: { ...current.content, [key]: value } }));
+  const changeStyle = (key: keyof SiteElement['style'], value: SiteElement['style'][keyof SiteElement['style']]) => onChange((current) => ({ ...current, style: { ...current.style, [key]: value } }));
+  return <div className="space-y-4">
+    <div><p className="font-mono text-[10px] font-black uppercase text-neutral-500">{element.type} properties</p><div className="mt-2 grid grid-cols-3 gap-1">{(['content', 'style', 'advanced'] as const).map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={`rounded-lg border px-1 py-1.5 font-mono text-[9px] font-bold uppercase ${tab === item ? 'border-black bg-yellow' : 'border-black/20 bg-white'}`}>{item}</button>)}</div></div>
+    {tab === 'content' && <div className="space-y-3">
+      {element.type !== 'spacer' && element.type !== 'divider' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">{['heading', 'text', 'button'].includes(element.type) ? 'Text' : 'Title / label'}<textarea rows={3} value={String(element.content.text || element.content.title || '')} onChange={(event) => changeContent(typeof element.content.text === 'string' ? 'text' : 'title', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
+      {['button', 'image', 'video'].includes(element.type) && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">{element.type === 'button' ? 'Link URL' : 'Media URL'}<input value={String(element.content.href || element.content.src || '')} onChange={(event) => changeContent(element.type === 'button' ? 'href' : 'src', event.target.value)} placeholder="https://…" className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal normal-case text-black" /></label>}
+      {element.type === 'image' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Alt text<input value={String(element.content.alt || '')} onChange={(event) => changeContent('alt', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
+      {element.type === 'spacer' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Height (px)<input type="number" min="0" max="1200" value={Number(element.content.height || 48)} onChange={(event) => changeContent('height', Math.max(0, Number(event.target.value) || 0))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label>}
+    </div>}
+    {tab === 'style' && <div className="space-y-3">
+      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Text color<input type="color" value={element.style.color || '#111111'} onChange={(event) => changeStyle('color', event.target.value)} className="mt-1 h-9 w-full rounded border-2 border-black" /></label>
+      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Background<input type="color" value={element.style.backgroundColor || '#ffffff'} onChange={(event) => changeStyle('backgroundColor', event.target.value)} className="mt-1 h-9 w-full rounded border-2 border-black" /></label>
+      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Font size (px)<input type="number" min="8" max="128" value={element.style.fontSize || 16} onChange={(event) => changeStyle('fontSize', Math.max(8, Math.min(128, Number(event.target.value) || 16)))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label>
+      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Alignment<select value={element.style.textAlign || 'left'} onChange={(event) => changeStyle('textAlign', event.target.value as 'left' | 'center' | 'right')} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs text-black"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label>
+      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Corner radius (px)<input type="number" min="0" max="100" value={element.style.borderRadius || 0} onChange={(event) => changeStyle('borderRadius', Math.max(0, Number(event.target.value) || 0))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label>
+    </div>}
+    {tab === 'advanced' && <div className="space-y-3">
+      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Anchor ID<input value={element.anchorId || ''} onChange={(event) => onChange((current) => ({ ...current, anchorId: event.target.value || undefined }))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal normal-case text-black" /></label>
+      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Custom class<input value={element.customClass || ''} onChange={(event) => onChange((current) => ({ ...current, customClass: event.target.value || undefined }))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal normal-case text-black" /></label>
+      <button type="button" onClick={() => onChange((current) => ({ ...current, hidden: { ...current.hidden, desktop: !current.hidden?.desktop } }))} className="w-full rounded-lg border-2 border-black bg-white px-3 py-2 font-mono text-xs font-bold">{element.hidden?.desktop ? 'Show on desktop' : 'Hide on desktop'}</button>
+    </div>}
+  </div>;
+}
+
 function SectionRenderer({
   section,
   sitePages,
@@ -1669,6 +1799,9 @@ function SectionRenderer({
   testimonialsContent,
   ctaContent,
   onUpdateSectionContent,
+  selectedTreeElementId,
+  onSelectTreeElement,
+  onUpdateTreeElement,
   onSelect,
   assetUrl,
   logoUrl,
@@ -1687,6 +1820,9 @@ function SectionRenderer({
   testimonialsContent: Array<{ quote: string; name: string; role: string }>;
   ctaContent: { title: string; desc: string; buttonText: string };
   onUpdateSectionContent: (sectionId: string, content: Record<string, unknown>) => void;
+  selectedTreeElementId: string | null;
+  onSelectTreeElement: (columnId: string, elementId: string) => void;
+  onUpdateTreeElement: (columnId: string, elementId: string, update: (element: SiteElement) => SiteElement) => void;
   onSelect: () => void;
   assetUrl: string;
   logoUrl: string;
@@ -1742,6 +1878,8 @@ function SectionRenderer({
       )}
       onClick={() => { if (!section.locked) onSelect(); }}
     >
+      {section.type === 'custom' && <TreeSectionRenderer sectionId={section.id} columns={section.columns || []} device={deviceMode} selectedElementId={selectedTreeElementId} onSelectElement={onSelectTreeElement} onUpdateElement={onUpdateTreeElement} />}
+
       {/* Navigation Block */}
       {section.type === 'nav' && (
         <>

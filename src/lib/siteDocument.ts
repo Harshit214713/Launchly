@@ -15,12 +15,35 @@ export type SectionStyle = {
 };
 // Section blocks are template-defined; their nested item arrays can contain structured objects.
 export type SectionContent = Record<string, unknown>;
+export type ElementType = 'heading' | 'text' | 'button' | 'image' | 'video' | 'icon' | 'spacer' | 'divider' | 'form' | 'card' | 'gallery' | 'html' | 'list' | 'block';
+export type Responsive<T> = Partial<Record<Device, T>>;
+export type ElementStyle = {
+  color?: string;
+  backgroundColor?: string;
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: number;
+  textAlign?: 'left' | 'center' | 'right';
+  padding?: Partial<Record<'top' | 'right' | 'bottom' | 'left', number>>;
+  margin?: Partial<Record<'top' | 'right' | 'bottom' | 'left', number>>;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
+  shadow?: string;
+  maxWidth?: number;
+  visibility?: Responsive<boolean>;
+  animation?: string;
+  customClass?: string;
+};
+export type SiteElement = { id: string; type: ElementType; content: SectionContent; style: ElementStyle; hidden?: Responsive<boolean>; locked?: boolean; anchorId?: string; customClass?: string };
+export type Column = { id: string; width: Responsive<number>; style: ElementStyle; elements: SiteElement[]; hidden?: Responsive<boolean> };
 export type Section = {
   id: string;
   type: string;
   name: string;
   content: SectionContent;
   style: SectionStyle;
+  columns?: Column[];
   hidden: Record<Device, boolean>;
   anchorId?: string;
   customClass?: string;
@@ -56,7 +79,7 @@ export type Theme = {
 };
 export type SiteAsset = { id: string; name: string; role: 'logo' | 'favicon' | 'product' | 'image' | 'icon'; src: string; alt: string; sizeBytes?: number; width?: number; height?: number; folder?: string };
 export type SiteDocument = {
-  version: 1;
+  version: 2;
   id: string;
   name: string;
   templateId: string;
@@ -100,11 +123,36 @@ const defaultCta = { title: 'Ready to get started?', desc: 'Explore what we have
 const ids = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'page';
 
 export function makeSection(type: string, id: string, name?: string, style: SectionStyle = {}, content: SectionContent = {}): Section {
-  return { id, type, name: name || type.charAt(0).toUpperCase() + type.slice(1), content, style, hidden: { desktop: false, tablet: false, mobile: false }, locked: false };
+  return {
+    id,
+    type,
+    name: name || type.charAt(0).toUpperCase() + type.slice(1),
+    content,
+    style,
+    columns: [{ id: `${id}-column-1`, width: { desktop: 12, tablet: 12, mobile: 12 }, style: {}, elements: [{ id: `${id}-block`, type: 'block', content: { blockType: type, ...structuredClone(content) }, style: {} }] }],
+    hidden: { desktop: false, tablet: false, mobile: false },
+    locked: false,
+  };
+}
+
+function normalizeSection(section: Section): Section {
+  const columns = structuredClone(section.columns?.length ? section.columns : makeSection(section.type, section.id, section.name, section.style, section.content).columns || []);
+  const primaryColumn = columns[0];
+  const blockElement = primaryColumn?.elements.find((element) => element.type === 'block');
+  if (blockElement) blockElement.content = { blockType: section.type, ...structuredClone(section.content) };
+  return { ...section, columns };
+}
+
+function normalizeDocument(document: SiteDocument): SiteDocument {
+  return {
+    ...document,
+    version: 2,
+    pages: document.pages.map((page) => ({ ...page, sections: page.sections.map(normalizeSection) })),
+  };
 }
 
 export function createSiteDocument(input: {
-  id: string; name: string; templateId: string; theme: Partial<Theme>; sections: Array<{ id: string; name: string; type: string; content?: SectionContent; style?: SectionStyle; hidden?: Partial<Record<Device, boolean>>; locked?: boolean; anchorId?: string; customClass?: string }>;
+  id: string; name: string; templateId: string; theme: Partial<Theme>; sections: Array<{ id: string; name: string; type: string; content?: SectionContent; style?: SectionStyle; columns?: Column[]; hidden?: Partial<Record<Device, boolean>>; locked?: boolean; anchorId?: string; customClass?: string }>;
   hero: Record<string, string>; features: Array<{ title: string; desc: string }>;
   testimonials: Array<{ quote: string; name: string; role: string }>;
   cta: { title: string; desc: string; buttonText: string };
@@ -121,7 +169,7 @@ export function createSiteDocument(input: {
     const style: SectionStyle = { ...entry.style, ...(spacing ? { padding: { top: spacing.top || 0, right: spacing.right || 0, bottom: spacing.bottom || 0, left: spacing.left || 0 } } : {}) };
     const defaultContent: SectionContent = entry.type === 'hero' ? input.hero : entry.type === 'features' ? { items: input.features } : entry.type === 'testimonials' ? { items: input.testimonials } : entry.type === 'cta' ? input.cta : {};
     const section = makeSection(entry.type, entry.id, entry.name, style, entry.content && Object.keys(entry.content).length ? entry.content : defaultContent);
-    return { ...section, hidden: { ...section.hidden, ...entry.hidden }, locked: entry.locked ?? section.locked, anchorId: entry.anchorId, customClass: entry.customClass };
+    return { ...normalizeSection({ ...section, columns: entry.columns ? structuredClone(entry.columns) : section.columns }), hidden: { ...section.hidden, ...entry.hidden }, locked: entry.locked ?? section.locked, anchorId: entry.anchorId, customClass: entry.customClass };
   });
   const homeMeta = input.pages?.find((page) => page.isHome || page.id === 'home');
   const home: SitePage = { id: 'home', slug: '/', title: homeMeta?.title || 'Home', isHome: true, showInMenu: false, seo: { title: homeMeta?.seoTitle || input.name, description: homeMeta?.description || input.hero.description || '', ogImage: homeMeta?.ogImage || '', noindex: homeMeta?.noindex || false }, sections, elements: input.elements || [], useSharedHeader: true, useSharedFooter: true, oldSlugs: homeMeta?.oldSlugs || [] };
@@ -133,7 +181,7 @@ export function createSiteDocument(input: {
   const assets: SiteAsset[] = (input.assets || []).filter((asset) => asset.role === 'image' || asset.role === 'icon');
   for (const [role, src] of [['product', input.assetUrl], ['logo', input.logoUrl], ['favicon', input.faviconUrl]] as const) if (src) assets.push({ id: `${role}-asset`, name: role, role, src, alt: role === 'logo' ? `${input.name} logo` : '' });
   return {
-    version: 1, id: input.id, name: input.name, templateId: input.templateId, theme,
+    version: 2, id: input.id, name: input.name, templateId: input.templateId, theme,
     header: { sticky: true, mobileMenu: true }, footer: { enabled: true },
     menu: additionalPages.filter((page) => page.showInMenu).map((page) => ({ id: `menu-${page.id}`, label: page.title, target: { type: 'page' as const, value: page.id }, newTab: false })), pages: [home, ...additionalPages], assets, settings: { subdomain: ids(input.name), status: 'draft', customCss: '' },
     content: { hero: input.hero, features: input.features, testimonials: input.testimonials, cta: input.cta },
@@ -143,8 +191,8 @@ export function createSiteDocument(input: {
 export function migrateSiteDocument(raw: unknown, defaults: SiteDocument): SiteDocument {
   if (!raw || typeof raw !== 'object') return defaults;
   const data = raw as LegacySiteData & { document?: unknown; version?: number };
-  if (data.document && typeof data.document === 'object' && (data.document as { version?: number }).version === 1) return data.document as SiteDocument;
-  if (data.version === 1 && Array.isArray((raw as SiteDocument).pages) && (raw as SiteDocument).theme) return raw as SiteDocument;
+  if (data.document && typeof data.document === 'object' && [1, 2].includes((data.document as { version?: number }).version || 0)) return normalizeDocument(data.document as SiteDocument);
+  if ([1, 2].includes(data.version || 0) && Array.isArray((raw as SiteDocument).pages) && (raw as SiteDocument).theme) return normalizeDocument(raw as SiteDocument);
   const doc = structuredClone(defaults);
   doc.name = data.siteName || data.name || doc.name;
   doc.templateId = data.templateId || doc.templateId;

@@ -88,12 +88,31 @@ test('legacy drafts migrate content, section order, spacing, assets, and pages',
     assetUrl: 'data:image/png;base64,AA==',
     sitePages: [{ id: 'home', title: 'Home', description: 'Welcome' }, { id: 'about', title: 'About', description: 'Our story' }],
   }, fixture());
-  assert.equal(migrated.version, 1);
+  assert.equal(migrated.version, 2);
   assert.equal(migrated.name, 'Old Store');
   assert.equal(migrated.content.hero.title, 'Old headline');
   assert.equal(migrated.pages[0].sections[0].style.padding?.top, 24);
   assert.equal(migrated.pages[1].slug, '/about');
   assert.equal(migrated.assets[0].src, 'data:image/png;base64,AA==');
+  assert.equal(migrated.pages[0].sections[0].columns[0].elements[0].content.blockType, 'hero');
+});
+
+test('nested elements insert, move, resize, delete, and undo as document edits', () => {
+  const store = createEditorStore(fixture());
+  const hero = store.getState().document.pages[0].sections[0];
+  const [first] = hero.columns;
+  store.getState().insertColumn('home', hero.id, { id: 'column-two', width: { desktop: 6, tablet: 6, mobile: 12 }, style: {}, elements: [] }, 1);
+  const columnTwo = store.getState().document.pages[0].sections[0].columns[1];
+  store.getState().resizeColumn('home', hero.id, columnTwo.id, 'desktop', 7.6);
+  assert.equal(store.getState().document.pages[0].sections[0].columns[1].width.desktop, 8);
+  const element = { id: 'new-heading', type: 'heading', content: { text: 'Hello' }, style: {} };
+  store.getState().insertElement('home', hero.id, first.id, element, 1);
+  store.getState().moveElement('home', hero.id, first.id, element.id, columnTwo.id, 0);
+  assert.equal(store.getState().document.pages[0].sections[0].columns[1].elements[0].id, element.id);
+  store.getState().deleteElement('home', hero.id, columnTwo.id, element.id);
+  assert.equal(store.getState().document.pages[0].sections[0].columns[1].elements.some((entry) => entry.id === element.id), false);
+  store.getState().undo();
+  assert.equal(store.getState().document.pages[0].sections[0].columns[1].elements[0].id, element.id);
 });
 
 test('versioned documents load without losing page and theme data', () => {

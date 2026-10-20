@@ -1,5 +1,5 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import type { MenuItem, Section, SiteDocument, SitePage, Theme } from '@/lib/siteDocument';
+import type { Column, MenuItem, Section, SectionContent, SiteDocument, SiteElement, SitePage, Theme } from '@/lib/siteDocument';
 
 export type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'offline';
 export type SiteVersion = { id: string; label: string; createdAt: string; document: SiteDocument };
@@ -19,6 +19,16 @@ export type EditorStoreState = {
   moveSection: (pageId: string, sectionId: string, direction: -1 | 1) => void;
   reorderSection: (pageId: string, sectionId: string, targetIndex: number) => void;
   updateSection: (pageId: string, sectionId: string, update: (section: Section) => Section, group?: string) => void;
+  insertSection: (pageId: string, section: Section, index: number) => void;
+  updateSectionContent: (pageId: string, sectionId: string, content: SectionContent, group?: string) => void;
+  insertColumn: (pageId: string, sectionId: string, column: Column, index: number) => void;
+  moveColumn: (pageId: string, sectionId: string, columnId: string, targetIndex: number) => void;
+  resizeColumn: (pageId: string, sectionId: string, columnId: string, device: 'desktop' | 'tablet' | 'mobile', width: number) => void;
+  insertElement: (pageId: string, sectionId: string, columnId: string, element: SiteElement, index: number) => void;
+  moveElement: (pageId: string, sectionId: string, fromColumnId: string, elementId: string, toColumnId: string, targetIndex: number) => void;
+  duplicateElement: (pageId: string, sectionId: string, columnId: string, elementId: string) => void;
+  deleteElement: (pageId: string, sectionId: string, columnId: string, elementId: string) => void;
+  updateElement: (pageId: string, sectionId: string, columnId: string, elementId: string, update: (element: SiteElement) => SiteElement, group?: string) => void;
   addPage: (title: string, sections: Section[]) => string;
   duplicatePage: (pageId: string) => string | null;
   renamePage: (pageId: string, title: string) => void;
@@ -39,6 +49,36 @@ export type EditorStoreState = {
 
 const makeSlug = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'page';
 const reservedSlugs = new Set(['api', 'live', 'editor', 'login', 'signup', 'dashboard', 'checkout', 'cart', 'account', '404', 'home']);
+const makeId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+function cloneSection(section: Section): Section {
+  const copy = structuredClone(section);
+  copy.id = makeId(section.type);
+  copy.columns = (copy.columns || []).map((column) => ({
+    ...column,
+    id: makeId('column'),
+    elements: column.elements.map((element) => ({ ...element, id: makeId(element.type) })),
+  }));
+  return copy;
+}
+
+function mapSection(document: SiteDocument, pageId: string, sectionId: string, update: (section: Section) => Section): SiteDocument {
+  if (!document.pages.some((page) => page.id === pageId && page.sections.some((section) => section.id === sectionId))) return document;
+  return { ...document, pages: document.pages.map((page) => page.id !== pageId ? page : {
+    ...page,
+    sections: page.sections.map((section) => section.id === sectionId ? update(section) : section),
+  }) };
+}
+
+function mapColumn(document: SiteDocument, pageId: string, sectionId: string, columnId: string, update: (column: Column) => Column): SiteDocument {
+  if (!document.pages.some((page) => page.id === pageId && page.sections.some((section) => section.id === sectionId && section.columns?.some((column) => column.id === columnId)))) return document;
+  return mapSection(document, pageId, sectionId, (section) => ({ ...section, columns: (section.columns || []).map((column) => column.id === columnId ? update(column) : column) }));
+}
+
+function mapElement(document: SiteDocument, pageId: string, sectionId: string, columnId: string, elementId: string, update: (element: SiteElement) => SiteElement): SiteDocument {
+  if (!document.pages.some((page) => page.id === pageId && page.sections.some((section) => section.id === sectionId && section.columns?.some((column) => column.id === columnId && column.elements.some((element) => element.id === elementId))))) return document;
+  return mapColumn(document, pageId, sectionId, columnId, (column) => ({ ...column, elements: column.elements.map((element) => element.id === elementId ? update(element) : element) }));
+}
 
 function uniqueSlug(value: string, pages: SitePage[], excludeId?: string): string {
   const base = makeSlug(value);
@@ -83,7 +123,7 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
       const index = page.sections.findIndex((section) => section.id === sectionId);
       if (index < 0) return page;
       const original = page.sections[index];
-      const duplicate: Section = { ...structuredClone(original), id: `${original.type}-${Date.now()}`, name: `${original.name} copy` };
+      const duplicate: Section = { ...cloneSection(original), name: `${original.name} copy` };
       const sections = [...page.sections]; sections.splice(index + 1, 0, duplicate);
       return { ...page, sections };
     }) })),
@@ -102,7 +142,56 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
       const [section] = sections.splice(index, 1); sections.splice(targetIndex, 0, section);
       return { ...page, sections };
     }) })),
-    updateSection: (pageId, sectionId, update, group) => commit(set, get, (document) => ({ ...document, pages: document.pages.map((page) => page.id === pageId ? { ...page, sections: page.sections.map((section) => section.id === sectionId ? update(section) : section) } : page) }), group),
+    updateSection: (pageId, sectionId, update, group) => commit(set, get, (document) => mapSection(document, pageId, sectionId, update), group),
+    insertSection: (pageId, section, index) => commit(set, get, (document) => ({ ...document, pages: document.pages.map((page) => {
+      if (page.id !== pageId) return page;
+      const sections = [...page.sections];
+      sections.splice(Math.max(0, Math.min(index, sections.length)), 0, structuredClone(section));
+      return { ...page, sections };
+    }) })),
+    updateSectionContent: (pageId, sectionId, content, group) => commit(set, get, (document) => mapSection(document, pageId, sectionId, (section) => ({
+      ...section, content,
+      columns: section.columns?.map((column, columnIndex) => columnIndex === 0 ? { ...column, elements: column.elements.map((element, elementIndex) => element.type === 'block' && elementIndex === 0 ? { ...element, content: { blockType: section.type, ...structuredClone(content) } } : element) } : column),
+    })), group),
+    insertColumn: (pageId, sectionId, column, index) => commit(set, get, (document) => mapSection(document, pageId, sectionId, (section) => {
+      const columns = [...(section.columns || [])];
+      columns.splice(Math.max(0, Math.min(index, columns.length)), 0, structuredClone(column));
+      return { ...section, columns };
+    })),
+    moveColumn: (pageId, sectionId, columnId, targetIndex) => commit(set, get, (document) => mapSection(document, pageId, sectionId, (section) => {
+      const columns = [...(section.columns || [])];
+      const from = columns.findIndex((column) => column.id === columnId);
+      if (from < 0 || targetIndex < 0 || targetIndex >= columns.length || from === targetIndex) return section;
+      const [column] = columns.splice(from, 1); columns.splice(targetIndex, 0, column);
+      return { ...section, columns };
+    })),
+    resizeColumn: (pageId, sectionId, columnId, device, width) => commit(set, get, (document) => mapColumn(document, pageId, sectionId, columnId, (column) => ({ ...column, width: { ...column.width, [device]: Math.max(1, Math.min(12, Math.round(width))) } }))),
+    insertElement: (pageId, sectionId, columnId, element, index) => commit(set, get, (document) => mapColumn(document, pageId, sectionId, columnId, (column) => {
+      const elements = [...column.elements];
+      elements.splice(Math.max(0, Math.min(index, elements.length)), 0, structuredClone(element));
+      return { ...column, elements };
+    })),
+    moveElement: (pageId, sectionId, fromColumnId, elementId, toColumnId, targetIndex) => commit(set, get, (document) => mapSection(document, pageId, sectionId, (section) => {
+      const columns = (section.columns || []).map((column) => ({ ...column, elements: [...column.elements] }));
+      const from = columns.find((column) => column.id === fromColumnId);
+      const to = columns.find((column) => column.id === toColumnId);
+      const index = from?.elements.findIndex((element) => element.id === elementId) ?? -1;
+      if (!from || !to || index < 0) return section;
+      const [element] = from.elements.splice(index, 1);
+      to.elements.splice(Math.max(0, Math.min(targetIndex, to.elements.length)), 0, element);
+      return { ...section, columns };
+    })),
+    duplicateElement: (pageId, sectionId, columnId, elementId) => commit(set, get, (document) => mapColumn(document, pageId, sectionId, columnId, (column) => {
+      const index = column.elements.findIndex((element) => element.id === elementId);
+      if (index < 0) return column;
+      const elements = [...column.elements];
+      const element = structuredClone(elements[index]);
+      element.id = makeId(element.type);
+      elements.splice(index + 1, 0, element);
+      return { ...column, elements };
+    })),
+    deleteElement: (pageId, sectionId, columnId, elementId) => commit(set, get, (document) => mapColumn(document, pageId, sectionId, columnId, (column) => ({ ...column, elements: column.elements.filter((element) => element.id !== elementId) }))),
+    updateElement: (pageId, sectionId, columnId, elementId, update, group) => commit(set, get, (document) => mapElement(document, pageId, sectionId, columnId, elementId, update), group),
     addPage: (title, sections) => {
       const current = get().document;
       const slug = uniqueSlug(title, current.pages);

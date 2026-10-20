@@ -184,7 +184,7 @@ export default function LiveWebsitePage({
       const data = (site.site_data || site.siteData) as Record<string, unknown> | undefined;
       if (typeof name === 'string') setSiteTitle(name);
       if (!data) return;
-      const nestedDocument = data.document && typeof data.document === 'object' ? data.document as Record<string, unknown> : data.version === 1 ? data : null;
+      const nestedDocument = data.document && typeof data.document === 'object' ? data.document as Record<string, unknown> : [1, 2].includes(Number(data.version)) ? data : null;
       if (nestedDocument) {
         if (nestedDocument.name) setSiteTitle(String(nestedDocument.name));
         if (nestedDocument.theme) setTheme(nestedDocument.theme as typeof theme);
