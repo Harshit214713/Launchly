@@ -68,7 +68,21 @@ const editorCatalogCore: EditorCatalogItem[] = [
 export const editorCatalog: EditorCatalogItem[] = [
   ...editorCatalogCore,
   ...extraCatalogItems.filter((extra) => !editorCatalogCore.some((item) => item.label.toLocaleLowerCase() === extra.label.toLocaleLowerCase())),
-].map((item) => ({ ...item, label: item.label.charAt(0).toUpperCase() + item.label.slice(1), plan: 'free' as const }));
+].map((item) => {
+  const label = item.label.charAt(0).toUpperCase() + item.label.slice(1);
+  const placeholderDescription = /^Add widget:/i.test(item.description);
+  const categoryDescription: Record<EditorPaletteCategory, string> = {
+    layout: 'Add this layout block, then adjust its content, spacing, and responsive style in the inspector.',
+    text: 'Add editable text and tune its typography, alignment, and color in the inspector.',
+    buttons: 'Add an action control and choose its page, anchor, contact, download, or URL destination.',
+    media: 'Add media content, upload or link assets, and set accessible labels and display options.',
+    navigation: 'Add a navigation element and configure its links and presentation in the inspector.',
+    parts: 'Add this editable section pattern and customize its content, imagery, actions, and style.',
+    forms: 'Add a form block, configure its fields and validation, then choose where submissions are sent.',
+    interactive: 'Add an interactive element and configure its content, trigger, and behavior in the inspector.',
+  };
+  return { ...item, label, description: placeholderDescription ? categoryDescription[item.category] : item.description, plan: 'free' as const };
+});
 
 export const paletteCategories: Array<{ id: EditorPaletteCategory; label: string }> = [
   { id: 'layout', label: 'Layout' }, { id: 'text', label: 'Text' }, { id: 'buttons', label: 'Buttons' }, { id: 'media', label: 'Media' },
