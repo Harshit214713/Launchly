@@ -164,7 +164,11 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
       }
       return { ...document, pages, menu };
     }),
-    setMenu: (menu: MenuItem[]) => commit(set, get, (document) => ({ ...document, menu })),
+    setMenu: (menu: MenuItem[]) => commit(set, get, (document) => ({
+      ...document,
+      menu,
+      pages: document.pages.map((page) => page.isHome ? page : ({ ...page, showInMenu: menu.some((item) => item.target.type === 'page' && item.target.value === page.id) })),
+    })),
     setSaveStatus: (saveStatus, lastSavedAt) => set((state) => ({ ...state, saveStatus, lastSavedAt: lastSavedAt ?? state.lastSavedAt })),
     setVersions: (versions) => set({ versions: versions.slice(-20) }),
     captureVersion: (label) => {

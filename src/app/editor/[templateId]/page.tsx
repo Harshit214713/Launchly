@@ -6,8 +6,8 @@ import Link from 'next/link';
 import NextImage from 'next/image';
 import {
   Undo2, Redo2, Monitor, Tablet, Smartphone, Save, Globe,
-  Layers, Type, Image as ImageIcon, Palette, Settings,
-  Plus, Trash2, ChevronRight, Eye, X,
+  Layers, Type, Image as ImageIcon, Palette, Settings, Menu as MenuIcon, ExternalLink,
+  Plus, Trash2, ChevronRight, Eye, EyeOff, Lock, Unlock, X,
   Bold, Italic, AlignLeft, AlignCenter, AlignRight,
   Check, Loader2, Wand2, ArrowUpRight, Star,
   SlidersHorizontal, Layout, Download, ZoomIn, ZoomOut,
@@ -17,12 +17,13 @@ import { TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
 import { exportTemplateAsZip } from '@/lib/zipExport';
 import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/contrast';
-import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type SectionStyle, type SiteDocument } from '@/lib/siteDocument';
+import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type MenuItem, type SectionStyle, type SiteDocument } from '@/lib/siteDocument';
+import { blockRegistry } from '@/lib/blockRegistry';
 import { createEditorStore, type SiteVersion } from '@/store/editorStore';
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
-type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'assets';
-type MobileTab = 'canvas' | 'sections' | 'styles' | 'inspector' | 'elements' | 'pages' | 'assets';
+type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'navigation' | 'assets';
+type MobileTab = 'canvas' | 'sections' | 'styles' | 'inspector' | 'elements' | 'pages' | 'navigation' | 'assets';
 
 const DEVICE_WIDTHS = {
   desktop: '100%',
@@ -36,10 +37,14 @@ interface Section {
   type: string;
   content?: Record<string, unknown>;
   style?: SectionStyle;
+  hidden?: Partial<Record<DeviceMode, boolean>>;
+  locked?: boolean;
+  anchorId?: string;
+  customClass?: string;
 }
 type SectionSpacing = { top: number; bottom: number; left: number; right: number };
 type CanvasElement = { id: string; type: 'image' | 'icon'; name: string; src?: string; icon?: string; x: number; y: number; width: number; height: number };
-type SitePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; noindex?: boolean };
+type SitePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; noindex?: boolean; useSharedHeader?: boolean; useSharedFooter?: boolean };
 const DEFAULT_SPACING: SectionSpacing = { top: 0, bottom: 0, left: 0, right: 0 };
 
 const DEFAULT_SECTIONS: Section[] = [
@@ -51,6 +56,12 @@ const DEFAULT_SECTIONS: Section[] = [
   { id: 'cta', name: 'Call to Action', type: 'cta' },
   { id: 'footer', name: 'Footer', type: 'footer' },
 ];
+const withBlockDefaults = (items: Section[]) => items.map((section) => {
+  if (section.content && Object.keys(section.content).length) return section;
+  if (['hero', 'features', 'testimonials', 'cta'].includes(section.type)) return section;
+  const definition = blockRegistry[section.type];
+  return definition ? { ...section, content: structuredClone(definition.defaultContent) } : section;
+});
 
 export default function EditorPage({ params }: { params: Promise<{ templateId: string }> }) {
   const { templateId } = use(params);
@@ -64,7 +75,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [canvasElements, setCanvasElements] = useState<CanvasElement[]>([]);
   const [sitePages, setSitePages] = useState<SitePage[]>(() => template.pages.map((name, index) => ({ id: index ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'home', title: name, description: index ? `Explore ${name.toLowerCase()} at ${template.name}.` : template.description })));
   const [activePageId, setActivePageId] = useState('home');
+  const [slugDrafts, setSlugDrafts] = useState<Record<string, string>>({});
   const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
+  const [draggedMenuId, setDraggedMenuId] = useState<string | null>(null);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
   const [selectedSection, setSelectedSection] = useState<string | null>('hero');
@@ -136,7 +149,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   const [editorStore] = useState(() => createEditorStore(createSiteDocument({
     id: template.id, name: siteTitle, templateId: template.id, theme,
-    sections, sectionSpacing, elements: canvasElements, pages: sitePages,
+    sections: withBlockDefaults(sections), sectionSpacing, elements: canvasElements, pages: sitePages,
     hero: heroContent, features: featuresContent, testimonials: testimonialsContent, cta: ctaContent,
     assetUrl, logoUrl, faviconUrl,
   })));
@@ -153,7 +166,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     assetUrl: string; logoUrl: string; faviconUrl: string;
   }): SiteDocument => createSiteDocument({
     id: template.id, name: source.siteTitle, templateId: template.id, theme: source.theme,
-      sections: source.sections, sectionSpacing: source.sectionSpacing, elements: source.canvasElements, pages: source.sitePages,
+      sections: withBlockDefaults(source.sections), sectionSpacing: source.sectionSpacing, elements: source.canvasElements, pages: source.sitePages,
     hero: source.heroContent, features: source.featuresContent, testimonials: source.testimonialsContent, cta: source.ctaContent,
     assetUrl: source.assetUrl, logoUrl: source.logoUrl, faviconUrl: source.faviconUrl,
   }), [template.id]);
@@ -181,10 +194,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         setTestimonialsContent(migrated.content.testimonials);
         setCtaContent(migrated.content.cta);
         const homePage = migrated.pages.find((page) => page.isHome) || migrated.pages[0];
-        if (homePage?.sections.length) setSections(homePage.sections.map(({ id, name, type, content, style }) => ({ id, name, type, content, style })));
+        if (homePage?.sections.length) setSections(homePage.sections.map((section) => ({ ...section })));
         setSectionSpacing(Object.fromEntries(migrated.pages.flatMap((page) => page.sections.filter((section) => section.style.padding).map((section) => [section.id, { top: section.style.padding?.top || 0, right: section.style.padding?.right || 0, bottom: section.style.padding?.bottom || 0, left: section.style.padding?.left || 0 }]))));
         setCanvasElements(homePage?.elements || []);
-        setSitePages(migrated.pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo.description, slug: page.slug.replace(/^\//, ''), isHome: page.isHome, showInMenu: page.showInMenu, noindex: page.seo.noindex })));
+        setSitePages(migrated.pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo.description, slug: page.slug.replace(/^\//, ''), isHome: page.isHome, showInMenu: page.showInMenu, noindex: page.seo.noindex, useSharedHeader: page.useSharedHeader, useSharedFooter: page.useSharedFooter })));
         setActivePageId(homePage?.id || 'home');
         setAssetUrl(migrated.assets.find((asset) => asset.role === 'product')?.src || '');
         setLogoUrl(migrated.assets.find((asset) => asset.role === 'logo')?.src || '');
@@ -257,10 +270,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     setFeaturesContent(Array.isArray(features) ? features as unknown as typeof featuresContent : document.content.features);
     setTestimonialsContent(Array.isArray(testimonials) ? testimonials as unknown as typeof testimonialsContent : document.content.testimonials);
     setCtaContent({ ...document.content.cta, ...cta });
-    setSections(page.sections.map(({ id, name, type, content, style }) => ({ id, name, type, content, style })));
+    setSections(page.sections.map((section) => ({ ...section })));
     setSectionSpacing(Object.fromEntries(page.sections.filter((section) => section.style.padding).map((section) => [section.id, { top: section.style.padding?.top || 0, right: section.style.padding?.right || 0, bottom: section.style.padding?.bottom || 0, left: section.style.padding?.left || 0 }])));
     setCanvasElements(page.elements || []);
-    setSitePages(document.pages.map((entry) => ({ id: entry.isHome ? 'home' : entry.id, title: entry.title, description: entry.seo.description, slug: entry.slug.replace(/^\//, ''), isHome: entry.isHome, showInMenu: entry.showInMenu, noindex: entry.seo.noindex })));
+    setSitePages(document.pages.map((entry) => ({ id: entry.isHome ? 'home' : entry.id, title: entry.title, description: entry.seo.description, slug: entry.slug.replace(/^\//, ''), isHome: entry.isHome, showInMenu: entry.showInMenu, noindex: entry.seo.noindex, useSharedHeader: entry.useSharedHeader, useSharedFooter: entry.useSharedFooter })));
     setAssetUrl(document.assets.find((asset) => asset.role === 'product')?.src || '');
     setLogoUrl(document.assets.find((asset) => asset.role === 'logo')?.src || '');
     setFaviconUrl(document.assets.find((asset) => asset.role === 'favicon')?.src || '');
@@ -441,7 +454,13 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   }, []);
 
   const applyFormat = (command: string, value: string | undefined = undefined) => {
-    document.execCommand(command, false, value);
+    if (!selectedSection) return;
+    const changes: Partial<SectionStyle> = command === 'bold' ? { fontWeight: 700 }
+      : command === 'italic' ? { fontStyle: 'italic' }
+        : command === 'underline' ? { textDecoration: 'underline' }
+          : command === 'hiliteColor' ? { highlightColor: value || '#FFD600' }
+            : { fontWeight: 400, fontStyle: 'normal', textDecoration: 'none', highlightColor: undefined };
+    setSections((items) => items.map((item) => item.id === selectedSection ? { ...item, style: { ...item.style, ...changes } } : item));
   };
 
   const handleSave = async () => {
@@ -534,11 +553,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       suffix += 1;
       id = `section-${type}-${suffix}`;
     }
-    const newSection: Section = {
-      id,
-      name: type.charAt(0).toUpperCase() + type.slice(1),
-      type,
-    };
+    const definition = blockRegistry[type];
+    const newSection: Section = makeSection(type, id, definition?.label, {}, definition?.defaultContent || {});
     setSections(prev => [...prev, newSection]);
     setSelectedSection(newSection.id);
   };
@@ -560,6 +576,23 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     else newId = store.addPage('New Page', [makeSection('hero', `hero-${Date.now()}`, 'Hero', {}, { title: 'New Page', description: 'Add a page introduction.' }), makeSection('cta', `cta-${Date.now()}`, 'Call to Action')]);
     if (newId) applyDocumentToEditor(editorStore.getState().document, newId);
   };
+  const addPageFromTemplate = (preset: string) => {
+    if (userPlan !== 'pro' && sitePages.length >= 3) { setShowUpgrade(true); return; }
+    const presets: Record<string, Array<{ type: string; name?: string }>> = {
+      About: [{ type: 'hero' }, { type: 'rich-text', name: 'Our story' }, { type: 'team' }, { type: 'cta' }],
+      Services: [{ type: 'hero' }, { type: 'features' }, { type: 'steps' }, { type: 'cta' }],
+      Pricing: [{ type: 'hero' }, { type: 'pricing' }, { type: 'faq' }, { type: 'cta' }],
+      Contact: [{ type: 'hero' }, { type: 'contact' }, { type: 'newsletter' }],
+      FAQ: [{ type: 'hero' }, { type: 'faq' }, { type: 'contact' }],
+      Blog: [{ type: 'hero' }, { type: 'rich-text', name: 'Latest stories' }, { type: 'newsletter' }],
+      Portfolio: [{ type: 'hero' }, { type: 'gallery' }, { type: 'testimonials' }, { type: 'contact' }],
+      Privacy: [{ type: 'hero' }, { type: 'rich-text', name: 'Privacy policy' }],
+      '404': [{ type: 'hero', name: 'Page not found' }, { type: 'cta' }],
+    };
+    const sections = (presets[preset] || presets.About).map((block, index) => makeSection(block.type, `${preset.toLowerCase()}-${block.type}-${Date.now()}-${index}`, block.name || blockRegistry[block.type]?.label, {}, blockRegistry[block.type]?.defaultContent || {}));
+    const pageId = editorStore.getState().addPage(preset, sections);
+    applyDocumentToEditor(editorStore.getState().document, pageId);
+  };
   const deleteSitePage = (pageId: string) => {
     const page = editorStore.getState().document.pages.find((entry) => entry.id === pageId);
     if (!page || page.isHome || !window.confirm(`Delete the “${page.title}” page? This cannot be undone after saving.`)) return;
@@ -571,6 +604,17 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     updatePage(pageId, { slug: slug.replace(/^\//, '') });
   };
   const currentPage = sitePages.find((page) => page.id === activePageId) || sitePages[0];
+  const updateMenuItem = (id: string, update: (item: (typeof editorDocument.menu)[number]) => (typeof editorDocument.menu)[number]) => {
+    editorStore.getState().setMenu(editorStore.getState().document.menu.map((item) => item.id === id ? update(item) : item));
+  };
+  const reorderMenuItem = (id: string, targetIndex: number) => {
+    const menu = [...editorStore.getState().document.menu];
+    const index = menu.findIndex((item) => item.id === id);
+    if (index < 0 || targetIndex < 0 || targetIndex >= menu.length) return;
+    const [item] = menu.splice(index, 1);
+    menu.splice(targetIndex, 0, item);
+    editorStore.getState().setMenu(menu);
+  };
 
   return (
     <div className="h-screen flex flex-col bg-[#FAF9F6] text-[#0F0F11] overflow-hidden">
@@ -786,6 +830,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             { id: 'styles', icon: Palette, label: 'Styles' },
             { id: 'elements', icon: Type, label: 'Elements' },
             { id: 'pages', icon: ChevronRight, label: 'Pages' },
+            { id: 'navigation', icon: MenuIcon, label: 'Navigation' },
             { id: 'assets', icon: ImageIcon, label: 'Assets' },
           ] as { id: LeftPanel; icon: typeof Layers; label: string }[]).map(({ id, icon: Icon, label }) => (
             <button
@@ -808,6 +853,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           <div className="flex-1" />
           <button
             title="Studio Settings"
+            onClick={() => setLeftPanel('styles')}
             className="w-10 h-10 rounded-xl border-2 border-transparent hover:border-black/20 flex items-center justify-center text-neutral-400 hover:text-black transition-all cursor-pointer"
           >
             <Settings size={17} className="stroke-[2.5]" />
@@ -822,7 +868,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             // Mobile full screen overlay when tab selected
             mobileTab === 'sections' && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white',
             mobileTab === 'styles' && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white',
-            ['elements', 'pages', 'assets'].includes(mobileTab) && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white'
+            ['elements', 'pages', 'navigation', 'assets'].includes(mobileTab) && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white'
           )}
         >
           <div className="p-3.5 border-b-[2px] border-black bg-white flex items-center justify-between">
@@ -889,6 +935,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                       </div>
 
                       <span className="font-mono text-xs flex-1 truncate">{section.name}</span>
+                      <button type="button" aria-label={`${section.hidden?.[deviceMode] ? 'Show' : 'Hide'} ${section.name} on ${deviceMode}`} onClick={(e) => { e.stopPropagation(); setSections((items) => items.map((item) => item.id === section.id ? { ...item, hidden: { ...item.hidden, [deviceMode]: !item.hidden?.[deviceMode] } } : item)); }} className="p-1 text-neutral-500 hover:text-black">{section.hidden?.[deviceMode] ? <EyeOff size={13}/> : <Eye size={13}/>}</button>
+                      <button type="button" aria-label={`${section.locked ? 'Unlock' : 'Lock'} ${section.name}`} onClick={(e) => { e.stopPropagation(); setSections((items) => items.map((item) => item.id === section.id ? { ...item, locked: !item.locked } : item)); }} className="p-1 text-neutral-500 hover:text-black">{section.locked ? <Lock size={12}/> : <Unlock size={12}/>}</button>
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); removeSection(section.id); }}
@@ -906,18 +954,19 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                     + Add Block
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {['Hero', 'Features', 'Testimonials', 'Gallery', 'Pricing', 'CTA', 'Contact'].map((type) => (
+                    {Object.values(blockRegistry).filter((block) => !['nav', 'footer'].includes(block.type)).map((block) => (
                       <button
-                        key={type}
+                        key={block.type}
                         type="button"
                         onClick={() => {
-                          addSection(type.toLowerCase());
+                          addSection(block.type);
                           if (mobileTab === 'sections') setMobileTab('canvas');
                         }}
                         className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-black bg-white hover:bg-yellow font-mono text-[11px] font-bold text-black shadow-[1.5px_1.5px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
+                        title={block.description}
                       >
                         <Plus size={11} className="stroke-[3]" />
-                        <span>{type}</span>
+                        <span>{block.label}</span>
                       </button>
                     ))}
                   </div>
@@ -1028,8 +1077,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
               <div className="space-y-3">
                 <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Add a block to your page</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {['Hero', 'Gallery', 'Features', 'Testimonials', 'Pricing', 'Contact', 'CTA', 'Footer'].map((type) => (
-                    <button key={type} type="button" onClick={() => addSection(type.toLowerCase())} className="rounded-xl border-2 border-black bg-white px-2 py-3 font-mono text-xs font-bold shadow-[2px_2px_0_#000] hover:bg-yellow">＋ {type}</button>
+                  {Object.values(blockRegistry).filter((block) => !['nav', 'footer'].includes(block.type)).map((block) => (
+                    <button key={block.type} type="button" title={block.description} onClick={() => addSection(block.type)} className="rounded-xl border-2 border-black bg-white px-2 py-3 font-mono text-xs font-bold shadow-[2px_2px_0_#000] hover:bg-yellow">＋ {block.label}</button>
                   ))}
                 </div>
                 <div className="grid grid-cols-2 gap-2 border-t border-black/15 pt-3">
@@ -1053,14 +1102,30 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                   <div className="flex items-center gap-2"><button type="button" onClick={() => switchPage(page.id)} className="min-w-0 flex-1 truncate text-left font-mono text-xs font-bold">{page.isHome || page.id === 'home' ? '⌂ ' : '⠿ '}{page.title}</button><button type="button" title="Duplicate page" aria-label={`Duplicate ${page.title}`} onClick={() => addSitePage(page.id)}><Plus size={14}/></button>{!page.isHome && page.id !== 'home' && <button type="button" title="Delete page" aria-label={`Delete ${page.title}`} onClick={() => deleteSitePage(page.id)}><Trash2 size={14}/></button>}</div>
                   {activePageId === page.id && <div className="space-y-2 border-t border-black/10 pt-2">
                     <label className="block font-mono text-[9px] font-bold uppercase">Page name<input aria-label="Page name" value={page.title} onChange={(e) => updatePage(page.id, { title: e.target.value })} className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-mono text-xs font-bold" /></label>
-                    <label className="block font-mono text-[9px] font-bold uppercase">URL slug<div className="mt-1 flex items-center rounded-lg border border-black/30 px-2"><span className="font-mono text-xs text-neutral-400">/</span><input aria-label="Page URL slug" value={page.slug || (page.id === 'home' ? '' : page.id)} disabled={page.isHome || page.id === 'home'} onChange={(e) => changePageSlug(page.id, e.target.value)} className="min-w-0 flex-1 bg-transparent py-1.5 font-mono text-xs disabled:text-neutral-400" /></div></label>
+                    <label className="block font-mono text-[9px] font-bold uppercase">URL slug<div className="mt-1 flex items-center rounded-lg border border-black/30 px-2"><span className="font-mono text-xs text-neutral-400">/</span><input aria-label="Page URL slug" value={slugDrafts[page.id] ?? (page.slug || (page.id === 'home' ? '' : page.id))} disabled={page.isHome || page.id === 'home'} onFocus={() => setSlugDrafts((drafts) => ({ ...drafts, [page.id]: page.slug || page.id }))} onChange={(e) => setSlugDrafts((drafts) => ({ ...drafts, [page.id]: e.target.value }))} onBlur={(e) => { changePageSlug(page.id, slugDrafts[page.id] ?? e.target.value); setSlugDrafts((drafts) => { const next = { ...drafts }; delete next[page.id]; return next; }); }} className="min-w-0 flex-1 bg-transparent py-1.5 font-mono text-xs disabled:text-neutral-400" /></div></label>
                     <label className="block font-mono text-[9px] font-bold uppercase">Page description<input aria-label="Page description" value={page.description} onChange={(e) => updatePage(page.id, { description: e.target.value })} className="mt-1 w-full rounded-lg border border-black/20 px-2 py-1.5 font-mono text-[10px]" placeholder="Page intro content" /></label>
                     <div className="flex flex-wrap gap-3 font-mono text-[10px]"><label className="flex items-center gap-1"><input type="checkbox" checked={page.showInMenu !== false && page.id !== 'home'} disabled={page.id === 'home' || page.isHome} onChange={(e) => updatePage(page.id, { showInMenu: e.target.checked })} />Show in menu</label><label className="flex items-center gap-1"><input type="checkbox" checked={page.noindex || false} onChange={(e) => updatePage(page.id, { noindex: e.target.checked })} />Hide from search</label></div>
+                    <div className="flex flex-wrap gap-3 font-mono text-[10px]"><label className="flex items-center gap-1"><input type="checkbox" checked={page.useSharedHeader !== false} onChange={(e) => updatePage(page.id, { useSharedHeader: e.target.checked })} />Shared header</label><label className="flex items-center gap-1"><input type="checkbox" checked={page.useSharedFooter !== false} onChange={(e) => updatePage(page.id, { useSharedFooter: e.target.checked })} />Shared footer</label></div>
                     {!page.isHome && page.id !== 'home' && <button type="button" onClick={() => { editorStore.getState().setHomePage(page.id); applyDocumentToEditor(editorStore.getState().document, page.id); }} className="w-full rounded-lg border border-black bg-white py-1.5 font-mono text-[10px] font-bold hover:bg-yellow">Set as home page</button>}
                   </div>}
                 </div>)}
                 <button type="button" onClick={() => addSitePage()} className="w-full rounded-xl border-2 border-black bg-yellow p-2 font-mono text-xs font-bold">＋ Add page</button>
+                <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Add from page template<select aria-label="Add page from template" value="" onChange={(event) => { if (event.target.value) addPageFromTemplate(event.target.value); }} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs font-bold text-black"><option value="">Choose a page layout…</option>{['About', 'Services', 'Pricing', 'Contact', 'FAQ', 'Blog', 'Portfolio', 'Privacy', '404'].map((preset) => <option key={preset}>{preset}</option>)}</select></label>
                 <p className="text-[10px] font-mono leading-relaxed text-neutral-500">Drag pages to reorder. Page links use their saved slugs.</p>
+              </div>
+            )}
+
+            {(leftPanel === 'navigation' || mobileTab === 'navigation') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between"><p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Navigation menu</p><span className="font-mono text-[9px] text-neutral-400">Drag to reorder</span></div>
+                {editorDocument.menu.map((item, index) => <div key={item.id} draggable onDragStart={() => setDraggedMenuId(item.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedMenuId) reorderMenuItem(draggedMenuId, index); setDraggedMenuId(null); }} onDragEnd={() => setDraggedMenuId(null)} className="space-y-2 rounded-xl border-2 border-black/20 bg-white p-3">
+                  <div className="flex items-center gap-2"><span aria-hidden="true" className="cursor-grab text-neutral-400">⠿</span><label className="min-w-0 flex-1 font-mono text-[9px] font-bold uppercase text-neutral-500">Label<input aria-label={`Navigation label ${index + 1}`} value={item.label} onChange={(event) => updateMenuItem(item.id, (current) => ({ ...current, label: event.target.value }))} className="mt-1 w-full rounded border border-black/20 px-2 py-1.5 font-mono text-xs font-normal normal-case text-black" /></label><button type="button" aria-label={`Move ${item.label} up`} disabled={index === 0} onClick={() => reorderMenuItem(item.id, index - 1)} className="rounded border border-black/20 px-2 py-1 disabled:opacity-30">↑</button><button type="button" aria-label={`Move ${item.label} down`} disabled={index === editorDocument.menu.length - 1} onClick={() => reorderMenuItem(item.id, index + 1)} className="rounded border border-black/20 px-2 py-1 disabled:opacity-30">↓</button><button type="button" aria-label={`Remove ${item.label}`} onClick={() => editorStore.getState().setMenu(editorStore.getState().document.menu.filter((entry) => entry.id !== item.id))} className="rounded border border-black/20 p-1 hover:bg-pink"><Trash2 size={13}/></button></div>
+                  <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Link target<select aria-label={`Link target for ${item.label}`} value={item.target.type} onChange={(event) => updateMenuItem(item.id, (current) => ({ ...current, target: { type: event.target.value as 'page' | 'url' | 'anchor', value: event.target.value === 'page' ? sitePages.find((page) => page.id !== 'home')?.id || 'home' : '' } }))} className="mt-1 w-full rounded border border-black/20 bg-white px-2 py-1.5 font-mono text-xs text-black"><option value="page">Site page</option><option value="url">External URL</option><option value="anchor">Section anchor</option></select></label>
+                  {item.target.type === 'page' ? <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Page<select aria-label={`Page for ${item.label}`} value={item.target.value} onChange={(event) => updateMenuItem(item.id, (current) => ({ ...current, target: { type: 'page', value: event.target.value } }))} className="mt-1 w-full rounded border border-black/20 bg-white px-2 py-1.5 font-mono text-xs text-black">{sitePages.map((page) => <option key={page.id} value={page.id}>{page.title}</option>)}</select></label> : <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">{item.target.type === 'url' ? 'URL' : 'Anchor ID'}<input aria-label={`${item.target.type} for ${item.label}`} value={item.target.value} onChange={(event) => updateMenuItem(item.id, (current) => ({ ...current, target: { ...current.target, value: event.target.value } }))} placeholder={item.target.type === 'url' ? 'https://example.com' : 'section-id'} className="mt-1 w-full rounded border border-black/20 px-2 py-1.5 font-mono text-xs text-black" /></label>}
+                  <label className="flex items-center gap-1 font-mono text-[10px]"><input type="checkbox" checked={item.newTab} onChange={(event) => updateMenuItem(item.id, (current) => ({ ...current, newTab: event.target.checked }))}/>Open in new tab</label>
+                </div>)}
+                <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { const page = sitePages.find((candidate) => candidate.id !== 'home' && !editorDocument.menu.some((item) => item.target.type === 'page' && item.target.value === candidate.id)); if (!page) return; editorStore.getState().setMenu([...editorStore.getState().document.menu, { id: `menu-${page.id}`, label: page.title, target: { type: 'page', value: page.id }, newTab: false }]); }} className="rounded-lg border-2 border-black bg-yellow px-2 py-2 font-mono text-[10px] font-bold">＋ Page link</button><button type="button" onClick={() => editorStore.getState().setMenu([...editorStore.getState().document.menu, { id: `menu-url-${Date.now()}`, label: 'External link', target: { type: 'url', value: 'https://' }, newTab: true }])} className="rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-[10px] font-bold"><ExternalLink size={12} className="mr-1 inline"/>＋ URL link</button></div>
+                <p className="font-mono text-[9px] leading-relaxed text-neutral-500">Page links stay connected when page titles or slugs change.</p>
               </div>
             )}
 
@@ -1109,7 +1174,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           <div
             className="relative z-10 bg-white rounded-2xl border-[3px] sm:border-[3.5px] border-black shadow-[6px_6px_0px_#000] sm:shadow-[10px_10px_0px_#000] transition-all duration-300 overflow-hidden flex flex-col w-full max-w-full origin-top"
             style={{
-              width: typeof window !== 'undefined' && window.innerWidth < 768 ? '100%' : DEVICE_WIDTHS[deviceMode],
+              width: DEVICE_WIDTHS[deviceMode],
               transform: `scale(${zoomScale})`,
               minHeight: '800px',
             }}
@@ -1135,6 +1200,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
               <CanvasContent
                 sections={sections}
                 sitePages={sitePages}
+                menuItems={editorDocument.menu}
                 sectionSpacing={sectionSpacing}
                 canvasElements={canvasElements}
                 selectedElementId={selectedElementId}
@@ -1150,7 +1216,6 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 ctaContent={ctaContent}
                 onUpdateSectionContent={(sectionId, content) => setSections((items) => items.map((item) => item.id === sectionId ? { ...item, content } : item))}
                 onSelectSection={(id) => { setSelectedSection(id); setSelectedElementId(null); }}
-                onRenameSection={(id, name) => setSections((prev) => prev.map((section) => section.id === id ? { ...section, name } : section))}
                 assetUrl={assetUrl}
                 logoUrl={logoUrl}
                 deviceMode={deviceMode}
@@ -1188,6 +1253,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 sections={sections}
                 theme={theme}
                 setSectionStyle={(style) => setSections((items) => items.map((item) => item.id === selectedSection ? { ...item, style: { ...item.style, ...style } } : item))}
+                setSectionContent={(content) => setSections((items) => items.map((item) => item.id === selectedSection ? { ...item, content } : item))}
+                setSectionSettings={(settings) => setSections((items) => items.map((item) => item.id === selectedSection ? { ...item, ...settings } : item))}
                 sectionSpacing={sectionSpacing[selectedSection] || DEFAULT_SPACING}
                 setSectionSpacing={(nextSpacing) => setSectionSpacing((current) => ({ ...current, [selectedSection]: typeof nextSpacing === 'function' ? nextSpacing(current[selectedSection] || DEFAULT_SPACING) : nextSpacing }))}
               />
@@ -1207,6 +1274,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           { id: 'sections' as const, label: 'Blocks', icon: Layers },
           { id: 'elements' as const, label: 'Add', icon: Plus },
           { id: 'pages' as const, label: 'Pages', icon: ChevronRight },
+          { id: 'navigation' as const, label: 'Menu', icon: MenuIcon },
           { id: 'assets' as const, label: 'Assets', icon: ImageIcon },
           { id: 'styles' as const, label: 'Styles', icon: Palette },
           { id: 'inspector' as const, label: 'Inspect', icon: SlidersHorizontal },
@@ -1430,6 +1498,7 @@ function CanvasContent({
   sections,
   sectionSpacing,
   sitePages,
+  menuItems,
   canvasElements,
   selectedElementId,
   onSelectElement,
@@ -1444,7 +1513,6 @@ function CanvasContent({
   ctaContent,
   onUpdateSectionContent,
   onSelectSection,
-  onRenameSection,
   assetUrl,
   logoUrl,
   deviceMode,
@@ -1452,6 +1520,7 @@ function CanvasContent({
   sections: Section[];
   sectionSpacing: Record<string, SectionSpacing>;
   sitePages: SitePage[];
+  menuItems: MenuItem[];
   canvasElements: CanvasElement[];
   selectedElementId: string | null;
   onSelectElement: (id: string) => void;
@@ -1466,7 +1535,6 @@ function CanvasContent({
   ctaContent: { title: string; desc: string; buttonText: string };
   onUpdateSectionContent: (sectionId: string, content: Record<string, unknown>) => void;
   onSelectSection: (id: string) => void;
-  onRenameSection: (id: string, name: string) => void;
   assetUrl: string;
   logoUrl: string;
   deviceMode: DeviceMode;
@@ -1478,6 +1546,7 @@ function CanvasContent({
           key={section.id}
           section={section}
           sitePages={sitePages}
+          menuItems={menuItems}
           onNavigatePage={onNavigatePage}
           spacing={sectionSpacing[section.id] || DEFAULT_SPACING}
           isSelected={selectedSection === section.id}
@@ -1489,7 +1558,6 @@ function CanvasContent({
           ctaContent={ctaContent}
           onUpdateSectionContent={onUpdateSectionContent}
           onSelect={() => onSelectSection(section.id)}
-          onRename={(name) => onRenameSection(section.id, name)}
           assetUrl={assetUrl}
           logoUrl={logoUrl}
           deviceMode={deviceMode}
@@ -1521,6 +1589,7 @@ function ElementProperties({ item, onChange }: { item: CanvasElement; onChange: 
 function SectionRenderer({
   section,
   sitePages,
+  menuItems,
   onNavigatePage,
   spacing,
   isSelected,
@@ -1532,13 +1601,13 @@ function SectionRenderer({
   ctaContent,
   onUpdateSectionContent,
   onSelect,
-  onRename,
   assetUrl,
   logoUrl,
   deviceMode,
 }: {
   section: Section;
   sitePages: SitePage[];
+  menuItems: MenuItem[];
   onNavigatePage: (id: string) => void;
   spacing: SectionSpacing;
   isSelected: boolean;
@@ -1550,7 +1619,6 @@ function SectionRenderer({
   ctaContent: { title: string; desc: string; buttonText: string };
   onUpdateSectionContent: (sectionId: string, content: Record<string, unknown>) => void;
   onSelect: () => void;
-  onRename: (name: string) => void;
   assetUrl: string;
   logoUrl: string;
   deviceMode: DeviceMode;
@@ -1577,17 +1645,35 @@ function SectionRenderer({
     onUpdateSectionContent(section.id, { ...sectionContent, ...next });
   };
   const heading = typeof sectionContent.heading === 'string' ? sectionContent.heading : section.name;
+  const blockItems = Array.isArray(sectionContent.items) ? sectionContent.items as Array<Record<string, unknown>> : [];
+  const textValue = (value: unknown, fallback = '') => typeof value === 'string' ? value : fallback;
+  const updateBlockItem = (index: number, key: string, value: unknown) => onUpdateSectionContent(section.id, { ...sectionContent, items: blockItems.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) });
+  const [formSubmitted, setFormSubmitted] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const renderMenuItem = (item: MenuItem) => {
+    if (item.target.type === 'page') {
+      const page = sitePages.find((entry) => entry.id === item.target.value);
+      return page ? <button key={item.id} type="button" onClick={(event) => { event.stopPropagation(); onNavigatePage(page.id); setMobileMenuOpen(false); }} className="hover:text-black hover:underline cursor-pointer">{item.label}</button> : null;
+    }
+    const href = item.target.type === 'anchor' ? `#${item.target.value.replace(/^#/, '')}` : item.target.value;
+    const safeHref = item.target.type === 'anchor' || /^(https?:|mailto:|tel:)/i.test(href) ? href : '';
+    return safeHref ? <a key={item.id} href={safeHref} target={item.newTab ? '_blank' : undefined} rel={item.newTab ? 'noopener noreferrer' : undefined} onClick={(event) => event.stopPropagation()} className="hover:text-black hover:underline">{item.label}</a> : null;
+  };
   return (
     <div
-      style={{ padding: `${spacing.top}px ${spacing.right}px ${spacing.bottom}px ${spacing.left}px`, backgroundColor: section.style?.backgroundColor, color: section.style?.overrides?.[deviceMode]?.color as string | undefined }}
+      id={section.anchorId || section.id}
+      style={{ padding: `${spacing.top}px ${spacing.right}px ${spacing.bottom}px ${spacing.left}px`, backgroundColor: section.style?.highlightColor || section.style?.backgroundColor, color: section.style?.overrides?.[deviceMode]?.color as string | undefined, textAlign: section.style?.textAlign, fontWeight: section.style?.fontWeight, fontStyle: section.style?.fontStyle, textDecoration: section.style?.textDecoration, display: section.hidden?.[deviceMode] ? 'none' : undefined }}
       className={cn(
         'relative group cursor-pointer transition-all',
+        section.locked && 'cursor-not-allowed pointer-events-none opacity-75',
         isSelected && 'outline-[3px] outline-pink outline-offset-[-3px] shadow-[inset_0_0_0_2px_#000]'
       )}
-      onClick={onSelect}
+      onClick={() => { if (!section.locked) onSelect(); }}
     >
       {/* Navigation Block */}
       {section.type === 'nav' && (
+        <>
         <nav className="flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 border-black/10 bg-white/80 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             {logoUrl ? <NextImage src={logoUrl} alt={`${siteTitle} logo`} width={32} height={32} unoptimized className="h-8 w-8 rounded-lg object-contain" /> : <div
@@ -1602,21 +1688,28 @@ function SectionRenderer({
           </div>
 
           <div className={cn('hidden sm:flex items-center gap-6 font-mono text-xs font-bold text-neutral-700', deviceMode === 'mobile' && 'hidden')}>
-            {sitePages.filter((item) => item.showInMenu !== false && item.id !== 'home').map((item) => (
-              <button key={item.id} type="button" onClick={(event) => { event.stopPropagation(); onNavigatePage(item.id); }} className="hover:text-black hover:underline cursor-pointer">
-                {item.title}
-              </button>
-            ))}
+            {menuItems.map(renderMenuItem)}
           </div>
+          <button type="button" aria-expanded={mobileMenuOpen} aria-label="Toggle site navigation" onClick={(event) => { event.stopPropagation(); setMobileMenuOpen((open) => !open); }} className="sm:hidden rounded-lg border border-black px-2 py-1 font-mono text-xs font-bold">{mobileMenuOpen ? 'Close' : 'Menu'}</button>
 
           <button
             type="button"
+            disabled={!menuItems.length}
+            onClick={(event) => {
+              event.stopPropagation();
+              const target = menuItems[0]?.target;
+              if (target?.type === 'page') onNavigatePage(target.value);
+              else if (target?.type === 'anchor') document.getElementById(target.value.replace(/^#/, ''))?.scrollIntoView({ behavior: 'smooth' });
+              else if (target?.type === 'url' && /^(https?:|mailto:|tel:)/i.test(target.value)) window.open(target.value, menuItems[0].newTab ? '_blank' : '_self', 'noopener,noreferrer');
+            }}
             style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
-            className="px-3 sm:px-4 py-1.5 rounded-xl border-2 border-black font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] cursor-pointer"
+            className="px-3 sm:px-4 py-1.5 rounded-xl border-2 border-black font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
             Get Started
           </button>
         </nav>
+        {mobileMenuOpen && <nav aria-label="Mobile navigation" className="sm:hidden border-b-2 border-black bg-white px-4 py-3"><div className="flex flex-col gap-3 font-mono text-xs font-bold">{menuItems.map(renderMenuItem)}</div></nav>}
+        </>
       )}
 
       {/* Hero Block */}
@@ -1806,44 +1899,44 @@ function SectionRenderer({
           </div>
         </footer>
       )}
-      {['gallery', 'pricing', 'contact'].includes(section.type) && (
+      {section.type === 'divider' && <hr aria-label="Section divider" className="mx-auto w-full max-w-5xl border-0 border-t-2 border-black/20" />}
+      {['gallery', 'pricing', 'contact', 'stats', 'faq', 'team', 'steps', 'newsletter', 'rich-text', 'image-text', 'announcement'].includes(section.type) && (
         <section className="py-12 sm:py-16 px-4 sm:px-12 bg-[#FAF9F6] text-black">
           <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-8">
+            {section.type !== 'divider' && <div className="text-center mb-8">
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest" style={{ color: theme.primaryColor }}>{siteTitle}</p>
-              <h2 contentEditable suppressContentEditableWarning onInput={(e) => onRename((e.target as HTMLElement).innerText)} className="font-display text-2xl sm:text-3xl font-black mt-2">
-                {section.name}
-              </h2>
-              <p className="font-mono text-xs text-neutral-600 mt-2">Thoughtfully selected for your everyday, made to last.</p>
-            </div>
+              <h2 contentEditable suppressContentEditableWarning onInput={(e) => onUpdateSectionContent(section.id, { ...sectionContent, heading: (e.target as HTMLElement).innerText })} className="font-display text-2xl sm:text-3xl font-black mt-2">{heading}</h2>
+              {typeof sectionContent.description === 'string' && <p contentEditable suppressContentEditableWarning onInput={(e) => onUpdateSectionContent(section.id, { ...sectionContent, description: (e.target as HTMLElement).innerText })} className="font-mono text-xs text-neutral-600 mt-2">{sectionContent.description}</p>}
+            </div>}
             {section.type === 'contact' ? (
-              <form className="max-w-lg mx-auto grid gap-3" onSubmit={(event) => { event.preventDefault(); window.alert('Thanks for reaching out!'); }}>
+              formSubmitted ? <p role="status" className="mx-auto max-w-lg rounded-xl border-2 border-black bg-white p-4 text-center font-mono text-sm">{textValue(sectionContent.successMessage, 'Thanks for reaching out. We will be in touch soon.')}</p> : <form className="max-w-lg mx-auto grid gap-3" onSubmit={(event) => { event.preventDefault(); setFormSubmitted(true); }}>
                 <input required aria-label="Your name" placeholder="Your name" className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
                 <input required type="email" aria-label="Email address" placeholder="Email address" className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
                 <textarea required aria-label="Message" placeholder="How can we help?" rows={4} className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
-                <button className="rounded-xl border-2 border-black px-4 py-3 font-display font-black shadow-[3px_3px_0px_#000]" style={{ backgroundColor: theme.primaryColor }}>Send message</button>
+                <button type="submit" className="rounded-xl border-2 border-black px-4 py-3 font-display font-black shadow-[3px_3px_0px_#000]" style={{ backgroundColor: theme.primaryColor }}>{textValue(sectionContent.submitLabel, 'Send message')}</button>
               </form>
+            ) : section.type === 'newsletter' ? (
+              formSubmitted ? <p role="status" className="mx-auto max-w-lg rounded-xl border-2 border-black bg-white p-4 text-center font-mono text-sm">You are subscribed. Thank you!</p> : <form className="mx-auto flex max-w-lg flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); setFormSubmitted(true); }}><label className="sr-only" htmlFor={`newsletter-${section.id}`}>Email address</label><input id={`newsletter-${section.id}`} required type="email" placeholder="Email address" className="min-w-0 flex-1 rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm"/><button type="submit" className="rounded-xl border-2 border-black px-4 py-3 font-display font-black shadow-[3px_3px_0px_#000]" style={{ backgroundColor: theme.primaryColor }}>{textValue(sectionContent.submitLabel, 'Subscribe')}</button></form>
+            ) : section.type === 'pricing' ? (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">{blockItems.map((item, index) => <article key={`${section.id}-plan-${index}`} className={`rounded-2xl border-2 border-black bg-white p-5 shadow-[3px_3px_0px_#000] ${item.highlighted ? 'ring-2 ring-offset-2' : ''}`} style={item.highlighted ? { outlineColor: theme.primaryColor } : undefined}><h3 contentEditable suppressContentEditableWarning onInput={(e) => updateBlockItem(index, 'title', (e.target as HTMLElement).innerText)} className="font-display text-lg font-black">{textValue(item.title, 'Plan')}</h3><p className="mt-2 font-mono text-xs text-neutral-600">{textValue(item.description)}</p><p className="my-4 font-display text-3xl font-black">{textValue(item.price)}<span className="font-mono text-xs font-normal">{textValue(item.interval)}</span></p><ul className="space-y-2 font-mono text-xs">{(Array.isArray(item.features) ? item.features as string[] : []).map((feature, featureIndex) => <li key={featureIndex}>✓ {feature}</li>)}</ul><p className="mt-4 rounded-lg bg-neutral-100 px-3 py-2 text-center font-mono text-xs">Choose a plan by contacting us.</p></article>)}</div>
+            ) : section.type === 'gallery' ? (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">{blockItems.map((item, index) => <article key={`${section.id}-item-${index}`} className="overflow-hidden rounded-2xl border-2 border-black bg-white shadow-[3px_3px_0px_#000]"><div className="h-36 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${theme.primaryColor}55, ${theme.primaryColor}15)` }}>{textValue(item.image, assetUrl) ? <><NextImage src={textValue(item.image, assetUrl)} alt={textValue(item.title, 'Gallery image')} width={900} height={700} unoptimized className="h-full w-full object-cover" /></> : <span className="font-display text-4xl font-black" aria-hidden="true">0{index + 1}</span>}</div><div className="p-4"><h3 contentEditable suppressContentEditableWarning onInput={(e) => updateBlockItem(index, 'title', (e.target as HTMLElement).innerText)} className="font-display font-black">{textValue(item.title, 'Featured item')}</h3><p contentEditable suppressContentEditableWarning onInput={(e) => updateBlockItem(index, 'desc', (e.target as HTMLElement).innerText)} className="mt-1 font-mono text-xs text-neutral-500">{textValue(item.desc)}</p>{typeof item.price === 'string' && <p className="mt-4 font-display font-black">{item.price}</p>}</div></article>)}</div>
+            ) : section.type === 'faq' ? (
+              <div className="mx-auto max-w-3xl divide-y-2 divide-black/10 rounded-2xl border-2 border-black bg-white px-5">{blockItems.map((item, index) => <div key={`${section.id}-faq-${index}`} className="py-4"><button type="button" aria-expanded={openFaq === index} onClick={() => setOpenFaq((current) => current === index ? null : index)} className="flex w-full items-center justify-between text-left font-display font-black">{textValue(item.question, 'Question')}<span aria-hidden="true">{openFaq === index ? '−' : '+'}</span></button>{openFaq === index && <p className="mt-3 font-mono text-sm leading-relaxed text-neutral-600">{textValue(item.answer)}</p>}</div>)}</div>
+            ) : section.type === 'stats' ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">{blockItems.map((item, index) => <div key={`${section.id}-stat-${index}`} className="rounded-2xl border-2 border-black bg-white p-5 text-center shadow-[3px_3px_0px_#000]"><p contentEditable suppressContentEditableWarning onInput={(e) => updateBlockItem(index, 'value', (e.target as HTMLElement).innerText)} className="font-display text-3xl font-black" style={{ color: theme.primaryColor }}>{textValue(item.value)}</p><p contentEditable suppressContentEditableWarning onInput={(e) => updateBlockItem(index, 'label', (e.target as HTMLElement).innerText)} className="mt-1 font-mono text-xs">{textValue(item.label)}</p></div>)}</div>
+            ) : section.type === 'team' ? (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">{blockItems.map((item, index) => <article key={`${section.id}-team-${index}`} className="rounded-2xl border-2 border-black bg-white p-5"><div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full border-2 border-black font-display text-2xl font-black" style={{ backgroundColor: theme.primaryColor }}>{textValue(item.name, '?').charAt(0)}</div><h3 contentEditable suppressContentEditableWarning onInput={(e) => updateBlockItem(index, 'name', (e.target as HTMLElement).innerText)} className="font-display font-black">{textValue(item.name)}</h3><p className="font-mono text-xs text-neutral-500">{textValue(item.role)}</p><p className="mt-2 font-mono text-xs">{textValue(item.bio)}</p></article>)}</div>
+            ) : section.type === 'steps' ? (
+              <ol className="grid grid-cols-1 gap-4 sm:grid-cols-3">{blockItems.map((item, index) => <li key={`${section.id}-step-${index}`} className="rounded-2xl border-2 border-black bg-white p-5"><span className="font-mono text-xs font-black" style={{ color: theme.primaryColor }}>STEP 0{index + 1}</span><h3 className="mt-2 font-display font-black">{textValue(item.title)}</h3><p className="mt-1 font-mono text-xs text-neutral-600">{textValue(item.desc)}</p></li>)}</ol>
+            ) : section.type === 'rich-text' ? (
+              <article className="mx-auto max-w-3xl rounded-2xl border-2 border-black bg-white p-6 font-mono text-sm leading-relaxed"><p contentEditable suppressContentEditableWarning onInput={(e) => onUpdateSectionContent(section.id, { ...sectionContent, body: (e.target as HTMLElement).innerText })}>{textValue(sectionContent.body)}</p></article>
+            ) : section.type === 'image-text' ? (
+              <div className="grid items-center gap-6 rounded-2xl border-2 border-black bg-white p-5 sm:grid-cols-2">{assetUrl ? <><NextImage src={textValue(sectionContent.image, assetUrl)} alt="" width={900} height={700} unoptimized className="h-64 w-full rounded-xl object-cover" /></> : <div className="flex h-64 items-center justify-center rounded-xl bg-neutral-100 font-mono text-xs">Choose a site image in Assets</div>}<p className="font-mono text-sm leading-relaxed">{textValue(sectionContent.body)}</p></div>
+            ) : section.type === 'announcement' ? (
+              <div className="flex flex-wrap items-center justify-center gap-2 rounded-xl border-2 border-black p-4 text-center font-mono text-sm" style={{ backgroundColor: theme.primaryColor }}><span>{textValue(sectionContent.text)}</span>{typeof sectionContent.linkLabel === 'string' && <span className="font-bold underline">{sectionContent.linkLabel}</span>}</div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                {['Everyday Essential', 'Signature Piece', 'The New Classic'].map((product, index) => (
-                  <article key={product} className="overflow-hidden rounded-2xl border-2 border-black bg-white shadow-[3px_3px_0px_#000]">
-                    <div className="h-36 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${theme.primaryColor}55, ${theme.primaryColor}15)` }}>
-                      {assetUrl ? <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={assetUrl} alt={product} className="h-full w-full object-cover" />
-                      </> : <span className="font-display text-4xl font-black" aria-hidden="true">{['01', '02', '03'][index]}</span>}
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-display font-black">{product}</h3>
-                      <p className="font-mono text-xs text-neutral-500 mt-1">Premium materials · Made with care</p>
-                      <div className="flex items-center justify-between mt-4">
-                        <span className="font-display font-black">${[68, 124, 92][index]}.00</span>
-                        <button type="button" onClick={() => window.alert(`${product} added to your bag`)} className="rounded-lg border-2 border-black px-3 py-1.5 font-mono text-[10px] font-black" style={{ backgroundColor: theme.primaryColor }}>Add to bag</button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
+              null
             )}
           </div>
         </section>
@@ -1857,6 +1950,8 @@ function SectionProperties({
   sections,
   theme,
   setSectionStyle,
+  setSectionContent,
+  setSectionSettings,
   sectionSpacing,
   setSectionSpacing,
 }: {
@@ -1864,11 +1959,16 @@ function SectionProperties({
   sections: Section[];
   theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
   setSectionStyle: (style: Partial<SectionStyle>) => void;
+  setSectionContent: (content: Record<string, unknown>) => void;
+  setSectionSettings: (settings: Partial<Pick<Section, 'hidden' | 'anchorId' | 'customClass' | 'locked'>>) => void;
   sectionSpacing: SectionSpacing;
   setSectionSpacing: React.Dispatch<React.SetStateAction<SectionSpacing>>;
 }) {
   const section = sections.find(s => s.id === sectionId);
   if (!section) return null;
+  const content = section.content || {};
+  const updateContent = (key: string, value: unknown) => setSectionContent({ ...content, [key]: value });
+  const repeaterItems = Array.isArray(content.items) ? content.items as Array<Record<string, unknown>> : [];
 
   return (
     <div className="space-y-4">
@@ -1878,26 +1978,32 @@ function SectionProperties({
         <span className="font-display font-black text-sm text-black">{section.name}</span>
       </div>
 
+      <div className="space-y-2 rounded-xl border-2 border-black bg-white p-3">
+        <p className="font-mono text-[10px] font-black uppercase text-neutral-500">Block content</p>
+        {['title', 'heading', 'badge', 'description', 'desc', 'body', 'ctaPrimary', 'ctaSecondary', 'buttonText', 'submitLabel', 'successMessage', 'text', 'linkLabel', 'image'].filter((key) => typeof content[key] === 'string').map((key) => <label key={key} className="block font-mono text-[9px] font-bold uppercase text-neutral-500">{key.replace(/([A-Z])/g, ' $1')}<textarea rows={['description', 'desc', 'body', 'successMessage'].includes(key) ? 3 : 1} value={content[key] as string} onChange={(event) => updateContent(key, event.target.value)} className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /></label>)}
+        {Array.isArray(content.items) && <div className="space-y-2 border-t border-black/10 pt-2"><p className="font-mono text-[9px] font-bold uppercase text-neutral-500">Items · {repeaterItems.length}</p>{repeaterItems.map((item, index) => <div key={`${section.id}-item-${index}`} className="space-y-1 rounded-lg border border-black/20 bg-[#FAF9F6] p-2"><div className="flex items-center justify-between"><span className="font-mono text-[9px] font-bold">Item {index + 1}</span><button type="button" aria-label={`Remove item ${index + 1}`} onClick={() => updateContent('items', repeaterItems.filter((_, itemIndex) => itemIndex !== index))} className="rounded border border-black/20 p-1 hover:bg-pink"><Trash2 size={12}/></button></div>{Object.entries(item).filter(([, value]) => typeof value === 'string' || typeof value === 'number').map(([key, value]) => <label key={key} className="block font-mono text-[9px] font-bold capitalize text-neutral-500">{key}<input value={String(value)} onChange={(event) => updateContent('items', repeaterItems.map((entry, itemIndex) => itemIndex === index ? { ...entry, [key]: event.target.value } : entry))} className="mt-0.5 w-full rounded border border-black/20 bg-white px-2 py-1 font-sans text-xs font-normal text-black" /></label>)}</div>)}<button type="button" onClick={() => { const defaults = blockRegistry[section.type]?.defaultContent.items; const fallback = Array.isArray(defaults) ? defaults[0] as Record<string, unknown> : { title: 'New item', desc: 'Add a description.' }; updateContent('items', [...repeaterItems, structuredClone(repeaterItems[0] || fallback)]); }} className="w-full rounded-lg border border-black bg-yellow py-1.5 font-mono text-[10px] font-bold">＋ Add item</button></div>}
+      </div>
+
       {/* Typography Toolbar */}
       <div>
         <div className="font-mono text-[10px] font-black uppercase text-neutral-500 tracking-wider mb-1.5">
           Typography
         </div>
         <div className="flex items-center gap-1.5">
-          <button type="button" title="Bold selection" onMouseDown={(event) => { event.preventDefault(); document.execCommand('bold'); }} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+          <button type="button" title="Toggle bold for this section" aria-pressed={section.style?.fontWeight === 700} onClick={() => setSectionStyle({ fontWeight: section.style?.fontWeight === 700 ? 400 : 700 })} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
             <Bold size={13} className="stroke-[3]" />
           </button>
-          <button type="button" title="Italicize selection" onMouseDown={(event) => { event.preventDefault(); document.execCommand('italic'); }} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+          <button type="button" title="Toggle italic for this section" aria-pressed={section.style?.fontStyle === 'italic'} onClick={() => setSectionStyle({ fontStyle: section.style?.fontStyle === 'italic' ? 'normal' : 'italic' })} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
             <Italic size={13} className="stroke-[3]" />
           </button>
           <div className="flex-1 h-px bg-black/10" />
-          <button type="button" title="Align left" onMouseDown={(event) => { event.preventDefault(); document.execCommand('justifyLeft'); }} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+          <button type="button" title="Align left" aria-pressed={section.style?.textAlign === 'left'} onClick={() => setSectionStyle({ textAlign: 'left' })} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
             <AlignLeft size={13} />
           </button>
-          <button type="button" title="Align center" onMouseDown={(event) => { event.preventDefault(); document.execCommand('justifyCenter'); }} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+          <button type="button" title="Align center" aria-pressed={section.style?.textAlign === 'center'} onClick={() => setSectionStyle({ textAlign: 'center' })} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
             <AlignCenter size={13} />
           </button>
-          <button type="button" title="Align right" onMouseDown={(event) => { event.preventDefault(); document.execCommand('justifyRight'); }} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
+          <button type="button" title="Align right" aria-pressed={section.style?.textAlign === 'right'} onClick={() => setSectionStyle({ textAlign: 'right' })} className="p-2 rounded-lg border-2 border-black bg-white hover:bg-yellow shadow-2xs cursor-pointer">
             <AlignRight size={13} />
           </button>
         </div>
@@ -1963,6 +2069,14 @@ function SectionProperties({
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Section background
         <span className="mt-1 flex items-center gap-2 rounded-xl border-2 border-black bg-white p-2"><input type="color" value={section.style?.backgroundColor || '#ffffff'} onChange={(event) => setSectionStyle({ backgroundColor: event.target.value })} aria-label="Section background color" className="h-8 w-9 rounded border border-black" /><input value={section.style?.backgroundColor || ''} onChange={(event) => setSectionStyle({ backgroundColor: event.target.value || undefined })} placeholder="Use theme default" className="min-w-0 flex-1 font-mono text-xs font-bold uppercase" /></span>
       </label>
+      <div className="space-y-2 rounded-xl border-2 border-black bg-white p-3">
+        <p className="font-mono text-[10px] font-black uppercase text-neutral-500">Advanced</p>
+        <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Anchor ID<input value={section.anchorId || ''} onChange={(event) => setSectionSettings({ anchorId: event.target.value || undefined })} placeholder={section.id} className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-mono text-xs font-normal normal-case text-black" /></label>
+        <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Custom class<input value={section.customClass || ''} onChange={(event) => setSectionSettings({ customClass: event.target.value || undefined })} placeholder="my-section" className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-mono text-xs font-normal normal-case text-black" /></label>
+        <p className="font-mono text-[9px] font-bold uppercase text-neutral-500">Hide on device</p>
+        <div className="flex flex-wrap gap-3 font-mono text-[10px]">{(['desktop', 'tablet', 'mobile'] as const).map((device) => <label key={device} className="flex items-center gap-1"><input type="checkbox" checked={section.hidden?.[device] || false} onChange={(event) => setSectionSettings({ hidden: { ...section.hidden, [device]: event.target.checked } })}/>{device}</label>)}</div>
+        <button type="button" onClick={() => setSectionSettings({ locked: !section.locked })} className="w-full rounded-lg border border-black py-1.5 font-mono text-[10px] font-bold">{section.locked ? 'Unlock block' : 'Lock block'}</button>
+      </div>
     </div>
   );
 }

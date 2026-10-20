@@ -6,6 +6,11 @@ export type SectionStyle = {
   accentColor?: string;
   borderRadius?: string;
   backgroundColor?: string;
+  textAlign?: 'left' | 'center' | 'right';
+  fontWeight?: number;
+  fontStyle?: 'normal' | 'italic';
+  textDecoration?: 'underline' | 'none';
+  highlightColor?: string;
   overrides?: Partial<Record<Device, Record<string, string | number>>>;
 };
 // Section blocks are template-defined; their nested item arrays can contain structured objects.
@@ -99,13 +104,13 @@ export function makeSection(type: string, id: string, name?: string, style: Sect
 }
 
 export function createSiteDocument(input: {
-  id: string; name: string; templateId: string; theme: Partial<Theme>; sections: Array<{ id: string; name: string; type: string; content?: SectionContent; style?: SectionStyle }>;
+  id: string; name: string; templateId: string; theme: Partial<Theme>; sections: Array<{ id: string; name: string; type: string; content?: SectionContent; style?: SectionStyle; hidden?: Partial<Record<Device, boolean>>; locked?: boolean; anchorId?: string; customClass?: string }>;
   hero: Record<string, string>; features: Array<{ title: string; desc: string }>;
   testimonials: Array<{ quote: string; name: string; role: string }>;
   cta: { title: string; desc: string; buttonText: string };
   sectionSpacing?: Record<string, { top?: number; right?: number; bottom?: number; left?: number }>;
   elements?: SitePage['elements'];
-  pages?: Array<{ id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; noindex?: boolean }>;
+  pages?: Array<{ id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; noindex?: boolean; useSharedHeader?: boolean; useSharedFooter?: boolean }>;
   assetUrl?: string; logoUrl?: string; faviconUrl?: string;
 }): SiteDocument {
   const primaryColor = input.theme.primaryColor || '#FF5588';
@@ -114,14 +119,15 @@ export function createSiteDocument(input: {
     const spacing = input.sectionSpacing?.[entry.id];
     const style: SectionStyle = { ...entry.style, ...(spacing ? { padding: { top: spacing.top || 0, right: spacing.right || 0, bottom: spacing.bottom || 0, left: spacing.left || 0 } } : {}) };
     const defaultContent: SectionContent = entry.type === 'hero' ? input.hero : entry.type === 'features' ? { items: input.features } : entry.type === 'testimonials' ? { items: input.testimonials } : entry.type === 'cta' ? input.cta : {};
-    return makeSection(entry.type, entry.id, entry.name, style, entry.content && Object.keys(entry.content).length ? entry.content : defaultContent);
+    const section = makeSection(entry.type, entry.id, entry.name, style, entry.content && Object.keys(entry.content).length ? entry.content : defaultContent);
+    return { ...section, hidden: { ...section.hidden, ...entry.hidden }, locked: entry.locked ?? section.locked, anchorId: entry.anchorId, customClass: entry.customClass };
   });
   const homeMeta = input.pages?.find((page) => page.isHome || page.id === 'home');
   const home: SitePage = { id: 'home', slug: '/', title: homeMeta?.title || 'Home', isHome: true, showInMenu: false, seo: { title: input.name, description: homeMeta?.description || input.hero.description || '', ogImage: '', noindex: homeMeta?.noindex || false }, sections, elements: input.elements || [], useSharedHeader: true, useSharedFooter: true, oldSlugs: [] };
   const additionalPages = (input.pages || []).filter((page) => page.id !== 'home').map((page) => {
     const slug = ids(page.id || page.title);
     const pageSlug = page.slug?.replace(/^\/+/, '') || slug;
-    return { id: page.id, slug: `/${pageSlug}`, title: page.title, isHome: false, showInMenu: page.showInMenu !== false, seo: { title: page.title, description: page.description, ogImage: '', noindex: page.noindex || false }, sections: [makeSection('hero', `${page.id}-hero`, 'Hero', {}, { title: page.title, description: page.description })], elements: [], useSharedHeader: true, useSharedFooter: true, oldSlugs: [] } satisfies SitePage;
+    return { id: page.id, slug: `/${pageSlug}`, title: page.title, isHome: false, showInMenu: page.showInMenu !== false, seo: { title: page.title, description: page.description, ogImage: '', noindex: page.noindex || false }, sections: [makeSection('hero', `${page.id}-hero`, 'Hero', {}, { title: page.title, description: page.description })], elements: [], useSharedHeader: page.useSharedHeader !== false, useSharedFooter: page.useSharedFooter !== false, oldSlugs: [] } satisfies SitePage;
   });
   const assets: SiteAsset[] = [];
   for (const [role, src] of [['product', input.assetUrl], ['logo', input.logoUrl], ['favicon', input.faviconUrl]] as const) if (src) assets.push({ id: `${role}-asset`, name: role, role, src, alt: role === 'logo' ? `${input.name} logo` : '' });
@@ -184,14 +190,20 @@ export function mergeEditorProjection(current: SiteDocument, projection: SiteDoc
     const sections = page.id === activePageId
       ? page.sections.map((section) => {
         const previous = existing.sections.find((candidate) => candidate.id === section.id);
-        return previous ? { ...previous, ...section, hidden: previous.hidden, anchorId: previous.anchorId, customClass: previous.customClass, locked: previous.locked } : section;
+        return previous ? { ...previous, ...section } : section;
       })
       : existing.sections;
     return { ...existing, ...page, slug: existing.isHome ? '/' : page.slug, sections, elements: page.id === activePageId ? page.elements : existing.elements };
   });
   const pageIds = new Set(pages.map((page) => page.id));
-  const externalMenu = current.menu.filter((item) => item.target.type !== 'page' || pageIds.has(item.target.value));
-  const menu = [...projection.menu, ...externalMenu.filter((item) => item.target.type !== 'page')];
+  const pageById = new Map(pages.map((page) => [page.id, page]));
+  const existingMenu = current.menu
+    .filter((item) => item.target.type !== 'page' || (pageIds.has(item.target.value) && pageById.get(item.target.value)?.showInMenu))
+    .map((item) => item.target.type === 'page'
+      ? { ...item, label: pageById.get(item.target.value)?.title || item.label }
+      : item);
+  const menuTargets = new Set(existingMenu.filter((item) => item.target.type === 'page').map((item) => item.target.value));
+  const menu = [...existingMenu, ...projection.menu.filter((item) => item.target.type !== 'page' || !menuTargets.has(item.target.value))];
   return {
     ...current,
     ...projection,

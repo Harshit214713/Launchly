@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createSiteDocument, makeSection, migrateSiteDocument } from '../src/lib/siteDocument.ts';
 import { createEditorStore } from '../src/store/editorStore.ts';
+import { blockRegistry } from '../src/lib/blockRegistry.ts';
 
 function fixture() {
   return createSiteDocument({
@@ -102,4 +103,29 @@ test('versioned documents load without losing page and theme data', () => {
   const migrated = migrateSiteDocument(original, fixture());
   assert.equal(migrated.pages[0].title, 'Landing');
   assert.equal(migrated.theme.primaryColor, '#336699');
+});
+
+test('block registry supplies useful starting content for supported block types', () => {
+  assert.ok(Object.keys(blockRegistry).length >= 15);
+  for (const type of ['gallery', 'pricing', 'contact', 'faq', 'stats', 'team', 'steps', 'newsletter', 'rich-text']) {
+    assert.ok(blockRegistry[type], `missing ${type} definition`);
+    assert.ok(Object.keys(blockRegistry[type].defaultContent).length > 0, `${type} should have default content`);
+  }
+  assert.equal(Array.isArray(blockRegistry.pricing.defaultContent.items), true);
+});
+
+test('menu edits retain external links and synchronize page visibility', () => {
+  const store = createEditorStore(fixture());
+  const pageId = store.getState().addPage('About', [makeSection('hero', 'about-hero')]);
+  const pageLink = store.getState().document.menu.find((item) => item.target.type === 'page' && item.target.value === pageId);
+  assert.ok(pageLink);
+  store.getState().setMenu([
+    { id: 'external', label: 'Visit us', target: { type: 'url', value: 'https://example.com' }, newTab: true },
+    { ...pageLink, label: 'Our story' },
+  ]);
+  const document = store.getState().document;
+  assert.equal(document.pages.find((page) => page.id === pageId)?.showInMenu, true);
+  assert.equal(document.menu[0].target.type, 'url');
+  store.getState().setMenu([document.menu[0]]);
+  assert.equal(store.getState().document.pages.find((page) => page.id === pageId)?.showInMenu, false);
 });
