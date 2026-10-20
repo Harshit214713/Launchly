@@ -25,7 +25,7 @@ export type EditorStoreState = {
   moveColumn: (pageId: string, sectionId: string, columnId: string, targetIndex: number) => void;
   resizeColumn: (pageId: string, sectionId: string, columnId: string, device: 'desktop' | 'tablet' | 'mobile', width: number) => void;
   insertElement: (pageId: string, sectionId: string, columnId: string, element: SiteElement, index: number) => void;
-  moveElement: (pageId: string, sectionId: string, fromColumnId: string, elementId: string, toColumnId: string, targetIndex: number) => void;
+  moveElement: (pageId: string, fromSectionId: string, fromColumnId: string, elementId: string, toSectionId: string, toColumnId: string, targetIndex: number) => void;
   duplicateElement: (pageId: string, sectionId: string, columnId: string, elementId: string) => void;
   deleteElement: (pageId: string, sectionId: string, columnId: string, elementId: string) => void;
   updateElement: (pageId: string, sectionId: string, columnId: string, elementId: string, update: (element: SiteElement) => SiteElement, group?: string) => void;
@@ -166,16 +166,35 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
       elements.splice(Math.max(0, Math.min(index, elements.length)), 0, structuredClone(element));
       return { ...column, elements };
     })),
-    moveElement: (pageId, sectionId, fromColumnId, elementId, toColumnId, targetIndex) => commit(set, get, (document) => mapSection(document, pageId, sectionId, (section) => {
-      const columns = (section.columns || []).map((column) => ({ ...column, elements: [...column.elements] }));
-      const from = columns.find((column) => column.id === fromColumnId);
-      const to = columns.find((column) => column.id === toColumnId);
-      const index = from?.elements.findIndex((element) => element.id === elementId) ?? -1;
-      if (!from || !to || index < 0) return section;
-      const [element] = from.elements.splice(index, 1);
-      to.elements.splice(Math.max(0, Math.min(targetIndex, to.elements.length)), 0, element);
-      return { ...section, columns };
-    })),
+    moveElement: (pageId, fromSectionId, fromColumnId, elementId, toSectionId, toColumnId, targetIndex) => commit(set, get, (document) => {
+      const page = document.pages.find((entry) => entry.id === pageId);
+      const fromSection = page?.sections.find((section) => section.id === fromSectionId);
+      const toSection = page?.sections.find((section) => section.id === toSectionId);
+      if (!page || !fromSection || !toSection) return document;
+      const fromColumn = fromSection.columns?.find((column) => column.id === fromColumnId);
+      const toColumn = toSection.columns?.find((column) => column.id === toColumnId);
+      const elementIndex = fromColumn?.elements.findIndex((element) => element.id === elementId) ?? -1;
+      if (!fromColumn || !toColumn || elementIndex < 0) return document;
+      const element = fromColumn.elements[elementIndex];
+      if (fromSectionId === toSectionId) {
+        const columns = (fromSection.columns || []).map((column) => ({ ...column, elements: [...column.elements] }));
+        const from = columns.find((column) => column.id === fromColumnId);
+        const to = columns.find((column) => column.id === toColumnId);
+        if (!from || !to) return document;
+        const [moved] = from.elements.splice(elementIndex, 1);
+        to.elements.splice(Math.max(0, Math.min(targetIndex, to.elements.length)), 0, moved);
+        return { ...document, pages: document.pages.map((entry) => entry.id !== pageId ? entry : { ...entry, sections: entry.sections.map((section) => section.id === fromSectionId ? { ...section, columns } : section) }) };
+      }
+      const pages = document.pages.map((entry) => {
+        if (entry.id !== pageId) return entry;
+        return { ...entry, sections: entry.sections.map((section) => {
+          if (section.id === fromSectionId) return { ...section, columns: (section.columns || []).map((column) => column.id === fromColumnId ? { ...column, elements: column.elements.filter((_, index) => index !== elementIndex) } : column) };
+          if (section.id === toSectionId) return { ...section, columns: (section.columns || []).map((column) => column.id === toColumnId ? { ...column, elements: [...column.elements.slice(0, Math.max(0, targetIndex)), element, ...column.elements.slice(Math.max(0, targetIndex))] } : column) };
+          return section;
+        }) };
+      });
+      return { ...document, pages };
+    }),
     duplicateElement: (pageId, sectionId, columnId, elementId) => commit(set, get, (document) => mapColumn(document, pageId, sectionId, columnId, (column) => {
       const index = column.elements.findIndex((element) => element.id === elementId);
       if (index < 0) return column;

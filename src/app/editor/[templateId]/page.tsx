@@ -820,10 +820,15 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     if (activeData?.kind === 'element' && typeof activeData.sectionId === 'string' && typeof activeData.columnId === 'string' && typeof activeData.elementId === 'string') {
       if (!sections.some((section) => section.id === activeData.sectionId)) return;
       if (overData?.kind === 'column-drop' && typeof overData.sectionId === 'string' && typeof overData.columnId === 'string') {
-        editorStore.getState().moveElement(activePageId, activeData.sectionId, activeData.columnId, activeData.elementId, overData.columnId, Number(overData.index) || 0);
+        editorStore.getState().moveElement(activePageId, activeData.sectionId, activeData.columnId, activeData.elementId, overData.sectionId, overData.columnId, Number(overData.index) || 0);
       } else if (overData?.kind === 'element' && overData.sectionId === activeData.sectionId && typeof overData.columnId === 'string' && typeof overData.elementId === 'string') {
         const targetIndex = Number(overData.index) + (activeData.columnId === overData.columnId && Number(activeData.index) < Number(overData.index) ? 0 : 1);
-        editorStore.getState().moveElement(activePageId, activeData.sectionId, activeData.columnId, activeData.elementId, overData.columnId, targetIndex);
+        editorStore.getState().moveElement(activePageId, activeData.sectionId, activeData.columnId, activeData.elementId, overData.sectionId, overData.columnId, targetIndex);
+      } else if (overData?.kind === 'section-drop' && typeof overData.index === 'number') {
+        const page = editorStore.getState().document.pages.find((entry) => entry.id === activePageId);
+        const targetSection = page?.sections[Math.min(overData.index, Math.max(0, (page?.sections.length || 1) - 1))];
+        const targetColumn = targetSection?.columns?.[0];
+        if (targetSection && targetColumn) editorStore.getState().moveElement(activePageId, activeData.sectionId, activeData.columnId, activeData.elementId, targetSection.id, targetColumn.id, targetColumn.elements.length);
       }
       applyDocumentToEditor(editorStore.getState().document, activePageId);
       return;
