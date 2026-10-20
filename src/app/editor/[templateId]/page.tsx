@@ -1148,10 +1148,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 featuresContent={featuresContent}
                 testimonialsContent={testimonialsContent}
                 ctaContent={ctaContent}
-                setHeroContent={setHeroContent}
-                setFeaturesContent={setFeaturesContent}
-                setTestimonialsContent={setTestimonialsContent}
-                setCtaContent={setCtaContent}
+                onUpdateSectionContent={(sectionId, content) => setSections((items) => items.map((item) => item.id === sectionId ? { ...item, content } : item))}
                 onSelectSection={(id) => { setSelectedSection(id); setSelectedElementId(null); }}
                 onRenameSection={(id, name) => setSections((prev) => prev.map((section) => section.id === id ? { ...section, name } : section))}
                 assetUrl={assetUrl}
@@ -1190,7 +1187,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 sectionId={selectedSection}
                 sections={sections}
                 theme={theme}
-                setTheme={setTheme}
+                setSectionStyle={(style) => setSections((items) => items.map((item) => item.id === selectedSection ? { ...item, style: { ...item.style, ...style } } : item))}
                 sectionSpacing={sectionSpacing[selectedSection] || DEFAULT_SPACING}
                 setSectionSpacing={(nextSpacing) => setSectionSpacing((current) => ({ ...current, [selectedSection]: typeof nextSpacing === 'function' ? nextSpacing(current[selectedSection] || DEFAULT_SPACING) : nextSpacing }))}
               />
@@ -1445,10 +1442,7 @@ function CanvasContent({
   featuresContent,
   testimonialsContent,
   ctaContent,
-  setHeroContent,
-  setFeaturesContent,
-  setTestimonialsContent,
-  setCtaContent,
+  onUpdateSectionContent,
   onSelectSection,
   onRenameSection,
   assetUrl,
@@ -1470,10 +1464,7 @@ function CanvasContent({
   featuresContent: Array<{ title: string; desc: string }>;
   testimonialsContent: Array<{ quote: string; name: string; role: string }>;
   ctaContent: { title: string; desc: string; buttonText: string };
-  setHeroContent: React.Dispatch<React.SetStateAction<{ badge: string; title: string; description: string; ctaPrimary: string; ctaSecondary: string; stat1Label: string; stat1Value: string; stat2Label: string; stat2Value: string }>>;
-  setFeaturesContent: React.Dispatch<React.SetStateAction<Array<{ title: string; desc: string }>>>;
-  setTestimonialsContent: React.Dispatch<React.SetStateAction<Array<{ quote: string; name: string; role: string }>>>;
-  setCtaContent: React.Dispatch<React.SetStateAction<{ title: string; desc: string; buttonText: string }>>;
+  onUpdateSectionContent: (sectionId: string, content: Record<string, unknown>) => void;
   onSelectSection: (id: string) => void;
   onRenameSection: (id: string, name: string) => void;
   assetUrl: string;
@@ -1490,16 +1481,13 @@ function CanvasContent({
           onNavigatePage={onNavigatePage}
           spacing={sectionSpacing[section.id] || DEFAULT_SPACING}
           isSelected={selectedSection === section.id}
-          theme={theme}
+          theme={{ ...theme, primaryColor: section.style?.accentColor || theme.primaryColor, borderRadius: section.style?.borderRadius || theme.borderRadius }}
           siteTitle={siteTitle}
           heroContent={heroContent}
           featuresContent={featuresContent}
           testimonialsContent={testimonialsContent}
           ctaContent={ctaContent}
-          setHeroContent={setHeroContent}
-          setFeaturesContent={setFeaturesContent}
-          setTestimonialsContent={setTestimonialsContent}
-          setCtaContent={setCtaContent}
+          onUpdateSectionContent={onUpdateSectionContent}
           onSelect={() => onSelectSection(section.id)}
           onRename={(name) => onRenameSection(section.id, name)}
           assetUrl={assetUrl}
@@ -1542,10 +1530,7 @@ function SectionRenderer({
   featuresContent,
   testimonialsContent,
   ctaContent,
-  setHeroContent,
-  setFeaturesContent,
-  setTestimonialsContent,
-  setCtaContent,
+  onUpdateSectionContent,
   onSelect,
   onRename,
   assetUrl,
@@ -1563,19 +1548,38 @@ function SectionRenderer({
   featuresContent: Array<{ title: string; desc: string }>;
   testimonialsContent: Array<{ quote: string; name: string; role: string }>;
   ctaContent: { title: string; desc: string; buttonText: string };
-  setHeroContent: React.Dispatch<React.SetStateAction<{ badge: string; title: string; description: string; ctaPrimary: string; ctaSecondary: string; stat1Label: string; stat1Value: string; stat2Label: string; stat2Value: string }>>;
-  setFeaturesContent: React.Dispatch<React.SetStateAction<Array<{ title: string; desc: string }>>>;
-  setTestimonialsContent: React.Dispatch<React.SetStateAction<Array<{ quote: string; name: string; role: string }>>>;
-  setCtaContent: React.Dispatch<React.SetStateAction<{ title: string; desc: string; buttonText: string }>>;
+  onUpdateSectionContent: (sectionId: string, content: Record<string, unknown>) => void;
   onSelect: () => void;
   onRename: (name: string) => void;
   assetUrl: string;
   logoUrl: string;
   deviceMode: DeviceMode;
 }) {
+  const sectionContent = section.content || {};
+  const sectionHero = { ...heroContent, ...(sectionContent as Partial<typeof heroContent>) } as typeof heroContent;
+  const sectionFeatures = Array.isArray(sectionContent.items) ? sectionContent.items as typeof featuresContent : featuresContent;
+  const sectionTestimonials = Array.isArray(sectionContent.items) ? sectionContent.items as typeof testimonialsContent : testimonialsContent;
+  const sectionCta = { ...ctaContent, ...(sectionContent as Partial<typeof ctaContent>) };
+  const setHero = (update: React.SetStateAction<typeof heroContent>) => {
+    const next = typeof update === 'function' ? update(sectionHero) : update;
+    onUpdateSectionContent(section.id, { ...sectionContent, ...next });
+  };
+  const setFeatures = (update: React.SetStateAction<typeof featuresContent>) => {
+    const next = typeof update === 'function' ? update(sectionFeatures) : update;
+    onUpdateSectionContent(section.id, { ...sectionContent, items: next });
+  };
+  const setTestimonials = (update: React.SetStateAction<typeof testimonialsContent>) => {
+    const next = typeof update === 'function' ? update(sectionTestimonials) : update;
+    onUpdateSectionContent(section.id, { ...sectionContent, items: next });
+  };
+  const setCta = (update: React.SetStateAction<typeof ctaContent>) => {
+    const next = typeof update === 'function' ? update(sectionCta) : update;
+    onUpdateSectionContent(section.id, { ...sectionContent, ...next });
+  };
+  const heading = typeof sectionContent.heading === 'string' ? sectionContent.heading : section.name;
   return (
     <div
-      style={{ padding: `${spacing.top}px ${spacing.right}px ${spacing.bottom}px ${spacing.left}px` }}
+      style={{ padding: `${spacing.top}px ${spacing.right}px ${spacing.bottom}px ${spacing.left}px`, backgroundColor: section.style?.backgroundColor, color: section.style?.overrides?.[deviceMode]?.color as string | undefined }}
       className={cn(
         'relative group cursor-pointer transition-all',
         isSelected && 'outline-[3px] outline-pink outline-offset-[-3px] shadow-[inset_0_0_0_2px_#000]'
@@ -1634,9 +1638,9 @@ function SectionRenderer({
               style={{ backgroundColor: theme.primaryColor }}
               contentEditable
               suppressContentEditableWarning
-              onInput={(e) => setHeroContent((prev) => ({ ...prev, badge: (e.target as HTMLElement).innerText }))}
+              onInput={(e) => setHero((prev) => ({ ...prev, badge: (e.target as HTMLElement).innerText }))}
             >
-              <span>{heroContent.badge}</span>
+              <span>{sectionHero.badge}</span>
             </div>
 
             {/* Editable Headline */}
@@ -1644,9 +1648,9 @@ function SectionRenderer({
               className="font-display text-2xl sm:text-5xl font-black tracking-tight leading-tight outline-none focus:ring-2 focus:ring-pink rounded-lg p-1"
               contentEditable
               suppressContentEditableWarning
-              onInput={(e) => setHeroContent((prev) => ({ ...prev, title: (e.target as HTMLElement).innerText }))}
+              onInput={(e) => setHero((prev) => ({ ...prev, title: (e.target as HTMLElement).innerText }))}
             >
-              {heroContent.title}
+              {sectionHero.title}
             </h1>
 
             {/* Editable Description */}
@@ -1654,9 +1658,9 @@ function SectionRenderer({
               className="font-mono text-xs sm:text-sm opacity-80 max-w-lg mx-auto leading-relaxed outline-none focus:ring-2 focus:ring-pink rounded-lg p-1"
               contentEditable
               suppressContentEditableWarning
-              onInput={(e) => setHeroContent((prev) => ({ ...prev, description: (e.target as HTMLElement).innerText }))}
+              onInput={(e) => setHero((prev) => ({ ...prev, description: (e.target as HTMLElement).innerText }))}
             >
-              {heroContent.description}
+              {sectionHero.description}
             </p>
 
             {/* Action Buttons */}
@@ -1666,30 +1670,30 @@ function SectionRenderer({
                 style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
                 className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-black font-display text-xs sm:text-sm font-black text-black shadow-[2.5px_2.5px_0px_#000] flex items-center gap-1.5 cursor-pointer"
               >
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, ctaPrimary: (e.target as HTMLElement).innerText }))}>{heroContent.ctaPrimary}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHero((prev) => ({ ...prev, ctaPrimary: (e.target as HTMLElement).innerText }))}>{sectionHero.ctaPrimary}</span>
                 <ArrowUpRight size={14} className="stroke-[3]" />
               </button>
               <button
                 type="button"
                 className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl border-2 border-current bg-white/10 hover:bg-white/20 font-mono text-xs sm:text-sm font-bold transition-all cursor-pointer"
               >
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, ctaSecondary: (e.target as HTMLElement).innerText }))}>{heroContent.ctaSecondary}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHero((prev) => ({ ...prev, ctaSecondary: (e.target as HTMLElement).innerText }))}>{sectionHero.ctaSecondary}</span>
               </button>
             </div>
 
             {/* Live Telemetry Radar Pills */}
             <div className="pt-4 sm:pt-6 grid grid-cols-2 gap-2 sm:gap-3 max-w-md mx-auto text-left">
               <div className="rounded-xl border border-current/20 bg-white/5 p-2.5 sm:p-3 backdrop-blur-sm">
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat1Label: (e.target as HTMLElement).innerText }))} className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
-                  {heroContent.stat1Label}
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHero((prev) => ({ ...prev, stat1Label: (e.target as HTMLElement).innerText }))} className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
+                  {sectionHero.stat1Label}
                 </span>
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat1Value: (e.target as HTMLElement).innerText }))} className="font-display text-sm sm:text-base font-black">{heroContent.stat1Value}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHero((prev) => ({ ...prev, stat1Value: (e.target as HTMLElement).innerText }))} className="font-display text-sm sm:text-base font-black">{sectionHero.stat1Value}</span>
               </div>
               <div className="rounded-xl border border-current/20 bg-white/5 p-2.5 sm:p-3 backdrop-blur-sm">
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat2Label: (e.target as HTMLElement).innerText }))} className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
-                  {heroContent.stat2Label}
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHero((prev) => ({ ...prev, stat2Label: (e.target as HTMLElement).innerText }))} className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
+                  {sectionHero.stat2Label}
                 </span>
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat2Value: (e.target as HTMLElement).innerText }))} className="font-display text-sm sm:text-base font-black">{heroContent.stat2Value}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHero((prev) => ({ ...prev, stat2Value: (e.target as HTMLElement).innerText }))} className="font-display text-sm sm:text-base font-black">{sectionHero.stat2Value}</span>
               </div>
             </div>
           </div>
@@ -1700,13 +1704,13 @@ function SectionRenderer({
       {section.type === 'features' && (
         <div className="py-12 sm:py-16 px-4 sm:px-12 bg-white text-black border-y-2 border-black/10">
           <div className="text-center max-w-xl mx-auto mb-8 space-y-1">
-            <h2 className="font-display text-xl sm:text-3xl font-black tracking-tight" contentEditable suppressContentEditableWarning onInput={(e) => onRename((e.target as HTMLElement).innerText)}>
-              Engineered for hyper-scale precision.
+            <h2 className="font-display text-xl sm:text-3xl font-black tracking-tight" contentEditable suppressContentEditableWarning onInput={(e) => onUpdateSectionContent(section.id, { ...sectionContent, heading: (e.target as HTMLElement).innerText })}>
+              {heading === section.name ? 'Engineered for hyper-scale precision.' : heading}
             </h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 max-w-4xl mx-auto">
-            {featuresContent.map((f: { title: string; desc: string }, i: number) => (
+            {sectionFeatures.map((f: { title: string; desc: string }, i: number) => (
               <div
                 key={i}
                 className="p-4 sm:p-5 rounded-2xl border-2 border-black bg-[#FAF9F6] shadow-[3px_3px_0px_#000] sm:shadow-[4px_4px_0px_#000]"
@@ -1717,10 +1721,10 @@ function SectionRenderer({
                 >
                   0{i + 1}
                 </div>
-                <h3 className="font-display font-black text-sm sm:text-base mb-1" contentEditable suppressContentEditableWarning onInput={(e) => setFeaturesContent((prev) => prev.map((item, index) => index === i ? { ...item, title: (e.target as HTMLElement).innerText } : item))}>
+                <h3 className="font-display font-black text-sm sm:text-base mb-1" contentEditable suppressContentEditableWarning onInput={(e) => setFeatures((prev) => prev.map((item, index) => index === i ? { ...item, title: (e.target as HTMLElement).innerText } : item))}>
                   {f.title}
                 </h3>
-                <p className="font-mono text-xs text-neutral-600 leading-relaxed" contentEditable suppressContentEditableWarning onInput={(e) => setFeaturesContent((prev) => prev.map((item, index) => index === i ? { ...item, desc: (e.target as HTMLElement).innerText } : item))}>
+                <p className="font-mono text-xs text-neutral-600 leading-relaxed" contentEditable suppressContentEditableWarning onInput={(e) => setFeatures((prev) => prev.map((item, index) => index === i ? { ...item, desc: (e.target as HTMLElement).innerText } : item))}>
                   {f.desc}
                 </p>
               </div>
@@ -1733,20 +1737,20 @@ function SectionRenderer({
       {section.type === 'testimonials' && (
         <div className="py-12 sm:py-16 px-4 sm:px-12 bg-[#FFFDF8] text-black">
           <div className="text-center max-w-xl mx-auto mb-8">
-            <h2 className="font-display text-xl sm:text-3xl font-black" contentEditable suppressContentEditableWarning onInput={(e) => onRename((e.target as HTMLElement).innerText)}>
-              Trusted by world-class teams.
+            <h2 className="font-display text-xl sm:text-3xl font-black" contentEditable suppressContentEditableWarning onInput={(e) => onUpdateSectionContent(section.id, { ...sectionContent, heading: (e.target as HTMLElement).innerText })}>
+              {heading === section.name ? 'Trusted by world-class teams.' : heading}
             </h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 max-w-3xl mx-auto">
-            {testimonialsContent.map((item: { quote: string; name: string; role: string }, idx: number) => (
+            {sectionTestimonials.map((item: { quote: string; name: string; role: string }, idx: number) => (
               <div key={idx} className="p-4 sm:p-6 rounded-2xl border-2 border-black bg-white shadow-[3px_3px_0px_#000] sm:shadow-[4px_4px_0px_#000] flex flex-col justify-between">
                 <div className="flex gap-1 mb-2.5">
                   {[...Array(5)].map((_, i) => (
                     <Star key={i} size={13} className="fill-yellow text-black stroke-[1.5]" />
                   ))}
                 </div>
-                <p className="font-mono text-xs sm:text-[13px] leading-relaxed mb-4 text-neutral-800" contentEditable suppressContentEditableWarning onInput={(e) => setTestimonialsContent((prev) => prev.map((item, index) => index === idx ? { ...item, quote: (e.target as HTMLElement).innerText.replace(/[“”\"]/g, '') } : item))}>
+                <p className="font-mono text-xs sm:text-[13px] leading-relaxed mb-4 text-neutral-800" contentEditable suppressContentEditableWarning onInput={(e) => setTestimonials((prev) => prev.map((item, index) => index === idx ? { ...item, quote: (e.target as HTMLElement).innerText.replace(/[“”\"]/g, '') } : item))}>
                   &ldquo;{item.quote}&rdquo;
                 </p>
                 <div className="pt-3 border-t border-black/10 flex items-center gap-2">
@@ -1754,8 +1758,8 @@ function SectionRenderer({
                     {item.name.charAt(0)}
                   </div>
                   <div>
-                    <h4 contentEditable suppressContentEditableWarning onInput={(e) => setTestimonialsContent((prev) => prev.map((entry, index) => index === idx ? { ...entry, name: (e.target as HTMLElement).innerText } : entry))} className="font-display font-black text-xs text-black">{item.name}</h4>
-                    <p contentEditable suppressContentEditableWarning onInput={(e) => setTestimonialsContent((prev) => prev.map((entry, index) => index === idx ? { ...entry, role: (e.target as HTMLElement).innerText } : entry))} className="font-mono text-[9px] sm:text-[10px] text-neutral-500">{item.role}</p>
+                    <h4 contentEditable suppressContentEditableWarning onInput={(e) => setTestimonials((prev) => prev.map((entry, index) => index === idx ? { ...entry, name: (e.target as HTMLElement).innerText } : entry))} className="font-display font-black text-xs text-black">{item.name}</h4>
+                    <p contentEditable suppressContentEditableWarning onInput={(e) => setTestimonials((prev) => prev.map((entry, index) => index === idx ? { ...entry, role: (e.target as HTMLElement).innerText } : entry))} className="font-mono text-[9px] sm:text-[10px] text-neutral-500">{item.role}</p>
                   </div>
                 </div>
               </div>
@@ -1768,11 +1772,11 @@ function SectionRenderer({
       {section.type === 'cta' && (
         <div className="py-12 sm:py-16 px-4 sm:px-12 bg-black text-white text-center relative overflow-hidden">
           <div className="relative z-10 max-w-lg mx-auto space-y-3">
-            <h2 className="font-display text-xl sm:text-3xl font-black" contentEditable suppressContentEditableWarning onInput={(e) => setCtaContent((prev) => ({ ...prev, title: (e.target as HTMLElement).innerText }))}>
-              {ctaContent.title}
+            <h2 className="font-display text-xl sm:text-3xl font-black" contentEditable suppressContentEditableWarning onInput={(e) => setCta((prev) => ({ ...prev, title: (e.target as HTMLElement).innerText }))}>
+              {sectionCta.title}
             </h2>
-            <p className="font-mono text-xs sm:text-sm text-neutral-400" contentEditable suppressContentEditableWarning onInput={(e) => setCtaContent((prev) => ({ ...prev, desc: (e.target as HTMLElement).innerText }))}>
-              {ctaContent.desc}
+            <p className="font-mono text-xs sm:text-sm text-neutral-400" contentEditable suppressContentEditableWarning onInput={(e) => setCta((prev) => ({ ...prev, desc: (e.target as HTMLElement).innerText }))}>
+              {sectionCta.desc}
             </p>
             <div className="pt-2">
               <button
@@ -1780,7 +1784,7 @@ function SectionRenderer({
                 style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
                 className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-white font-display text-xs sm:text-sm font-black text-black shadow-[3px_3px_0px_#FFFFFF] cursor-pointer"
               >
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setCtaContent((prev) => ({ ...prev, buttonText: (e.target as HTMLElement).innerText }))}>{ctaContent.buttonText}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setCta((prev) => ({ ...prev, buttonText: (e.target as HTMLElement).innerText }))}>{sectionCta.buttonText}</span>
               </button>
             </div>
           </div>
@@ -1852,14 +1856,14 @@ function SectionProperties({
   sectionId,
   sections,
   theme,
-  setTheme,
+  setSectionStyle,
   sectionSpacing,
   setSectionSpacing,
 }: {
   sectionId: string;
   sections: Section[];
   theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
-  setTheme: React.Dispatch<React.SetStateAction<{ primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string }>>;
+  setSectionStyle: (style: Partial<SectionStyle>) => void;
   sectionSpacing: SectionSpacing;
   setSectionSpacing: React.Dispatch<React.SetStateAction<SectionSpacing>>;
 }) {
@@ -1922,14 +1926,14 @@ function SectionProperties({
         <div className="flex items-center gap-2 rounded-xl border-2 border-black bg-white p-2">
           <input
             type="color"
-            value={theme.primaryColor}
-            onChange={(e) => setTheme(prev => ({ ...prev, primaryColor: e.target.value }))}
+            value={section.style?.accentColor || theme.primaryColor}
+            onChange={(e) => setSectionStyle({ accentColor: e.target.value })}
             className="w-8 h-8 rounded-lg border border-black cursor-pointer p-0.5"
           />
           <input
             type="text"
-            value={theme.primaryColor}
-            onChange={(e) => setTheme(prev => ({ ...prev, primaryColor: e.target.value }))}
+            value={section.style?.accentColor || theme.primaryColor}
+            onChange={(e) => setSectionStyle({ accentColor: e.target.value })}
             className="flex-1 font-mono text-xs font-bold text-black outline-none uppercase"
           />
         </div>
@@ -1945,10 +1949,10 @@ function SectionProperties({
             <button
               key={r}
               type="button"
-              onClick={() => setTheme(prev => ({ ...prev, borderRadius: r }))}
+              onClick={() => setSectionStyle({ borderRadius: r })}
               className={cn(
                 'py-1.5 rounded-lg border-2 border-black font-mono text-[10px] font-black cursor-pointer transition-all',
-                theme.borderRadius === r ? 'bg-pink text-black shadow-2xs' : 'bg-white hover:bg-neutral-100'
+                (section.style?.borderRadius || theme.borderRadius) === r ? 'bg-pink text-black shadow-2xs' : 'bg-white hover:bg-neutral-100'
               )}
             >
               {r === '9999px' ? 'Pill' : r}
@@ -1956,6 +1960,9 @@ function SectionProperties({
           ))}
         </div>
       </div>
+      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Section background
+        <span className="mt-1 flex items-center gap-2 rounded-xl border-2 border-black bg-white p-2"><input type="color" value={section.style?.backgroundColor || '#ffffff'} onChange={(event) => setSectionStyle({ backgroundColor: event.target.value })} aria-label="Section background color" className="h-8 w-9 rounded border border-black" /><input value={section.style?.backgroundColor || ''} onChange={(event) => setSectionStyle({ backgroundColor: event.target.value || undefined })} placeholder="Use theme default" className="min-w-0 flex-1 font-mono text-xs font-bold uppercase" /></span>
+      </label>
     </div>
   );
 }

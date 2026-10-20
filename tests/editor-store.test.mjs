@@ -36,6 +36,23 @@ test('sections can be duplicated, reordered, and removed', () => {
   assert.equal(store.getState().document.pages[0].sections.length, 2);
 });
 
+test('section content and styles are independent and undoable per block', () => {
+  const store = createEditorStore(fixture());
+  store.getState().duplicateSection('home', 'hero');
+  const duplicateId = store.getState().document.pages[0].sections[1].id;
+  store.getState().updateSection('home', duplicateId, (section) => ({
+    ...section,
+    content: { ...section.content, title: 'Separate headline' },
+    style: { ...section.style, accentColor: '#00aa66' },
+  }));
+  const sections = store.getState().document.pages[0].sections;
+  assert.equal(sections[0].content.title, 'Hello');
+  assert.equal(sections[1].content.title, 'Separate headline');
+  assert.equal(sections[1].style.accentColor, '#00aa66');
+  store.getState().undo();
+  assert.notEqual(store.getState().document.pages[0].sections[1].content.title, 'Separate headline');
+});
+
 test('page CRUD enforces unique slugs and keeps a home page', () => {
   const store = createEditorStore(fixture());
   const firstId = store.getState().addPage('About', [makeSection('hero', 'about-hero')]);
