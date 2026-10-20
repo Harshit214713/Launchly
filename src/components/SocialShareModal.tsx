@@ -102,9 +102,9 @@ export default function SocialShareModal({
   };
 
   const handleShareTwitter = () => {
-    const text = `Just crafted "${title}" on @Launchly! Check out the live experience:`;
+    const text = `Just crafted "${title}" on Launchly (by @simplyvardaan_)! Check out the live experience:`;
     window.open(
-      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(targetSiteUrl)}`,
+      `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(targetSiteUrl)}`,
       '_blank'
     );
   };
@@ -142,6 +142,8 @@ export default function SocialShareModal({
 
 <!-- Twitter / X -->
 <meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:site" content="@simplyvardaan_" />
+<meta name="twitter:creator" content="@simplyvardaan_" />
 <meta name="twitter:url" content="${targetSiteUrl}" />
 <meta name="twitter:title" content="${title}" />
 <meta name="twitter:description" content="${desc}" />
@@ -284,7 +286,7 @@ export default function SocialShareModal({
                     <span className="text-muted-foreground font-mono text-[10px]">@builder</span>
                   </div>
                   <p className="text-[11px] text-ink">
-                    Just deployed our new web experience with @Launchly! Check out the live build 👇
+                    Just deployed our new web experience with @simplyvardaan_! Check out the live build 👇
                   </p>
                 </div>
               </div>
