@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSiteDocument, makeSection, migrateSiteDocument } from '../src/lib/siteDocument.ts';
+import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument } from '../src/lib/siteDocument.ts';
 import { createEditorStore } from '../src/store/editorStore.ts';
 import { blockRegistry } from '../src/lib/blockRegistry.ts';
 
@@ -128,4 +128,19 @@ test('menu edits retain external links and synchronize page visibility', () => {
   assert.equal(document.menu[0].target.type, 'url');
   store.getState().setMenu([document.menu[0]]);
   assert.equal(store.getState().document.pages.find((page) => page.id === pageId)?.showInMenu, false);
+});
+
+test('renamed slugs survive editor projections for redirect handling', () => {
+  const original = fixture();
+  const store = createEditorStore(original);
+  const pageId = store.getState().addPage('About', [makeSection('hero', 'about-hero')]);
+  store.getState().setPageSlug(pageId, 'our-story');
+  const current = store.getState().document;
+  const projection = createSiteDocument({
+    id: current.id, name: current.name, templateId: current.templateId, theme: current.theme,
+    sections: current.pages[0].sections, pages: current.pages.map((page) => ({ id: page.id, title: page.title, description: page.seo.description, slug: page.slug, isHome: page.isHome, showInMenu: page.showInMenu, noindex: page.seo.noindex, oldSlugs: page.oldSlugs })),
+    hero: current.content.hero, features: current.content.features, testimonials: current.content.testimonials, cta: current.content.cta,
+  });
+  const merged = mergeEditorProjection(current, projection, 'home');
+  assert.deepEqual(merged.pages.find((page) => page.id === pageId)?.oldSlugs, ['/about']);
 });

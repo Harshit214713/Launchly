@@ -110,7 +110,7 @@ export function createSiteDocument(input: {
   cta: { title: string; desc: string; buttonText: string };
   sectionSpacing?: Record<string, { top?: number; right?: number; bottom?: number; left?: number }>;
   elements?: SitePage['elements'];
-  pages?: Array<{ id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; noindex?: boolean; useSharedHeader?: boolean; useSharedFooter?: boolean }>;
+  pages?: Array<{ id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; noindex?: boolean; ogImage?: string; seoTitle?: string; useSharedHeader?: boolean; useSharedFooter?: boolean; oldSlugs?: string[] }>;
   assetUrl?: string; logoUrl?: string; faviconUrl?: string;
 }): SiteDocument {
   const primaryColor = input.theme.primaryColor || '#FF5588';
@@ -123,11 +123,11 @@ export function createSiteDocument(input: {
     return { ...section, hidden: { ...section.hidden, ...entry.hidden }, locked: entry.locked ?? section.locked, anchorId: entry.anchorId, customClass: entry.customClass };
   });
   const homeMeta = input.pages?.find((page) => page.isHome || page.id === 'home');
-  const home: SitePage = { id: 'home', slug: '/', title: homeMeta?.title || 'Home', isHome: true, showInMenu: false, seo: { title: input.name, description: homeMeta?.description || input.hero.description || '', ogImage: '', noindex: homeMeta?.noindex || false }, sections, elements: input.elements || [], useSharedHeader: true, useSharedFooter: true, oldSlugs: [] };
+  const home: SitePage = { id: 'home', slug: '/', title: homeMeta?.title || 'Home', isHome: true, showInMenu: false, seo: { title: homeMeta?.seoTitle || input.name, description: homeMeta?.description || input.hero.description || '', ogImage: homeMeta?.ogImage || '', noindex: homeMeta?.noindex || false }, sections, elements: input.elements || [], useSharedHeader: true, useSharedFooter: true, oldSlugs: homeMeta?.oldSlugs || [] };
   const additionalPages = (input.pages || []).filter((page) => page.id !== 'home').map((page) => {
     const slug = ids(page.id || page.title);
     const pageSlug = page.slug?.replace(/^\/+/, '') || slug;
-    return { id: page.id, slug: `/${pageSlug}`, title: page.title, isHome: false, showInMenu: page.showInMenu !== false, seo: { title: page.title, description: page.description, ogImage: '', noindex: page.noindex || false }, sections: [makeSection('hero', `${page.id}-hero`, 'Hero', {}, { title: page.title, description: page.description })], elements: [], useSharedHeader: page.useSharedHeader !== false, useSharedFooter: page.useSharedFooter !== false, oldSlugs: [] } satisfies SitePage;
+    return { id: page.id, slug: `/${pageSlug}`, title: page.title, isHome: false, showInMenu: page.showInMenu !== false, seo: { title: page.seoTitle || page.title, description: page.description, ogImage: page.ogImage || '', noindex: page.noindex || false }, sections: [makeSection('hero', `${page.id}-hero`, 'Hero', {}, { title: page.title, description: page.description })], elements: [], useSharedHeader: page.useSharedHeader !== false, useSharedFooter: page.useSharedFooter !== false, oldSlugs: page.oldSlugs || [] } satisfies SitePage;
   });
   const assets: SiteAsset[] = [];
   for (const [role, src] of [['product', input.assetUrl], ['logo', input.logoUrl], ['favicon', input.faviconUrl]] as const) if (src) assets.push({ id: `${role}-asset`, name: role, role, src, alt: role === 'logo' ? `${input.name} logo` : '' });

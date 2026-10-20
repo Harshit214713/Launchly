@@ -5,11 +5,12 @@ export default function proxy(request: NextRequest) {
   const host = request.headers.get('host') || '';
   const url = request.nextUrl.clone();
 
-  // Exclude API routes, Next.js internal assets, and static files
+  const isSiteSeoRoute = url.pathname === '/sitemap.xml' || url.pathname === '/robots.txt';
+  // Exclude API routes, Next.js internal assets, and ordinary static files
   if (
     url.pathname.startsWith('/api') ||
     url.pathname.startsWith('/_next') ||
-    url.pathname.includes('.')
+    (url.pathname.includes('.') && !isSiteSeoRoute)
   ) {
     return NextResponse.next();
   }
