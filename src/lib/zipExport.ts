@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import type { SiteDocument } from '@/lib/siteDocument';
 
 interface ExportTemplateParams {
   siteTitle: string;
@@ -26,6 +27,10 @@ interface ExportTemplateParams {
   logoUrl?: string;
   faviconUrl?: string;
   pages?: string[];
+  sitePages?: Array<{ id: string; title: string; description: string }>;
+  sectionSpacing?: Record<string, { top: number; bottom: number; left: number; right: number }>;
+  canvasElements?: Array<{ id: string; type: 'image' | 'icon'; name: string; src?: string; icon?: string; x: number; y: number; width: number; height: number }>;
+  document?: SiteDocument;
 }
 
 function safeCodeString(val: string): string {
@@ -62,7 +67,30 @@ export async function exportTemplateAsZip({
   logoUrl = '',
   faviconUrl = '',
   pages = [],
+  sitePages = [],
+  sectionSpacing = {},
+  canvasElements = [],
+  document,
 }: ExportTemplateParams): Promise<Blob> {
+  if (document) {
+    const home = document.pages.find((page) => page.isHome) || document.pages[0];
+    siteTitle = document.name;
+    templateId = document.templateId;
+    theme = { primaryColor: document.theme.primaryColor, bgColor: document.theme.bgColor, textColor: document.theme.textColor, fontFamily: document.theme.fontFamily, borderRadius: document.theme.radius };
+    heroContent = { ...heroContent, ...document.content.hero };
+    featuresContent = document.content.features;
+    testimonialsContent = document.content.testimonials;
+    ctaContent = document.content.cta;
+    sectionOrder = home?.sections.map((section) => section.type) || sectionOrder;
+    sectionNames = Object.fromEntries(home?.sections.map((section) => [section.type, section.name]) || []);
+    pages = document.pages.map((page) => page.title);
+    sitePages = document.pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo.description }));
+    sectionSpacing = Object.fromEntries(document.pages.flatMap((page) => page.sections.filter((section) => section.style.padding).map((section) => [section.id, { top: section.style.padding?.top || 0, right: section.style.padding?.right || 0, bottom: section.style.padding?.bottom || 0, left: section.style.padding?.left || 0 }])));
+    canvasElements = home?.elements || [];
+    assetUrl = document.assets.find((asset) => asset.role === 'product')?.src || '';
+    logoUrl = document.assets.find((asset) => asset.role === 'logo')?.src || '';
+    faviconUrl = document.assets.find((asset) => asset.role === 'favicon')?.src || '';
+  }
   const zip = new JSZip();
   const folderName = siteTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'launchly-site';
   const root = zip.folder(folderName) || zip;
@@ -86,6 +114,14 @@ export async function exportTemplateAsZip({
   };
   const logoPath = logoUrl.startsWith('data:image/') ? saveDataImage(logoUrl, 'site-logo') : logoUrl;
   const faviconPath = faviconUrl.startsWith('data:image/') ? saveDataImage(faviconUrl, 'favicon') : faviconUrl;
+  const exportElements = canvasElements.map((item, index) => {
+    let src = item.src || '';
+    if (src.startsWith('data:image/')) src = saveDataImage(src, `canvas-image-${index + 1}`);
+    const position = `position: 'absolute', left: ${Math.max(0,item.x)}, top: ${Math.max(0,item.y)}, width: ${Math.max(16,item.width)}, height: ${Math.max(16,item.height)}`;
+    if (item.type === 'image' || src) return `<img src="${safeCodeString(src)}" alt="${escapeJsxText(item.name)}" style={{ ${position} }} className="${item.type === 'image' ? 'rounded-lg object-cover' : 'object-contain'}" />`;
+    const icon = ['Star','Heart','Sparkles','Camera','CheckCircle2','ArrowUpRight'].includes(item.icon || '') ? item.icon : 'Star';
+    return `<${icon} aria-label="${escapeJsxText(item.name)}" style={{ ${position} }} />`;
+  }).join('\n      ');
 
   // 1. package.json
   const packageJson = {
@@ -222,7 +258,7 @@ export default function RootLayout({
 
   // 6. app/page.tsx. Render only the sections in the editor, in the same order.
   const sectionMarkup: Record<string, string> = {
-    nav: `<nav className="flex items-center justify-between px-6 py-5 border-b border-black/10"><a href="/" className="flex items-center gap-2 font-black text-lg">${logoPath ? `<img src="${safeCodeString(logoPath)}" alt="" className="h-9 w-9 object-contain" />` : ''}${escapeJsxText(siteTitle)}</a><div className="flex gap-5 text-sm"><a href="#collection">Collection</a><a href="#features">Details</a><a href="#contact">Contact</a>${pages.filter((page) => !/^home$/i.test(page)).map((page) => { const slug = page.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); return `<a href="/${slug}">${escapeJsxText(page)}</a>`; }).join('')}</div><div className="flex items-center gap-3"><span className="text-sm font-bold">Bag ({cartCount})</span><a href="#collection" className="rounded-lg px-4 py-2 font-bold text-black" style={{ backgroundColor: '${safeCodeString(theme.primaryColor)}' }}>Shop now</a></div></nav>`,
+    nav: `<nav className="flex items-center justify-between px-6 py-5 border-b border-black/10"><a href="/" className="flex items-center gap-2 font-black text-lg">${logoPath ? `<img src="${safeCodeString(logoPath)}" alt="" className="h-9 w-9 object-contain" />` : ''}${escapeJsxText(siteTitle)}</a><div className="flex gap-5 text-sm"><a href="#collection">Collection</a><a href="#features">Details</a><a href="#contact">Contact</a>${pages.filter((page) => !/^home$/i.test(page)).map((page) => { const slug = sitePages.find((entry) => entry.title === page)?.id || page.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); return `<a href="/${slug}">${escapeJsxText(page)}</a>`; }).join('')}</div><div className="flex items-center gap-3"><span className="text-sm font-bold">Bag ({cartCount})</span><a href="#collection" className="rounded-lg px-4 py-2 font-bold text-black" style={{ backgroundColor: '${safeCodeString(theme.primaryColor)}' }}>Shop now</a></div></nav>`,
     hero: `<section className="py-20 px-6 max-w-5xl mx-auto text-center"><span className="inline-block px-3 py-1 text-xs font-mono font-bold uppercase rounded-full mb-4 border" style={{ borderColor: '${safeCodeString(theme.primaryColor)}', color: '${safeCodeString(theme.primaryColor)}' }}>${escapeJsxText(heroContent.badge)}</span><h1 className="text-4xl sm:text-6xl font-black tracking-tight mb-6">${escapeJsxText(heroContent.title)}</h1><p className="text-lg opacity-80 max-w-2xl mx-auto mb-8">${escapeJsxText(heroContent.description)}</p><div className="flex items-center justify-center gap-4"><a href="#collection" className="px-6 py-3 rounded-xl font-bold shadow-md text-black" style={{ backgroundColor: '${safeCodeString(theme.primaryColor)}', borderRadius: '${safeCodeString(theme.borderRadius)}' }}>${escapeJsxText(heroContent.ctaPrimary)}</a><a href="#features" className="px-6 py-3 rounded-xl font-bold border opacity-80">${escapeJsxText(heroContent.ctaSecondary)}</a></div></section>`,
     gallery: `<section id="collection" className="py-16 px-6 max-w-5xl mx-auto"><p className="text-center text-xs uppercase tracking-widest mb-2" style={{ color: '${safeCodeString(theme.primaryColor)}' }}>Curated for you</p><h2 className="text-3xl font-black mb-8 text-center">${escapeJsxText(sectionNames.gallery || 'Featured pieces')}</h2><div className="grid sm:grid-cols-3 gap-5">${['Everyday Essential', 'Signature Piece', 'The New Classic'].map((name, i) => `<article className="rounded-2xl border border-black/10 bg-white overflow-hidden"><div className="h-40 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, ${safeCodeString(theme.primaryColor)}40, ${safeCodeString(theme.primaryColor)}10)' }}>${productImagePath ? `<img src="${safeCodeString(productImagePath.startsWith('http') ? productImagePath : `/${productImagePath}`)}" alt="${name}" className="w-full h-full object-cover" />` : `<span className="text-4xl font-black">0${i + 1}</span>`}</div><div className="p-4"><h3 className="font-bold">${name}</h3><p className="text-xs opacity-70 mt-1">Thoughtfully made for everyday use.</p><div className="mt-4 flex justify-between"><span className="font-black">$${[68, 124, 92][i]}.00</span><button onClick={() => setCartCount((count) => count + 1)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-black" style={{ backgroundColor: '${safeCodeString(theme.primaryColor)}' }}>Add to bag</button></div></div></article>`).join('')}</div></section>`,
     features: `<section id="features" className="py-16 px-6 max-w-5xl mx-auto border-t border-black/10"><h2 className="text-2xl font-black mb-8 text-center">${escapeJsxText(sectionNames.features || 'Made for the details')}</h2><div className="grid md:grid-cols-3 gap-6">${featuresContent.map((f) => `<article className="p-6 rounded-2xl border border-black/10 bg-white" style={{ borderRadius: '${safeCodeString(theme.borderRadius)}' }}><h3 className="text-lg font-bold mb-2">${escapeJsxText(f.title)}</h3><p className="text-sm opacity-70">${escapeJsxText(f.desc)}</p></article>`).join('')}</div></section>`,
@@ -233,11 +269,17 @@ export default function RootLayout({
     contact: `<section id="contact" className="py-16 px-6 text-center"><h2 className="text-3xl font-black mb-3">${escapeJsxText(sectionNames.contact || 'Get in touch')}</h2><p className="opacity-70">Questions about an order? Email us at hello@example.com.</p></section>`,
   };
   const orderedSections = sectionOrder
-    .map((id) => id.startsWith('section-') ? id.split('-')[1] : id)
-    .map((type) => sectionMarkup[type])
+    .map((id) => {
+      const type = id.startsWith('section-') ? id.split('-')[1] : id;
+      const markup = sectionMarkup[type];
+      if (!markup) return '';
+      const spacing = sectionSpacing[id];
+      return spacing ? `<div style={{ padding: '${spacing.top}px ${spacing.right}px ${spacing.bottom}px ${spacing.left}px' }}>${markup}</div>` : markup;
+    })
     .filter(Boolean)
     .join('\n');
   const pageTsx = `'use client';
+import { Star, Heart, Sparkles, Camera, CheckCircle2, ArrowUpRight } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Page() {
@@ -245,15 +287,17 @@ export default function Page() {
   return (
     <main className="min-h-screen" style={{ backgroundColor: '${safeCodeString(theme.bgColor)}', color: '${safeCodeString(theme.textColor)}', fontFamily: '${safeCodeString(theme.fontFamily)}' }}>
       ${orderedSections}
+      ${exportElements}
     </main>
   );
 }
 `;
   root.file('src/app/page.tsx', pageTsx);
   for (const pageName of pages.filter((page) => !/^home$/i.test(page))) {
-    const slug = pageName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const slug = sitePages.find((entry) => entry.title === pageName)?.id || pageName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     if (!slug) continue;
     const safePageName = escapeJsxText(pageName);
+    const pageDescription = escapeJsxText(sitePages.find((entry) => entry.title === pageName)?.description || `${pageName} at ${siteTitle}. Explore considered details, thoughtful materials, and pieces made to be part of your everyday.`);
     const pageComponent = `'use client';
 import { useState } from 'react';
 
@@ -268,16 +312,16 @@ export default function TemplatePage() {
   const isAbout = '${slug}' === 'about';
 
   return (
-    <main className="min-h-screen bg-[${safeCodeString(theme.bgColor)}] text-[${safeCodeString(theme.textColor)}]" style={{ fontFamily: '${safeCodeString(theme.fontFamily)}' }}>
+    <main className="relative min-h-screen bg-[${safeCodeString(theme.bgColor)}] text-[${safeCodeString(theme.textColor)}]" style={{ fontFamily: '${safeCodeString(theme.fontFamily)}' }}>
       <header className="flex items-center justify-between border-b border-black/10 bg-white px-6 py-4 text-black">
         <a href="/" className="font-bold">${escapeJsxText(siteTitle)}</a>
-        <nav className="flex flex-wrap gap-4 text-sm"><a href="/">Home</a>${pages.filter((page) => !/^home$/i.test(page)).map((page) => { const pageSlug = page.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); return `<a href="/${pageSlug}">${escapeJsxText(page)}</a>`; }).join('')}</nav>
+        <nav className="flex flex-wrap gap-4 text-sm"><a href="/">Home</a>${pages.filter((page) => !/^home$/i.test(page)).map((page) => { const pageSlug = sitePages.find((entry) => entry.title === page)?.id || page.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); return `<a href="/${pageSlug}">${escapeJsxText(page)}</a>`; }).join('')}</nav>
         <a href="/cart" className="text-sm font-bold">Bag ({cartCount})</a>
       </header>
       <section className="mx-auto max-w-5xl px-6 py-14">
         <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: '${safeCodeString(theme.primaryColor)}' }}>${escapeJsxText(templateId)}</p>
         <h1 className="mt-2 text-4xl font-black">${safePageName}</h1>
-        <p className="mt-3 max-w-2xl opacity-75">${safePageName} at ${escapeJsxText(siteTitle)}. Explore considered details, thoughtful materials, and pieces made to be part of your everyday.</p>
+        <p className="mt-3 max-w-2xl opacity-75">${pageDescription}</p>
         {isAbout ? <article className="mt-10 rounded-2xl bg-white p-8 text-black"><h2 className="text-2xl font-black">Made with intention</h2><p className="mt-3 leading-relaxed">${escapeJsxText(heroContent.description)} We believe great design should feel personal, last beyond a season, and make the everyday more meaningful.</p></article> : isCheckout || isAccount ? <form className="mt-10 grid max-w-xl gap-4 rounded-2xl bg-white p-6 text-black" onSubmit={(event) => { event.preventDefault(); setMessage(isCheckout ? 'Your order details are ready.' : 'Your account request has been received.'); }}><h2 className="text-xl font-black">{isCheckout ? 'Delivery details' : 'Your account'}</h2><input required aria-label="Email address" type="email" placeholder="Email address" className="rounded-lg border border-black/20 px-4 py-3" />{isCheckout && <><input required aria-label="Full name" placeholder="Full name" className="rounded-lg border border-black/20 px-4 py-3" /><input required aria-label="Shipping address" placeholder="Shipping address" className="rounded-lg border border-black/20 px-4 py-3" /></>}<button className="rounded-lg px-5 py-3 font-bold text-black" style={{ backgroundColor: '${safeCodeString(theme.primaryColor)}' }}>{isCheckout ? 'Continue to payment' : 'Continue'}</button>{message && <p role="status">{message}</p>}</form> : isCart ? <div className="mt-10 rounded-2xl bg-white p-8 text-black"><h2 className="text-xl font-black">Your shopping bag</h2><p className="mt-3">{cartCount ? cartCount + ' item(s) in your bag.' : 'Your bag is ready for something special.'}</p><div className="mt-5 flex gap-3"><a className="rounded-lg border px-4 py-2" href="/shop">Continue shopping</a><a className="rounded-lg px-4 py-2 font-bold" style={{ backgroundColor: '${safeCodeString(theme.primaryColor)}' }} href="/checkout">Checkout</a></div></div> : <div className="mt-10 grid gap-5 sm:grid-cols-3">{products.map((product, index) => <article key={product} className="overflow-hidden rounded-2xl border border-black/10 bg-white text-black"><div className="flex h-40 items-center justify-center text-4xl font-black" style={{ background: 'linear-gradient(135deg, ${safeCodeString(theme.primaryColor)}55, ${safeCodeString(theme.primaryColor)}15)' }}>0{index + 1}</div><div className="p-5"><h2 className="font-bold">{product}</h2><p className="mt-1 text-sm opacity-70">Premium materials, made with care.</p><div className="mt-4 flex items-center justify-between"><strong>\${[68, 124, 92][index]}.00</strong><button type="button" onClick={() => { setCartCount((count) => count + 1); setMessage(product + ' added to your bag.'); }} className="rounded-lg px-3 py-2 text-xs font-bold" style={{ backgroundColor: '${safeCodeString(theme.primaryColor)}' }}>Add to bag</button></div></div></article>)}</div>}
         {message && !isCheckout && !isAccount && !isCart && <p role="status" className="mt-4 text-sm">{message}</p>}
       </section>

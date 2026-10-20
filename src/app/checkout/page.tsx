@@ -31,9 +31,16 @@ function CheckoutContent() {
   const inrAmount = billing === 'yearly' ? 11999 : 1499;
   const priceDisplay = billing === 'yearly' ? '₹11,999 / year ($159)' : '₹1,499 / month ($19)';
 
-  const [orderSessionId] = useState<string>(() => {
-    return `ORD_${Date.now().toString().slice(-6)}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-  });
+  // Keep the server and first client render identical; browser-only IDs are
+  // added after hydration so the UPI href cannot differ during SSR.
+  const [orderSessionId, setOrderSessionId] = useState('');
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setOrderSessionId(`ORD_${Date.now().toString().slice(-6)}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const [email, setEmail] = useState(emailParam || '');
   const [submitting, setSubmitting] = useState(false);

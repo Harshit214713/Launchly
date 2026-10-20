@@ -11,6 +11,7 @@ import {
   ArrowUpRight, 
   Star, 
   ChevronDown
+  , Heart, Sparkles, Camera, CheckCircle2
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 import { Template } from '@/types';
@@ -32,6 +33,10 @@ export default function LiveWebsitePage({
     { id: 'cta', name: 'Call to Action', type: 'cta' },
     { id: 'footer', name: 'Footer', type: 'footer' },
   ]);
+  const [sectionSpacing, setSectionSpacing] = useState<Record<string, { top: number; bottom: number; left: number; right: number }>>({});
+  const [canvasElements, setCanvasElements] = useState<Array<{ id: string; type: 'image' | 'icon'; name: string; src?: string; icon?: string; x: number; y: number; width: number; height: number }>>([]);
+  const [sitePages, setSitePages] = useState<Array<{ id: string; title: string; description: string }>>([]);
+  const [activePage, setActivePage] = useState('home');
   const [assetUrl, setAssetUrl] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [faviconUrl, setFaviconUrl] = useState('');
@@ -42,6 +47,10 @@ export default function LiveWebsitePage({
   const sectionOrder = (type: string) => Math.max(0, siteSections.findIndex((section) => section.type === type));
   const sectionVisible = (type: string) => siteSections.some((section) => section.type === type);
   const sectionName = (type: string, fallback: string) => siteSections.find((section) => section.type === type)?.name || fallback;
+  const sectionPadding = (type: string) => {
+    const spacing = sectionSpacing[siteSections.find((section) => section.type === type)?.id || ''];
+    return spacing ? { paddingTop: `${spacing.top}px`, paddingBottom: `${spacing.bottom}px`, paddingLeft: `${spacing.left}px`, paddingRight: `${spacing.right}px` } : {};
+  };
 
   // Template matching: match by subdomain or template id
   const template: Template = 
@@ -51,6 +60,12 @@ export default function LiveWebsitePage({
   const productNames = template.id === 'velvet-boutique'
     ? ['The Cashmere Coat', 'Velvet Evening Bag', 'Heirloom Gold Cuff']
     : ['Silk Column Dress', 'The Everyday Tote', 'Sculpted Gold Hoops'];
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const requestedPage = new URLSearchParams(window.location.search).get('page');
+    if (requestedPage) setActivePage(requestedPage);
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Theme & content state (will be populated from localStorage or API or template defaults)
   const [siteTitle, setSiteTitle] = useState(template.name);
@@ -125,12 +140,36 @@ export default function LiveWebsitePage({
       const data = (site.site_data || site.siteData) as Record<string, unknown> | undefined;
       if (typeof name === 'string') setSiteTitle(name);
       if (!data) return;
+      const nestedDocument = data.document && typeof data.document === 'object' ? data.document as Record<string, unknown> : data.version === 1 ? data : null;
+      if (nestedDocument) {
+        if (nestedDocument.name) setSiteTitle(String(nestedDocument.name));
+        if (nestedDocument.theme) setTheme(nestedDocument.theme as typeof theme);
+        const content = nestedDocument.content as Record<string, unknown> | undefined;
+        if (content?.hero) setHeroContent(content.hero as typeof heroContent);
+        if (content?.features) setFeaturesContent(content.features as typeof featuresContent);
+        if (content?.testimonials) setTestimonialsContent(content.testimonials as typeof testimonialsContent);
+        if (content?.cta) setCtaContent(content.cta as typeof ctaContent);
+        const pages = Array.isArray(nestedDocument.pages) ? nestedDocument.pages as Array<{ id: string; title: string; slug: string; isHome: boolean; seo?: { description?: string }; sections?: typeof siteSections; elements?: typeof canvasElements }> : [];
+        const homePage = pages.find((page) => page.isHome) || pages[0];
+        if (homePage?.sections?.length) setSiteSections(homePage.sections);
+        if (homePage?.elements) setCanvasElements(homePage.elements);
+        if (pages.length) setSitePages(pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo?.description || '' })));
+        const assets = Array.isArray(nestedDocument.assets) ? nestedDocument.assets as Array<{ role: string; src: string }> : [];
+        if (assets.length) {
+          setAssetUrl(assets.find((asset) => asset.role === 'product')?.src || '');
+          setLogoUrl(assets.find((asset) => asset.role === 'logo')?.src || '');
+          setFaviconUrl(assets.find((asset) => asset.role === 'favicon')?.src || '');
+        }
+      }
       if (data.theme) setTheme(data.theme as typeof theme);
       if (data.heroContent) setHeroContent(data.heroContent as typeof heroContent);
       if (data.featuresContent) setFeaturesContent(data.featuresContent as typeof featuresContent);
       if (data.testimonialsContent) setTestimonialsContent(data.testimonialsContent as typeof testimonialsContent);
       if (data.ctaContent) setCtaContent(data.ctaContent as typeof ctaContent);
       if (Array.isArray(data.sections) && data.sections.length) setSiteSections(data.sections as typeof siteSections);
+      if (data.sectionSpacing) setSectionSpacing(data.sectionSpacing as typeof sectionSpacing);
+      if (Array.isArray(data.canvasElements)) setCanvasElements(data.canvasElements as typeof canvasElements);
+      if (Array.isArray(data.sitePages)) setSitePages(data.sitePages as typeof sitePages);
       if (typeof data.assetUrl === 'string') setAssetUrl(data.assetUrl);
       if (typeof data.logoUrl === 'string') setLogoUrl(data.logoUrl);
       if (typeof data.faviconUrl === 'string') setFaviconUrl(data.faviconUrl);
@@ -149,6 +188,9 @@ export default function LiveWebsitePage({
         if (draft.testimonialsContent) setTestimonialsContent(draft.testimonialsContent);
         if (draft.ctaContent) setCtaContent(draft.ctaContent);
         if (draft.sections?.length) setSiteSections(draft.sections);
+        if (draft.sectionSpacing) setSectionSpacing(draft.sectionSpacing);
+        if (Array.isArray(draft.canvasElements)) setCanvasElements(draft.canvasElements as typeof canvasElements);
+        if (Array.isArray(draft.sitePages)) setSitePages(draft.sitePages as typeof sitePages);
         if (draft.assetUrl) setAssetUrl(draft.assetUrl);
         if (draft.logoUrl) setLogoUrl(draft.logoUrl);
         if (draft.faviconUrl) setFaviconUrl(draft.faviconUrl);
@@ -271,9 +313,9 @@ export default function LiveWebsitePage({
       )}
 
       {/* ACTUAL LIVE WEBSITE SURFACE — 100% Identical to Editor Preview Canvas */}
-      <main className="flex flex-col flex-1 pt-12 sm:pt-13">
+      <main className="relative flex flex-col flex-1 pt-12 sm:pt-13">
         {/* Navigation Block */}
-        <nav style={{ order: sectionOrder('nav'), display: sectionVisible('nav') ? undefined : 'none' }} className="flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 border-black/10 bg-white/90 backdrop-blur-md sticky top-12 z-40">
+        <nav style={{ order: sectionOrder('nav'), display: sectionVisible('nav') ? undefined : 'none', ...sectionPadding('nav') }} className="flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 border-black/10 bg-white/90 backdrop-blur-md sticky top-12 z-40">
           <div className="flex items-center gap-2.5">
             {logoUrl ? <Image src={logoUrl} alt={`${siteTitle} logo`} width={36} height={36} unoptimized className="h-9 w-9 rounded-lg object-contain" /> : <div
               style={{ backgroundColor: theme.primaryColor }}
@@ -287,13 +329,13 @@ export default function LiveWebsitePage({
           </div>
 
           <div className="hidden sm:flex items-center gap-6 font-mono text-xs font-bold text-neutral-700">
-            {['Home', 'Collection', 'Features', 'Showcase'].map(item => (
-              <a 
-                key={item} 
-                href={`#${item.toLowerCase()}`}
+            {(sitePages.length ? sitePages : template.pages.map((title, index) => ({ id: index ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'home', title, description: '' }))).map(item => (
+              <a
+                key={item.id}
+                href={item.id === 'home' ? `/live/${subdomain}` : `/live/${subdomain}?page=${encodeURIComponent(item.id)}`}
                 className="hover:text-black hover:underline cursor-pointer transition-colors"
               >
-                {item}
+                {item.title}
               </a>
             ))}
           </div>
@@ -307,11 +349,13 @@ export default function LiveWebsitePage({
           </a>
         </nav>
 
+        {activePage === 'home' ? <>
+
         {/* Hero Block — Rich Ambient Lighting, Vibrant Neo-Brutalist Badges, Crisp Typography */}
         <section
           id="home"
           className="py-16 sm:py-28 px-4 sm:px-12 text-center relative overflow-hidden"
-          style={{ order: sectionOrder('hero'), display: sectionVisible('hero') ? undefined : 'none', background: theme.bgColor, color: theme.textColor }}
+          style={{ order: sectionOrder('hero'), display: sectionVisible('hero') ? undefined : 'none', background: theme.bgColor, color: theme.textColor, ...sectionPadding('hero') }}
         >
           {/* Subtle Ambient Radial Glow */}
           <div
@@ -381,7 +425,7 @@ export default function LiveWebsitePage({
           </div>
         </section>
 
-        <section id="collection" style={{ order: sectionOrder('gallery'), display: sectionVisible('gallery') ? undefined : 'none' }} className="py-14 px-4 sm:px-12 bg-[#FAF9F6] text-black">
+        <section id="collection" style={{ order: sectionOrder('gallery'), display: sectionVisible('gallery') ? undefined : 'none', ...sectionPadding('gallery') }} className="py-14 px-4 sm:px-12 bg-[#FAF9F6] text-black">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-8"><p className="font-mono text-[10px] uppercase tracking-widest" style={{ color: theme.primaryColor }}>Curated for you</p><h2 className="font-display text-2xl sm:text-3xl font-black mt-1">{sectionName('gallery', 'Featured pieces')}</h2></div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -403,7 +447,7 @@ export default function LiveWebsitePage({
         </section>
 
         {/* Features Block */}
-        <section id="features" style={{ order: sectionOrder('features'), display: sectionVisible('features') ? undefined : 'none' }} className="py-16 sm:py-24 px-4 sm:px-12 bg-white text-black border-y-2 border-black/10">
+        <section id="features" style={{ order: sectionOrder('features'), display: sectionVisible('features') ? undefined : 'none', ...sectionPadding('features') }} className="py-16 sm:py-24 px-4 sm:px-12 bg-white text-black border-y-2 border-black/10">
           <div className="text-center max-w-xl mx-auto mb-10 space-y-2">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-black/20 bg-[#FAF9F6] font-mono text-[10px] font-bold uppercase text-neutral-600">
               <span className="w-1.5 h-1.5 rounded-full bg-pink inline-block animate-pulse" />
@@ -438,7 +482,7 @@ export default function LiveWebsitePage({
         </section>
 
         {/* Testimonials Block */}
-        <section id="showcase" style={{ order: sectionOrder('testimonials'), display: sectionVisible('testimonials') ? undefined : 'none' }} className="py-16 sm:py-24 px-4 sm:px-12 bg-[#FFFDF8] text-black">
+        <section id="showcase" style={{ order: sectionOrder('testimonials'), display: sectionVisible('testimonials') ? undefined : 'none', ...sectionPadding('testimonials') }} className="py-16 sm:py-24 px-4 sm:px-12 bg-[#FFFDF8] text-black">
           <div className="text-center max-w-xl mx-auto mb-10 space-y-2">
             <h2 className="font-display text-2xl sm:text-4xl font-black tracking-tight">
               {sectionName('testimonials', 'Loved by our customers.')}
@@ -477,7 +521,7 @@ export default function LiveWebsitePage({
         </section>
 
         {/* CTA Block */}
-        <section id="pricing" style={{ order: sectionOrder('cta'), display: sectionVisible('cta') ? undefined : 'none' }} className="py-16 sm:py-24 px-4 sm:px-12 bg-black text-white text-center relative overflow-hidden">
+        <section id="pricing" style={{ order: sectionOrder('cta'), display: sectionVisible('cta') ? undefined : 'none', ...sectionPadding('cta') }} className="py-16 sm:py-24 px-4 sm:px-12 bg-black text-white text-center relative overflow-hidden">
           <div className="relative z-10 max-w-lg mx-auto space-y-3.5">
             <h2 className="font-display text-2xl sm:text-4xl font-black">
               {ctaContent.title}
@@ -498,7 +542,7 @@ export default function LiveWebsitePage({
         </section>
 
         {/* Branded Footer Block */}
-        <footer style={{ order: sectionOrder('footer'), display: sectionVisible('footer') ? undefined : 'none' }} className="py-8 px-4 sm:px-12 border-t-2 border-black/10 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs text-neutral-600">
+        <footer style={{ order: sectionOrder('footer'), display: sectionVisible('footer') ? undefined : 'none', ...sectionPadding('footer') }} className="py-8 px-4 sm:px-12 border-t-2 border-black/10 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs text-neutral-600">
           <div className="flex items-center gap-2 font-bold text-black">
             <span>{siteTitle}</span>
             <span>•</span>
@@ -510,11 +554,27 @@ export default function LiveWebsitePage({
             <span className="hover:text-black cursor-pointer">Security</span>
           </div>
         </footer>
+        </> : <section className="min-h-[70vh] bg-[#FAF9F6] px-5 py-14 text-black sm:px-12">
+          {(() => { const page = sitePages.find((entry) => entry.id === activePage); const title = page?.title || activePage.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+            return <div className="mx-auto max-w-6xl"><p className="font-mono text-xs font-bold uppercase tracking-[.2em]" style={{ color: theme.primaryColor }}>{siteTitle}</p><h1 className="mt-3 text-4xl font-black sm:text-6xl">{title}</h1><p className="mt-4 max-w-2xl text-base leading-relaxed text-neutral-600">{page?.description || `Welcome to ${title} at ${siteTitle}.`}</p>
+              {/(shop|collection|store)/i.test(title) && <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{productNames.map((name, index) => <article key={name} className="overflow-hidden rounded-2xl border border-black/10 bg-white"><div className="flex h-56 items-center justify-center bg-neutral-100">{assetUrl ? <Image src={assetUrl} alt={name} width={640} height={640} unoptimized className="h-full w-full object-cover" /> : <span className="text-5xl font-black">0{index + 1}</span>}</div><div className="p-5"><h2 className="font-bold">{name}</h2><p className="mt-2 text-sm text-neutral-600">Premium materials, thoughtfully made.</p><div className="mt-4 flex items-center justify-between"><strong>${[68,124,92][index]}.00</strong><button type="button" onClick={() => setCartCount((count) => count + 1)} className="rounded-lg px-4 py-2 text-sm font-bold" style={{ backgroundColor: theme.primaryColor }}>Add to bag</button></div></div></article>)}</div>}
+              {/cart/i.test(title) && <div className="mt-8 rounded-2xl border border-black/10 bg-white p-6"><h2 className="text-2xl font-bold">Your bag</h2><p className="mt-2 text-neutral-600">{cartCount ? `${cartCount} item(s) in your bag.` : 'Your bag is empty.'}</p><a href={`/live/${subdomain}?page=checkout`} className="mt-5 inline-flex rounded-lg px-5 py-3 font-bold" style={{ backgroundColor: theme.primaryColor }}>Continue to checkout</a></div>}
+              {/checkout/i.test(title) && <form className="mt-8 grid max-w-xl gap-3 rounded-2xl border border-black/10 bg-white p-6" onSubmit={(event) => { event.preventDefault(); window.alert('Your order details are ready.'); }}><h2 className="text-xl font-bold">Delivery details</h2><input required type="email" aria-label="Email address" placeholder="Email address" className="rounded-lg border px-4 py-3"/><input required aria-label="Full name" placeholder="Full name" className="rounded-lg border px-4 py-3"/><input required aria-label="Shipping address" placeholder="Shipping address" className="rounded-lg border px-4 py-3"/><button className="rounded-lg px-5 py-3 font-bold" style={{ backgroundColor: theme.primaryColor }}>Continue to payment</button></form>}
+              {/(shop|collection|store|cart|checkout)/i.test(title) || <div className="mt-10 rounded-2xl border border-black/10 bg-white p-6 sm:p-10"><h2 className="text-2xl font-bold">Discover {siteTitle}</h2><p className="mt-3 leading-relaxed text-neutral-600">{heroContent.description}</p><a href={`/live/${subdomain}?page=collection`} className="mt-6 inline-flex rounded-lg px-5 py-3 font-bold" style={{ backgroundColor: theme.primaryColor }}>Explore collection</a></div>}
+            </div>;
+          })()}
+        </section>}
+        <div className="pointer-events-none absolute inset-0 z-30" aria-label="Custom site elements">{canvasElements.map((item) => {
+          const IconComponent = ({ Star, Heart, Sparkles, Camera, CheckCircle2, ArrowUpRight } as Record<string, typeof Star>)[item.icon || 'Star'] || Star;
+          return <div key={item.id} className="absolute pointer-events-auto" style={{ left: item.x, top: item.y + 48, width: item.width, height: item.height }}>{item.src ? <Image src={item.src} alt={item.name} width={item.width} height={item.height} unoptimized className={`h-full w-full ${item.type === 'image' ? 'rounded-lg object-cover' : 'object-contain'}`} /> : item.type === 'image' ? null : <div className="flex h-full w-full items-center justify-center"><IconComponent size={Math.min(item.width, item.height) * .65} /></div>}</div>;
+        })}</div>
       </main>
-      {watermarkRequired && (!isPreview || previewWatermarkVisible) && <a href="https://launchly.site" target="_blank" rel="noreferrer" className="fixed bottom-3 right-3 z-[60] inline-flex items-center gap-2 rounded-full border border-black/20 bg-white/90 px-3 py-2 text-[11px] font-semibold text-neutral-800 shadow-lg backdrop-blur" aria-label="Made with Launchly">
-        <Image src="/brand-logo-clean.png" alt="" width={20} height={20} className="h-5 w-5 rounded-full object-contain" /> Made with Launchly
-      </a>}
-      {isPreview && watermarkRequired && <button type="button" onClick={() => setPreviewWatermarkVisible((visible) => !visible)} className="fixed bottom-3 left-3 z-[60] rounded-full border border-black/20 bg-white/90 px-3 py-2 text-[11px] font-semibold text-neutral-700 shadow-lg">{previewWatermarkVisible ? 'Hide preview watermark' : 'Show preview watermark'}</button>}
+      {watermarkRequired && (!isPreview || previewWatermarkVisible) && <div className="fixed bottom-3 right-3 z-[60] inline-flex items-center gap-1 rounded-full border border-black/20 bg-white/90 py-1.5 pl-2.5 pr-1.5 text-[11px] font-semibold text-neutral-800 shadow-lg backdrop-blur">
+        <a href="https://launchly.site" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2" aria-label="Made with Launchly">
+          <Image src="/brand-logo-clean.png" alt="" width={20} height={20} className="h-5 w-5 rounded-full object-contain" /> Made with Launchly
+        </a>
+        {isPreview && <button type="button" onClick={() => setPreviewWatermarkVisible(false)} aria-label="Hide preview watermark" title="Hide preview watermark" className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-neutral-500 hover:bg-black/10 hover:text-black">×</button>}
+      </div>}
     </div>
   );
 }

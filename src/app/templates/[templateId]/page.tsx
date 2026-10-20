@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ArrowLeft, 
@@ -53,6 +53,14 @@ export default function TemplatePreviewPage({
   const [cartCount, setCartCount] = useState(0);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [orderPlaced, setOrderPlaced] = useState(false);
+
+  useEffect(() => {
+    const requestedPage = new URLSearchParams(window.location.search).get('page')?.toLowerCase();
+    if (requestedPage && template.pages.some((page) => page.toLowerCase() === requestedPage)) {
+      const frame = requestAnimationFrame(() => setActiveSection(requestedPage));
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [template.id, template.pages]);
 
   const currentAccent = COLOR_PALETTES[activePalette].color || template.accent;
   const products = template.id === 'velvet-boutique'

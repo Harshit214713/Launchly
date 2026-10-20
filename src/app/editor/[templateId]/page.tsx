@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, use, useEffect, useCallback } from 'react';
+import { useState, use, useEffect, useCallback, useRef } from 'react';
+import { useStore } from 'zustand';
 import Link from 'next/link';
 import NextImage from 'next/image';
 import {
@@ -10,12 +11,14 @@ import {
   Bold, Italic, AlignLeft, AlignCenter, AlignRight,
   Check, Loader2, Wand2, ArrowUpRight, Star,
   SlidersHorizontal, Layout, Download, ZoomIn, ZoomOut,
-  ArrowUp, ArrowDown
+  ArrowUp, ArrowDown, Heart, Sparkles, Camera, CheckCircle2, History as HistoryIcon
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
 import { exportTemplateAsZip } from '@/lib/zipExport';
 import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/contrast';
+import { createSiteDocument, mergeEditorProjection, migrateSiteDocument, type SiteDocument } from '@/lib/siteDocument';
+import { createEditorStore, type SiteVersion } from '@/store/editorStore';
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
 type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'assets';
@@ -32,6 +35,10 @@ interface Section {
   name: string;
   type: string;
 }
+type SectionSpacing = { top: number; bottom: number; left: number; right: number };
+type CanvasElement = { id: string; type: 'image' | 'icon'; name: string; src?: string; icon?: string; x: number; y: number; width: number; height: number };
+type SitePage = { id: string; title: string; description: string };
+const DEFAULT_SPACING: SectionSpacing = { top: 0, bottom: 0, left: 0, right: 0 };
 
 const DEFAULT_SECTIONS: Section[] = [
   { id: 'nav', name: 'Navigation', type: 'nav' },
@@ -51,8 +58,14 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [leftPanel, setLeftPanel] = useState<LeftPanel>('sections');
   const [mobileTab, setMobileTab] = useState<MobileTab>('canvas');
   const [sections, setSections] = useState<Section[]>(DEFAULT_SECTIONS);
+  const [sectionSpacing, setSectionSpacing] = useState<Record<string, SectionSpacing>>({});
+  const [canvasElements, setCanvasElements] = useState<CanvasElement[]>([]);
+  const [sitePages, setSitePages] = useState<SitePage[]>(() => template.pages.map((name, index) => ({ id: index ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'home', title: name, description: index ? `Explore ${name.toLowerCase()} at ${template.name}.` : template.description })));
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
   const [selectedSection, setSelectedSection] = useState<string | null>('hero');
   const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -117,65 +130,32 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     buttonText: 'Shop the collection →',
   });
 
-  // Undo / Redo State Stack
-  interface Snapshot {
-    theme: typeof theme;
-    siteTitle: string;
-    heroContent: typeof heroContent;
-    featuresContent: typeof featuresContent;
-    testimonialsContent: typeof testimonialsContent;
-    ctaContent: typeof ctaContent;
-    sections: typeof sections;
-    assetUrl: string;
-    logoUrl: string;
-    faviconUrl: string;
-  }
+  const [editorStore] = useState(() => createEditorStore(createSiteDocument({
+    id: template.id, name: siteTitle, templateId: template.id, theme,
+    sections, sectionSpacing, elements: canvasElements, pages: sitePages,
+    hero: heroContent, features: featuresContent, testimonials: testimonialsContent, cta: ctaContent,
+    assetUrl, logoUrl, faviconUrl,
+  })));
+  const editorDocument = useStore(editorStore, (state) => state.document);
+  const saveStatus = useStore(editorStore, (state) => state.saveStatus);
+  const undoCount = useStore(editorStore, (state) => state.past.length);
+  const redoCount = useStore(editorStore, (state) => state.future.length);
+  const versions = useStore(editorStore, (state) => state.versions);
 
-  const [history, setHistory] = useState<Snapshot[]>(() => [{
-    theme: {
-      primaryColor: template.accent || '#FF5588',
-      bgColor: template.bgColor || '#0F0F11',
-      textColor: template.textColor || '#FFFFFF',
-      fontFamily: 'Inter, sans-serif',
-      borderRadius: '16px',
-    },
-    siteTitle: template.name || 'My Website',
-    heroContent: {
-      badge: `${template.category} // ${template.badge || 'PRO'}`,
-      title: template.name,
-      description: template.description,
-      ctaPrimary: 'Launch Experience',
-      ctaSecondary: 'Documentation',
-      stat1Label: 'RUNTIME VELOCITY',
-      stat1Value: '4.2M Tokens/s',
-      stat2Label: 'ZERO-SHOT BENCHMARK',
-      stat2Value: '99.98% SLA',
-    },
-    featuresContent: initialFeatures,
-    testimonialsContent: [
-      template.topReview
-        ? { quote: template.topReview.comment, name: template.topReview.author, role: template.topReview.role }
-        : { quote: `${template.name} gave our store the premium experience we wanted.`, name: 'Alex Morgan', role: 'Store owner' },
-      { quote: `${template.name} made it easy to present our products beautifully and serve customers on every screen.`, name: 'Jamie Lee', role: 'Brand director' },
-    ],
-    ctaContent: {
-      title: `Discover ${template.name}.`,
-      desc: `Explore the ${template.name} collection and find your next favorite.`,
-      buttonText: 'Shop the collection →',
-    },
-    sections,
-    assetUrl: '',
-    logoUrl: '',
-    faviconUrl: '',
-  }]);
-  const [historyIndex, setHistoryIndex] = useState<number>(0);
+  const documentFromState = useCallback((source: {
+    theme: typeof theme; siteTitle: string; heroContent: typeof heroContent; featuresContent: typeof featuresContent;
+    testimonialsContent: typeof testimonialsContent; ctaContent: typeof ctaContent; sections: Section[];
+    sectionSpacing: Record<string, SectionSpacing>; canvasElements: CanvasElement[]; sitePages: SitePage[];
+    assetUrl: string; logoUrl: string; faviconUrl: string;
+  }): SiteDocument => createSiteDocument({
+    id: template.id, name: source.siteTitle, templateId: template.id, theme: source.theme,
+    sections: source.sections, sectionSpacing: source.sectionSpacing, elements: source.canvasElements, pages: source.sitePages,
+    hero: source.heroContent, features: source.featuresContent, testimonials: source.testimonialsContent, cta: source.ctaContent,
+    assetUrl: source.assetUrl, logoUrl: source.logoUrl, faviconUrl: source.faviconUrl,
+  }), [template.id]);
 
-  // Keep a real, bounded edit history. The previous implementation initialized
-  // a single immutable snapshot, so the visible Undo/Redo controls never worked.
-  const snapshot = useCallback((): Snapshot => ({
-    theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, assetUrl, logoUrl, faviconUrl,
-  }), [theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, assetUrl, logoUrl, faviconUrl]);
   const [isHistoryReady, setHistoryReady] = useState(false);
+  const [serverDraftReady, setServerDraftReady] = useState(false);
   // Draft restoration is an external-storage synchronization on mount.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -184,6 +164,25 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       const raw = localStorage.getItem(key);
       if (raw) {
         const savedSite = JSON.parse(raw);
+        try {
+          const savedVersions = localStorage.getItem(`launchly_versions_${template.id}`);
+          if (savedVersions) editorStore.getState().setVersions(JSON.parse(savedVersions) as SiteVersion[]);
+        } catch { /* Ignore a malformed version-history cache. */ }
+        const migrated = migrateSiteDocument(savedSite, editorStore.getState().document);
+        editorStore.getState().replaceDocument(migrated);
+        setTheme(migrated.theme);
+        setSiteTitle(migrated.name);
+        setHeroContent((current) => ({ ...current, ...migrated.content.hero }));
+        setFeaturesContent(migrated.content.features);
+        setTestimonialsContent(migrated.content.testimonials);
+        setCtaContent(migrated.content.cta);
+        if (migrated.pages[0]?.sections.length) setSections(migrated.pages[0].sections.map(({ id, name, type }) => ({ id, name, type })));
+        setSectionSpacing(Object.fromEntries(migrated.pages.flatMap((page) => page.sections.filter((section) => section.style.padding).map((section) => [section.id, { top: section.style.padding?.top || 0, right: section.style.padding?.right || 0, bottom: section.style.padding?.bottom || 0, left: section.style.padding?.left || 0 }]))));
+        setCanvasElements(migrated.pages[0]?.elements || []);
+        setSitePages(migrated.pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo.description })));
+        setAssetUrl(migrated.assets.find((asset) => asset.role === 'product')?.src || '');
+        setLogoUrl(migrated.assets.find((asset) => asset.role === 'logo')?.src || '');
+        setFaviconUrl(migrated.assets.find((asset) => asset.role === 'favicon')?.src || '');
         if (savedSite.theme) setTheme(savedSite.theme);
         if (savedSite.siteName) setSiteTitle(savedSite.siteName);
         if (savedSite.heroContent) setHeroContent(savedSite.heroContent);
@@ -194,58 +193,97 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         if (savedSite.assetUrl) setAssetUrl(savedSite.assetUrl);
         if (savedSite.logoUrl) setLogoUrl(savedSite.logoUrl);
         if (savedSite.faviconUrl) setFaviconUrl(savedSite.faviconUrl);
+        if (savedSite.sectionSpacing) setSectionSpacing(savedSite.sectionSpacing);
+        if (savedSite.canvasElements) setCanvasElements(savedSite.canvasElements);
+        if (savedSite.sitePages) setSitePages(savedSite.sitePages);
       }
     } catch { /* Ignore malformed local drafts and keep template defaults. */ }
     setHistoryReady(true);
   // Load once for each selected template.
-  }, [template.id]);
+  }, [template.id, editorStore]);
   /* eslint-enable react-hooks/set-state-in-effect */
-  // Capture edits after React commits them so every editor control participates in history.
+
+  useEffect(() => {
+    if (!isHistoryReady || !serverDraftReady) return;
+    const nextDocument = documentFromState({ theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, sectionSpacing, canvasElements, sitePages, assetUrl, logoUrl, faviconUrl });
+    editorStore.getState().updateDocument((current) => {
+      const merged = mergeEditorProjection(current, nextDocument);
+      return JSON.stringify(current) === JSON.stringify(merged) ? current : merged;
+    }, 'editor-sync');
+  }, [isHistoryReady, serverDraftReady, editorStore, documentFromState, theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, sectionSpacing, canvasElements, sitePages, assetUrl, logoUrl, faviconUrl]);
+
+  useEffect(() => {
+    if (!isHistoryReady || !serverDraftReady) return;
+    editorStore.getState().setSaveStatus('unsaved');
+    const timer = window.setTimeout(async () => {
+      const currentDocument = editorStore.getState().document;
+      const latestVersion = editorStore.getState().versions.at(-1);
+      if (!latestVersion || (Date.now() - Date.parse(latestVersion.createdAt) > 5 * 60 * 1000 && JSON.stringify(latestVersion.document) !== JSON.stringify(currentDocument))) {
+        editorStore.getState().captureVersion('Autosave');
+        localStorage.setItem(`launchly_versions_${template.id}`, JSON.stringify(editorStore.getState().versions));
+      }
+      const legacyPayload = { siteName: currentDocument.name, templateId: currentDocument.templateId, theme: currentDocument.theme, heroContent: currentDocument.content.hero, featuresContent: currentDocument.content.features, testimonialsContent: currentDocument.content.testimonials, ctaContent: currentDocument.content.cta, sections: currentDocument.pages[0]?.sections.map(({ id, name, type }) => ({ id, name, type })) || [], sectionSpacing: Object.fromEntries(currentDocument.pages.flatMap((page) => page.sections.filter((section) => section.style.padding).map((section) => [section.id, section.style.padding]))), canvasElements: currentDocument.pages[0]?.elements || [], sitePages: currentDocument.pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo.description })), assetUrl: currentDocument.assets.find((asset) => asset.role === 'product')?.src || '', logoUrl: currentDocument.assets.find((asset) => asset.role === 'logo')?.src || '', faviconUrl: currentDocument.assets.find((asset) => asset.role === 'favicon')?.src || '' };
+      try {
+        localStorage.setItem(`launchly_site_${template.id}`, JSON.stringify({ ...legacyPayload, schemaVersion: 1, document: currentDocument }));
+        localStorage.setItem(`launchly_site_${currentDocument.settings.subdomain}`, JSON.stringify({ ...legacyPayload, schemaVersion: 1, document: currentDocument }));
+      } catch { editorStore.getState().setSaveStatus('offline'); return; }
+      editorStore.getState().setSaveStatus('saving');
+      try {
+        const response = await fetch('/api/sites/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document: currentDocument }) });
+        editorStore.getState().setSaveStatus(response.ok ? 'saved' : response.status === 401 ? 'saved' : 'offline', new Date().toISOString());
+      } catch { editorStore.getState().setSaveStatus('offline'); }
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [editorDocument, isHistoryReady, serverDraftReady, editorStore, template.id]);
+  const applyDocumentToEditor = useCallback((document: SiteDocument) => {
+    const home = document.pages.find((page) => page.isHome) || document.pages[0];
+    setTheme(document.theme);
+    setSiteTitle(document.name);
+    setHeroContent((current) => ({ ...current, ...document.content.hero }));
+    setFeaturesContent(document.content.features);
+    setTestimonialsContent(document.content.testimonials);
+    setCtaContent(document.content.cta);
+    setSections(home?.sections.map(({ id, name, type }) => ({ id, name, type })) || []);
+    setSectionSpacing(Object.fromEntries(document.pages.flatMap((page) => page.sections.filter((section) => section.style.padding).map((section) => [section.id, { top: section.style.padding?.top || 0, right: section.style.padding?.right || 0, bottom: section.style.padding?.bottom || 0, left: section.style.padding?.left || 0 }]))));
+    setCanvasElements(home?.elements || []);
+    setSitePages(document.pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo.description })));
+    setAssetUrl(document.assets.find((asset) => asset.role === 'product')?.src || '');
+    setLogoUrl(document.assets.find((asset) => asset.role === 'logo')?.src || '');
+    setFaviconUrl(document.assets.find((asset) => asset.role === 'favicon')?.src || '');
+  }, [setTheme, setSiteTitle, setHeroContent, setFeaturesContent, setTestimonialsContent, setCtaContent, setSections, setSectionSpacing, setCanvasElements, setSitePages, setAssetUrl, setLogoUrl, setFaviconUrl]);
+
+  const serverDraftLookupStarted = useRef(false);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (!isHistoryReady) return;
-    const next = snapshot();
-    const present = history[historyIndex];
-    if (present && JSON.stringify(present) === JSON.stringify(next)) return;
-    const updated = [...history.slice(0, historyIndex + 1), next].slice(-50);
-    setHistory(updated);
-    setHistoryIndex(updated.length - 1);
-  }, [snapshot, historyIndex, history, isHistoryReady]);
+    if (!isHistoryReady || serverDraftLookupStarted.current) return;
+    serverDraftLookupStarted.current = true;
+    const localDraft = localStorage.getItem(`launchly_site_${template.id}`);
+    if (localDraft) { setServerDraftReady(true); return; }
+    const subdomain = siteTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || template.id;
+    fetch(`/api/sites/draft?subdomain=${encodeURIComponent(subdomain)}`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((result) => {
+        if (!result?.document) return;
+        const restored = migrateSiteDocument(result.document, editorStore.getState().document);
+        editorStore.getState().replaceDocument(restored);
+        applyDocumentToEditor(restored);
+      })
+      .catch(() => editorStore.getState().setSaveStatus('offline'))
+      .finally(() => setServerDraftReady(true));
+  }, [isHistoryReady, siteTitle, template.id, editorStore, applyDocumentToEditor]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      const prev = history[historyIndex - 1];
-      setTheme(prev.theme);
-      setSiteTitle(prev.siteTitle);
-      setHeroContent(prev.heroContent);
-      setFeaturesContent(prev.featuresContent);
-      setTestimonialsContent(prev.testimonialsContent);
-      setCtaContent(prev.ctaContent);
-      setSections(prev.sections);
-      setAssetUrl(prev.assetUrl);
-      setLogoUrl(prev.logoUrl);
-      setFaviconUrl(prev.faviconUrl);
-      setHistoryIndex(historyIndex - 1);
-    }
-  }, [historyIndex, history, setTheme, setSiteTitle, setHeroContent, setFeaturesContent, setTestimonialsContent, setCtaContent, setSections, setAssetUrl, setLogoUrl, setFaviconUrl]);
+    if (!editorStore.getState().canUndo()) return;
+    editorStore.getState().undo();
+    applyDocumentToEditor(editorStore.getState().document);
+  }, [editorStore, applyDocumentToEditor]);
 
   const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const next = history[historyIndex + 1];
-      setTheme(next.theme);
-      setSiteTitle(next.siteTitle);
-      setHeroContent(next.heroContent);
-      setFeaturesContent(next.featuresContent);
-      setTestimonialsContent(next.testimonialsContent);
-      setCtaContent(next.ctaContent);
-      setSections(next.sections);
-      setAssetUrl(next.assetUrl);
-      setLogoUrl(next.logoUrl);
-      setFaviconUrl(next.faviconUrl);
-      setHistoryIndex(historyIndex + 1);
-    }
-  }, [historyIndex, history, setTheme, setSiteTitle, setHeroContent, setFeaturesContent, setTestimonialsContent, setCtaContent, setSections, setAssetUrl, setLogoUrl, setFaviconUrl]);
+    if (!editorStore.getState().canRedo()) return;
+    editorStore.getState().redo();
+    applyDocumentToEditor(editorStore.getState().document);
+  }, [editorStore, applyDocumentToEditor]);
 
   // Keyboard shortcut listener for Ctrl+Z and Ctrl+Y
   useEffect(() => {
@@ -277,6 +315,46 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     setSections(reordered);
   };
 
+  const dropSectionOn = (targetId: string) => {
+    if (!draggedSectionId || draggedSectionId === targetId) return;
+    setSections((current) => {
+      const from = current.findIndex((section) => section.id === draggedSectionId);
+      const to = current.findIndex((section) => section.id === targetId);
+      if (from < 0 || to < 0) return current;
+      const reordered = [...current];
+      const [dragged] = reordered.splice(from, 1);
+      reordered.splice(to, 0, dragged);
+      return reordered;
+    });
+    setDraggedSectionId(null);
+  };
+
+  const removeDuplicateBlocks = () => {
+    setSections((current) => {
+      const seen = new Set<string>();
+      return current.filter((section) => {
+        if (seen.has(section.type)) return false;
+        seen.add(section.type);
+        return true;
+      });
+    });
+  };
+
+  const addCanvasElement = (type: CanvasElement['type']) => {
+    const id = `element-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const item: CanvasElement = { id, type, name: type === 'image' ? 'Image' : 'Icon', src: '', icon: 'Star', x: 32, y: 120 + canvasElements.length * 32, width: type === 'image' ? 240 : 72, height: type === 'image' ? 160 : 72 };
+    setCanvasElements((current) => [...current, item]);
+    setSelectedElementId(id);
+  };
+  const updateCanvasElement = (id: string, patch: Partial<CanvasElement>) => setCanvasElements((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
+  const readElementUpload = (id: string, file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = () => updateCanvasElement(id, { src: String(reader.result || ''), name: file.name });
+    reader.readAsDataURL(file);
+  };
+
   // 1-Click ZIP Export
   const handleExportZip = async () => {
     if (userPlan !== 'pro') {
@@ -297,7 +375,11 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         assetUrl,
         logoUrl,
         faviconUrl,
-        pages: template.pages,
+        pages: sitePages.map((page) => page.title),
+        sitePages,
+        sectionSpacing,
+        canvasElements,
+        document: editorDocument,
         sectionNames: Object.fromEntries(sections.map((section) => [section.type, section.name])),
       });
       const url = URL.createObjectURL(blob);
@@ -350,6 +432,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   const handleSave = async () => {
     setSaving(true);
+    editorStore.getState().setSaveStatus('saving');
     try {
       const payload = {
         siteName: siteTitle,
@@ -360,15 +443,25 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         testimonialsContent,
         ctaContent,
         sections,
+        sectionSpacing,
+        canvasElements,
+        sitePages,
         assetUrl,
         logoUrl,
         faviconUrl,
+        schemaVersion: 1,
+        document: editorStore.getState().document,
       };
       if (typeof window !== 'undefined') {
-        localStorage.setItem(`launchly_site_${template.id}`, JSON.stringify(payload));
-        localStorage.setItem(`launchly_site_${siteTitle.toLowerCase().replace(/\s+/g, '-')}`, JSON.stringify(payload));
+        const versioned = { ...payload, schemaVersion: 1, document: editorStore.getState().document };
+        localStorage.setItem(`launchly_site_${template.id}`, JSON.stringify(versioned));
+        localStorage.setItem(`launchly_site_${siteTitle.toLowerCase().replace(/\s+/g, '-')}`, JSON.stringify(versioned));
       }
-    } catch {}
+      const response = await fetch('/api/sites/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document: editorStore.getState().document }) });
+      editorStore.getState().setSaveStatus(response.ok || response.status === 401 ? 'saved' : 'offline', new Date().toISOString());
+      editorStore.getState().captureVersion('Manual save');
+      localStorage.setItem(`launchly_versions_${template.id}`, JSON.stringify(editorStore.getState().versions));
+    } catch { editorStore.getState().setSaveStatus('offline'); }
     await new Promise(r => setTimeout(r, 600));
     setSaving(false);
     setSaved(true);
@@ -470,6 +563,11 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             />
           </div>
 
+          <span role="status" aria-live="polite" className="hidden xl:inline-flex items-center gap-1.5 rounded-full border border-black/20 bg-white px-2 py-1 font-mono text-[9px] font-bold text-neutral-600">
+            <span className={`h-1.5 w-1.5 rounded-full ${saveStatus === 'saved' ? 'bg-green-500' : saveStatus === 'offline' ? 'bg-red-500' : saveStatus === 'saving' ? 'bg-yellow-500' : 'bg-pink'}`} />
+            {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving' : saveStatus === 'offline' ? 'Offline · local copy saved' : 'Unsaved changes'}
+          </span>
+
           {/* AI Designer Button */}
           <button
             type="button"
@@ -486,7 +584,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             <button
               type="button"
               onClick={handleUndo}
-              disabled={historyIndex <= 0}
+              disabled={undoCount === 0}
               className="p-1.5 rounded-lg text-black hover:bg-neutral-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
               title="Undo (Ctrl+Z)"
             >
@@ -495,7 +593,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             <button
               type="button"
               onClick={handleRedo}
-              disabled={historyIndex >= history.length - 1}
+              disabled={redoCount === 0}
               className="p-1.5 rounded-lg text-black hover:bg-neutral-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
               title="Redo (Ctrl+Y)"
             >
@@ -587,9 +685,14 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 testimonialsContent,
                 ctaContent,
                 sections,
+                sectionSpacing,
+                canvasElements,
+                sitePages,
                 assetUrl,
         logoUrl,
         faviconUrl,
+                schemaVersion: 1,
+                document: editorStore.getState().document,
               };
               if (typeof window !== 'undefined') {
                 try {
@@ -618,6 +721,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <Check size={13} className="stroke-[3]" /> : <Save size={13} className="stroke-[2.5]" />}
             <span className="hidden sm:inline">{saving ? 'Saving…' : saved ? 'Saved!' : 'Save'}</span>
           </button>
+
+          <button type="button" onClick={() => setShowVersionHistory(true)} title="Version history" className="hidden md:inline-flex items-center gap-1 rounded-xl border-2 border-black bg-white px-2 py-1.5 font-mono text-[10px] font-bold hover:bg-yellow"><HistoryIcon size={13}/><span>History</span></button>
 
           <button
             onClick={() => setShowPublishDialog(true)}
@@ -698,19 +803,25 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           <div className="flex-1 overflow-y-auto p-3 space-y-4">
             {(leftPanel === 'sections' || mobileTab === 'sections') && (
               <div className="space-y-4">
+                {sections.length > new Set(sections.map((section) => section.type)).size && <button type="button" onClick={removeDuplicateBlocks} className="w-full rounded-lg border border-black/20 bg-yellow/50 px-3 py-2 text-left font-mono text-[10px] font-bold text-black hover:bg-yellow">Remove duplicate blocks</button>}
                 <div className="space-y-1.5">
                   {sections.map((section, idx) => (
                     <div
                       key={section.id}
+                      draggable
+                      onDragStart={(event) => { setDraggedSectionId(section.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', section.id); }}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => { event.preventDefault(); dropSectionOn(section.id); }}
+                      onDragEnd={() => setDraggedSectionId(null)}
                       onClick={() => {
                         setSelectedSection(section.id);
                         if (mobileTab === 'sections') setMobileTab('canvas');
                       }}
                       className={cn(
                         'group flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-all',
-                        selectedSection === section.id
+                        `${selectedSection === section.id
                           ? 'border-black bg-pink text-black shadow-[2.5px_2.5px_0px_#000] font-bold'
-                          : 'border-black/15 bg-white hover:border-black hover:bg-neutral-50 text-neutral-800 shadow-xs'
+                          : 'border-black/15 bg-white hover:border-black hover:bg-neutral-50 text-neutral-800 shadow-xs'} ${draggedSectionId === section.id ? 'opacity-50' : ''}`
                       )}
                     >
                       {/* Section Reorder Controls */}
@@ -825,6 +936,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                   <label htmlFor="editor-font-family" className="font-mono text-[10px] font-bold uppercase text-neutral-500 tracking-wider mb-2 block">Typography</label>
                   <select id="editor-font-family" value={theme.fontFamily} onChange={(e) => setTheme((prev) => ({ ...prev, fontFamily: e.target.value }))} className="w-full rounded-xl border-2 border-black bg-white px-3 py-2 font-mono text-xs font-bold text-black">
                     <option value="Inter, sans-serif">Modern sans</option>
+                    <option value="Arial, Helvetica, sans-serif">Clean classic</option>
+                    <option value="Trebuchet MS, sans-serif">Friendly geometric</option>
+                    <option value="Verdana, sans-serif">Readable UI</option>
+                    <option value="system-ui, sans-serif">System UI</option>
+                    <option value="'Courier New', monospace">Typewriter</option>
+                    <option value="Palatino Linotype, Book Antiqua, serif">Premium serif</option>
                     <option value="Georgia, serif">Editorial serif</option>
                     <option value="ui-monospace, monospace">Monospace</option>
                   </select>
@@ -873,18 +990,29 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                     <button key={type} type="button" onClick={() => addSection(type.toLowerCase())} className="rounded-xl border-2 border-black bg-white px-2 py-3 font-mono text-xs font-bold shadow-[2px_2px_0_#000] hover:bg-yellow">＋ {type}</button>
                   ))}
                 </div>
+                <div className="grid grid-cols-2 gap-2 border-t border-black/15 pt-3">
+                  <button type="button" onClick={() => addCanvasElement('image')} className="rounded-xl border-2 border-black bg-white px-2 py-3 font-mono text-xs font-bold shadow-[2px_2px_0_#000] hover:bg-yellow">＋ Image</button>
+                  <button type="button" onClick={() => addCanvasElement('icon')} className="rounded-xl border-2 border-black bg-white px-2 py-3 font-mono text-xs font-bold shadow-[2px_2px_0_#000] hover:bg-yellow">＋ Icon</button>
+                </div>
+                <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Canvas elements</p>
+                {canvasElements.map((item) => <div key={item.id} className="flex items-center gap-2 rounded-lg border border-black/20 bg-white p-2">
+                  <button type="button" onClick={() => setSelectedElementId(item.id)} className="min-w-0 flex-1 truncate text-left font-mono text-xs">{item.name} · {item.type}</button>
+                  {item.type === 'image' && <label className="cursor-pointer rounded border border-black px-2 py-1 font-mono text-[10px]">Upload<input type="file" accept="image/*" className="sr-only" onChange={(e) => readElementUpload(item.id, e.target.files?.[0])} /></label>}
+                  {item.type === 'icon' && <><select aria-label="Choose icon" value={item.icon || 'Star'} onChange={(e) => updateCanvasElement(item.id, { icon: e.target.value, src: '' })} className="max-w-20 rounded border border-black p-1 text-xs">{['Star','Heart','Sparkles','Camera','CheckCircle2','ArrowUpRight'].map((name) => <option key={name}>{name}</option>)}</select><label className="cursor-pointer rounded border border-black px-2 py-1 font-mono text-[10px]">Upload<input type="file" accept="image/*" className="sr-only" onChange={(e) => readElementUpload(item.id, e.target.files?.[0])} /></label></>}
+                  <button type="button" aria-label={`Delete ${item.name}`} onClick={() => { setCanvasElements((items) => items.filter((el) => el.id !== item.id)); if (selectedElementId === item.id) setSelectedElementId(null); }} className="text-red-600"><Trash2 size={14}/></button>
+                </div>)}
               </div>
             )}
 
             {(leftPanel === 'pages' || mobileTab === 'pages') && (
               <div className="space-y-3">
                 <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Pages included in this site</p>
-                {template.pages.map((page, index) => (
-                  <a key={page} href={index === 0 ? '#home' : `/live/${template.id}?preview=1&page=${encodeURIComponent(page.toLowerCase().replace(/\s+/g, '-'))}`} target={index === 0 ? undefined : '_blank'} rel="noreferrer" className="flex items-center justify-between rounded-xl border-2 border-black/15 bg-white px-3 py-2 font-mono text-xs hover:bg-yellow">
-                    <span>{page}</span><span className="text-[9px] text-neutral-400">/{index === 0 ? '' : page.toLowerCase().replace(/\s+/g, '-')}</span>
-                  </a>
-                ))}
-                <p className="text-[10px] font-mono leading-relaxed text-neutral-500">Template pages have shareable routes and are included in the exported site.</p>
+                {sitePages.map((page, index) => <div key={`${page.id}-${index}`} className="space-y-2 rounded-xl border-2 border-black/15 bg-white p-3">
+                  <div className="flex items-center justify-between gap-2"><input aria-label="Page navigation label" value={page.title} onChange={(e) => setSitePages((items) => items.map((entry, i) => i === index ? { ...entry, title: e.target.value } : entry))} className="min-w-0 flex-1 rounded-lg border border-black/30 px-2 py-1 font-mono text-xs font-bold" /><span className="text-[9px] text-neutral-500">/{page.id === 'home' ? '' : page.id}</span>{index > 0 && <button type="button" aria-label={`Remove ${page.title}`} onClick={() => setSitePages((items) => items.filter((_, i) => i !== index))}><Trash2 size={14}/></button>}</div>
+                  <input aria-label="Page description" value={page.description} onChange={(e) => setSitePages((items) => items.map((entry, i) => i === index ? { ...entry, description: e.target.value } : entry))} className="w-full rounded-lg border border-black/20 px-2 py-1.5 font-mono text-[10px]" placeholder="Page intro content" />
+                </div>)}
+                <button type="button" onClick={() => { const id = `page-${sitePages.length + 1}`; setSitePages((items) => [...items, { id, title: `New Page ${items.length}`, description: 'Add a helpful introduction for this page.' }]); }} className="w-full rounded-xl border-2 border-black bg-yellow p-2 font-mono text-xs font-bold">＋ Add page</button>
+                <p className="text-[10px] font-mono leading-relaxed text-neutral-500">Page names and descriptions save with your site and appear in its navigation.</p>
               </div>
             )}
 
@@ -958,6 +1086,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             <div data-canvas-frame className="flex-1 overflow-y-auto">
               <CanvasContent
                 sections={sections}
+                sitePages={sitePages}
+                sectionSpacing={sectionSpacing}
+                canvasElements={canvasElements}
+                selectedElementId={selectedElementId}
+                onSelectElement={setSelectedElementId}
+                onMoveElement={(id, x, y) => updateCanvasElement(id, { x, y })}
                 selectedSection={selectedSection}
                 theme={theme}
                 siteTitle={siteTitle}
@@ -969,10 +1103,11 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 setFeaturesContent={setFeaturesContent}
                 setTestimonialsContent={setTestimonialsContent}
                 setCtaContent={setCtaContent}
-                onSelectSection={setSelectedSection}
+                onSelectSection={(id) => { setSelectedSection(id); setSelectedElementId(null); }}
                 onRenameSection={(id, name) => setSections((prev) => prev.map((section) => section.id === id ? { ...section, name } : section))}
                 assetUrl={assetUrl}
                 logoUrl={logoUrl}
+                deviceMode={deviceMode}
               />
             </div>
           </div>
@@ -989,7 +1124,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         >
           <div className="p-3.5 border-b-[2px] border-black bg-[#FAF9F6] flex items-center justify-between">
             <div className="font-mono text-xs font-black uppercase text-black tracking-wider">
-              <span>{selectedSection ? `${sections.find(s => s.id === selectedSection)?.name || ''} Properties` : 'Inspector'}</span>
+              <span>{selectedElementId ? 'Element Properties' : selectedSection ? `${sections.find(s => s.id === selectedSection)?.name || ''} Properties` : 'Inspector'}</span>
             </div>
             {/* Close button on mobile */}
             <button
@@ -1001,12 +1136,14 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
-            {selectedSection ? (
+            {selectedElementId ? (() => { const item = canvasElements.find((element) => element.id === selectedElementId); return item ? <ElementProperties item={item} onChange={(patch) => updateCanvasElement(item.id, patch)} /> : null; })() : selectedSection ? (
               <SectionProperties
                 sectionId={selectedSection}
                 sections={sections}
                 theme={theme}
                 setTheme={setTheme}
+                sectionSpacing={sectionSpacing[selectedSection] || DEFAULT_SPACING}
+                setSectionSpacing={(nextSpacing) => setSectionSpacing((current) => ({ ...current, [selectedSection]: typeof nextSpacing === 'function' ? nextSpacing(current[selectedSection] || DEFAULT_SPACING) : nextSpacing }))}
               />
             ) : (
               <div className="text-center py-10 font-mono text-xs text-neutral-400">
@@ -1161,12 +1298,25 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             testimonialsContent,
             ctaContent,
             sections,
+            sectionSpacing,
+            canvasElements,
+                sitePages,
             assetUrl,
             logoUrl,
             faviconUrl,
+            schemaVersion: 1,
+            document: editorDocument,
           }}
         />
       )}
+
+      {showVersionHistory && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="version-history-title">
+        <div className="w-full max-w-lg rounded-2xl border-[3px] border-black bg-white p-5 shadow-[8px_8px_0_#000]">
+          <div className="mb-4 flex items-center justify-between"><h2 id="version-history-title" className="font-display text-lg font-black">Version history</h2><button type="button" onClick={() => setShowVersionHistory(false)} aria-label="Close version history" className="rounded-lg border border-black p-1 hover:bg-yellow"><X size={16}/></button></div>
+          <p className="mb-3 font-mono text-xs text-neutral-600">Up to 20 autosave and manual snapshots are kept in this browser.</p>
+          <div className="max-h-80 space-y-2 overflow-y-auto">{[...versions].reverse().map((version) => <div key={version.id} className="flex items-center gap-3 rounded-xl border border-black/20 p-3"><div className="min-w-0 flex-1"><p className="truncate font-mono text-xs font-bold">{version.label}</p><p className="text-[10px] text-neutral-500">{new Date(version.createdAt).toLocaleString()}</p></div><button type="button" onClick={() => { if (!window.confirm(`Restore “${version.label}”? This replaces the current editor content.`)) return; if (editorStore.getState().restoreVersion(version.id)) applyDocumentToEditor(editorStore.getState().document); setShowVersionHistory(false); }} className="rounded-lg border-2 border-black bg-yellow px-3 py-1.5 font-mono text-[10px] font-bold">Restore</button></div>)}{versions.length === 0 && <div className="rounded-xl border border-dashed border-black/30 p-8 text-center font-mono text-xs text-neutral-500">No saved versions yet. Versions are captured during autosave and when you save manually.</div>}</div>
+        </div>
+      </div>}
 
       {showUpgrade && <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title">
         <div className="w-full max-w-sm rounded-3xl border-[3px] border-black bg-white p-6 text-center shadow-[8px_8px_0_#000]">
@@ -1232,6 +1382,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
 function CanvasContent({
   sections,
+  sectionSpacing,
+  sitePages,
+  canvasElements,
+  selectedElementId,
+  onSelectElement,
+  onMoveElement,
   selectedSection,
   theme,
   siteTitle,
@@ -1247,8 +1403,15 @@ function CanvasContent({
   onRenameSection,
   assetUrl,
   logoUrl,
+  deviceMode,
 }: {
   sections: Section[];
+  sectionSpacing: Record<string, SectionSpacing>;
+  sitePages: SitePage[];
+  canvasElements: CanvasElement[];
+  selectedElementId: string | null;
+  onSelectElement: (id: string) => void;
+  onMoveElement: (id: string, x: number, y: number) => void;
   selectedSection: string | null;
   theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
   siteTitle: string;
@@ -1264,13 +1427,16 @@ function CanvasContent({
   onRenameSection: (id: string, name: string) => void;
   assetUrl: string;
   logoUrl: string;
+  deviceMode: DeviceMode;
 }) {
   return (
-    <div style={{ fontFamily: theme.fontFamily }} className="min-h-full flex flex-col">
+    <div data-editable-canvas style={{ fontFamily: theme.fontFamily }} className="relative min-h-full flex flex-col">
       {sections.map((section) => (
         <SectionRenderer
           key={section.id}
           section={section}
+          sitePages={sitePages}
+          spacing={sectionSpacing[section.id] || DEFAULT_SPACING}
           isSelected={selectedSection === section.id}
           theme={theme}
           siteTitle={siteTitle}
@@ -1286,14 +1452,36 @@ function CanvasContent({
           onRename={(name) => onRenameSection(section.id, name)}
           assetUrl={assetUrl}
           logoUrl={logoUrl}
+          deviceMode={deviceMode}
         />
       ))}
+      {canvasElements.map((item) => {
+        const IconComponent = ({ Star, Heart, Sparkles, Camera, CheckCircle2, ArrowUpRight } as Record<string, typeof Star>)[item.icon || 'Star'] || Star;
+        return <div key={item.id} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); onSelectElement(item.id); }} onPointerMove={(event) => { if (event.buttons !== 1) return; const rect = event.currentTarget.parentElement?.getBoundingClientRect(); if (rect) onMoveElement(item.id, Math.max(0, event.clientX - rect.left - item.width / 2), Math.max(0, event.clientY - rect.top - item.height / 2)); }} onClick={() => onSelectElement(item.id)} className={`absolute z-20 cursor-move touch-none ${selectedElementId === item.id ? 'outline outline-2 outline-pink outline-offset-2' : ''}`} style={{ left: item.x, top: item.y, width: item.width, height: item.height }}>
+          {item.src ? <NextImage src={item.src} alt={item.name} width={item.width} height={item.height} unoptimized draggable={false} className={`h-full w-full ${item.type === 'image' ? 'rounded-lg object-cover' : 'object-contain'}`} /> : item.type === 'image' ? <div className="flex h-full w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-black/50 bg-yellow/30 text-black"><ImageIcon/><span className="font-mono text-[10px]">Upload image</span></div> : <div className="flex h-full w-full items-center justify-center rounded-xl bg-pink/30 text-black"><IconComponent size={Math.min(item.width, item.height) * .65} /></div>}
+        </div>;
+      })}
     </div>
   );
 }
 
+function ElementProperties({ item, onChange }: { item: CanvasElement; onChange: (patch: Partial<CanvasElement>) => void }) {
+  const fields: Array<[keyof Pick<CanvasElement, 'x' | 'y' | 'width' | 'height'>, string]> = [['x','Horizontal position'],['y','Vertical position'],['width','Width'],['height','Height']];
+  return <div className="space-y-4">
+    <label className="block text-xs font-bold">Name<input value={item.name} onChange={(e) => onChange({ name: e.target.value })} className="mt-1 w-full rounded-lg border-2 border-black px-3 py-2 font-mono text-xs" /></label>
+    {item.type === 'icon' && <label className="block text-xs font-bold">Icon<input value={item.icon || 'Star'} onChange={(e) => onChange({ icon: e.target.value, src: '' })} list="editor-icon-options" className="mt-1 w-full rounded-lg border-2 border-black px-3 py-2 font-mono text-xs" /><datalist id="editor-icon-options">{['Star','Heart','Sparkles','Camera','CheckCircle2','ArrowUpRight'].map((icon) => <option key={icon} value={icon}/>)}</datalist></label>}
+    <label className="block text-xs font-bold">{item.type === 'image' ? 'Image URL' : 'Custom icon image URL'}<input type="url" value={item.src?.startsWith('data:') ? '' : item.src || ''} onChange={(e) => onChange({ src: e.target.value })} placeholder="https://…" className="mt-1 w-full rounded-lg border-2 border-black px-3 py-2 font-mono text-xs" /></label>
+    <label className="block cursor-pointer rounded-lg border-2 border-dashed border-black p-3 text-center font-mono text-xs font-bold">Upload {item.type === 'image' ? 'image' : 'icon image'}<input type="file" accept="image/*" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => onChange({ src: String(reader.result || ''), name: file.name }); reader.readAsDataURL(file); }} /></label>
+    <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Position & size (px)</p>
+    <div className="grid grid-cols-2 gap-2">{fields.map(([key, label]) => <label key={key} className="text-[10px] font-bold">{label}<input type="number" min={key === 'width' || key === 'height' ? 16 : 0} value={item[key]} onChange={(e) => onChange({ [key]: Math.max(key === 'width' || key === 'height' ? 16 : 0, Number(e.target.value) || 0) })} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs" /></label>)}</div>
+    <button type="button" onClick={() => onChange({ x: 0 })} className="w-full rounded-lg border border-black bg-white py-2 font-mono text-xs">Align to left edge</button>
+  </div>;
+}
+
 function SectionRenderer({
   section,
+  sitePages,
+  spacing,
   isSelected,
   theme,
   siteTitle,
@@ -1309,8 +1497,11 @@ function SectionRenderer({
   onRename,
   assetUrl,
   logoUrl,
+  deviceMode,
 }: {
   section: Section;
+  sitePages: SitePage[];
+  spacing: SectionSpacing;
   isSelected: boolean;
   theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
   siteTitle: string;
@@ -1326,9 +1517,11 @@ function SectionRenderer({
   onRename: (name: string) => void;
   assetUrl: string;
   logoUrl: string;
+  deviceMode: DeviceMode;
 }) {
   return (
     <div
+      style={{ padding: `${spacing.top}px ${spacing.right}px ${spacing.bottom}px ${spacing.left}px` }}
       className={cn(
         'relative group cursor-pointer transition-all',
         isSelected && 'outline-[3px] outline-pink outline-offset-[-3px] shadow-[inset_0_0_0_2px_#000]'
@@ -1350,10 +1543,10 @@ function SectionRenderer({
             </span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-6 font-mono text-xs font-bold text-neutral-700">
-            {['Home', 'Features', 'Showcase', 'Pricing'].map(item => (
-              <span key={item} className="hover:text-black hover:underline cursor-pointer">
-                {item}
+          <div className={cn('hidden sm:flex items-center gap-6 font-mono text-xs font-bold text-neutral-700', deviceMode === 'mobile' && 'hidden')}>
+            {sitePages.map((item) => (
+              <span key={item.id} className="hover:text-black hover:underline cursor-pointer">
+                {item.title}
               </span>
             ))}
           </div>
@@ -1387,7 +1580,7 @@ function SectionRenderer({
               style={{ backgroundColor: theme.primaryColor }}
               contentEditable
               suppressContentEditableWarning
-              onInput={(e) => setHeroContent((prev) => ({ ...prev, badge: e.currentTarget.innerText }))}
+              onInput={(e) => setHeroContent((prev) => ({ ...prev, badge: (e.target as HTMLElement).innerText }))}
             >
               <span>{heroContent.badge}</span>
             </div>
@@ -1397,7 +1590,7 @@ function SectionRenderer({
               className="font-display text-2xl sm:text-5xl font-black tracking-tight leading-tight outline-none focus:ring-2 focus:ring-pink rounded-lg p-1"
               contentEditable
               suppressContentEditableWarning
-              onInput={(e) => setHeroContent((prev) => ({ ...prev, title: e.currentTarget.innerText }))}
+              onInput={(e) => setHeroContent((prev) => ({ ...prev, title: (e.target as HTMLElement).innerText }))}
             >
               {heroContent.title}
             </h1>
@@ -1407,7 +1600,7 @@ function SectionRenderer({
               className="font-mono text-xs sm:text-sm opacity-80 max-w-lg mx-auto leading-relaxed outline-none focus:ring-2 focus:ring-pink rounded-lg p-1"
               contentEditable
               suppressContentEditableWarning
-              onInput={(e) => setHeroContent((prev) => ({ ...prev, description: e.currentTarget.innerText }))}
+              onInput={(e) => setHeroContent((prev) => ({ ...prev, description: (e.target as HTMLElement).innerText }))}
             >
               {heroContent.description}
             </p>
@@ -1419,30 +1612,30 @@ function SectionRenderer({
                 style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
                 className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-black font-display text-xs sm:text-sm font-black text-black shadow-[2.5px_2.5px_0px_#000] flex items-center gap-1.5 cursor-pointer"
               >
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, ctaPrimary: e.currentTarget.innerText }))}>{heroContent.ctaPrimary}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, ctaPrimary: (e.target as HTMLElement).innerText }))}>{heroContent.ctaPrimary}</span>
                 <ArrowUpRight size={14} className="stroke-[3]" />
               </button>
               <button
                 type="button"
                 className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl border-2 border-current bg-white/10 hover:bg-white/20 font-mono text-xs sm:text-sm font-bold transition-all cursor-pointer"
               >
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, ctaSecondary: e.currentTarget.innerText }))}>{heroContent.ctaSecondary}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, ctaSecondary: (e.target as HTMLElement).innerText }))}>{heroContent.ctaSecondary}</span>
               </button>
             </div>
 
             {/* Live Telemetry Radar Pills */}
             <div className="pt-4 sm:pt-6 grid grid-cols-2 gap-2 sm:gap-3 max-w-md mx-auto text-left">
               <div className="rounded-xl border border-current/20 bg-white/5 p-2.5 sm:p-3 backdrop-blur-sm">
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat1Label: e.currentTarget.innerText }))} className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat1Label: (e.target as HTMLElement).innerText }))} className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
                   {heroContent.stat1Label}
                 </span>
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat1Value: e.currentTarget.innerText }))} className="font-display text-sm sm:text-base font-black">{heroContent.stat1Value}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat1Value: (e.target as HTMLElement).innerText }))} className="font-display text-sm sm:text-base font-black">{heroContent.stat1Value}</span>
               </div>
               <div className="rounded-xl border border-current/20 bg-white/5 p-2.5 sm:p-3 backdrop-blur-sm">
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat2Label: e.currentTarget.innerText }))} className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat2Label: (e.target as HTMLElement).innerText }))} className="font-mono text-[8px] sm:text-[9px] font-bold opacity-60 block uppercase">
                   {heroContent.stat2Label}
                 </span>
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat2Value: e.currentTarget.innerText }))} className="font-display text-sm sm:text-base font-black">{heroContent.stat2Value}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setHeroContent((prev) => ({ ...prev, stat2Value: (e.target as HTMLElement).innerText }))} className="font-display text-sm sm:text-base font-black">{heroContent.stat2Value}</span>
               </div>
             </div>
           </div>
@@ -1453,7 +1646,7 @@ function SectionRenderer({
       {section.type === 'features' && (
         <div className="py-12 sm:py-16 px-4 sm:px-12 bg-white text-black border-y-2 border-black/10">
           <div className="text-center max-w-xl mx-auto mb-8 space-y-1">
-            <h2 className="font-display text-xl sm:text-3xl font-black tracking-tight" contentEditable suppressContentEditableWarning onInput={(e) => onRename(e.currentTarget.innerText)}>
+            <h2 className="font-display text-xl sm:text-3xl font-black tracking-tight" contentEditable suppressContentEditableWarning onInput={(e) => onRename((e.target as HTMLElement).innerText)}>
               Engineered for hyper-scale precision.
             </h2>
           </div>
@@ -1470,10 +1663,10 @@ function SectionRenderer({
                 >
                   0{i + 1}
                 </div>
-                <h3 className="font-display font-black text-sm sm:text-base mb-1" contentEditable suppressContentEditableWarning onInput={(e) => setFeaturesContent((prev) => prev.map((item, index) => index === i ? { ...item, title: e.currentTarget.innerText } : item))}>
+                <h3 className="font-display font-black text-sm sm:text-base mb-1" contentEditable suppressContentEditableWarning onInput={(e) => setFeaturesContent((prev) => prev.map((item, index) => index === i ? { ...item, title: (e.target as HTMLElement).innerText } : item))}>
                   {f.title}
                 </h3>
-                <p className="font-mono text-xs text-neutral-600 leading-relaxed" contentEditable suppressContentEditableWarning onInput={(e) => setFeaturesContent((prev) => prev.map((item, index) => index === i ? { ...item, desc: e.currentTarget.innerText } : item))}>
+                <p className="font-mono text-xs text-neutral-600 leading-relaxed" contentEditable suppressContentEditableWarning onInput={(e) => setFeaturesContent((prev) => prev.map((item, index) => index === i ? { ...item, desc: (e.target as HTMLElement).innerText } : item))}>
                   {f.desc}
                 </p>
               </div>
@@ -1486,7 +1679,7 @@ function SectionRenderer({
       {section.type === 'testimonials' && (
         <div className="py-12 sm:py-16 px-4 sm:px-12 bg-[#FFFDF8] text-black">
           <div className="text-center max-w-xl mx-auto mb-8">
-            <h2 className="font-display text-xl sm:text-3xl font-black" contentEditable suppressContentEditableWarning onInput={(e) => onRename(e.currentTarget.innerText)}>
+            <h2 className="font-display text-xl sm:text-3xl font-black" contentEditable suppressContentEditableWarning onInput={(e) => onRename((e.target as HTMLElement).innerText)}>
               Trusted by world-class teams.
             </h2>
           </div>
@@ -1499,7 +1692,7 @@ function SectionRenderer({
                     <Star key={i} size={13} className="fill-yellow text-black stroke-[1.5]" />
                   ))}
                 </div>
-                <p className="font-mono text-xs sm:text-[13px] leading-relaxed mb-4 text-neutral-800" contentEditable suppressContentEditableWarning onInput={(e) => setTestimonialsContent((prev) => prev.map((item, index) => index === idx ? { ...item, quote: e.currentTarget.innerText.replace(/[“”\"]/g, '') } : item))}>
+                <p className="font-mono text-xs sm:text-[13px] leading-relaxed mb-4 text-neutral-800" contentEditable suppressContentEditableWarning onInput={(e) => setTestimonialsContent((prev) => prev.map((item, index) => index === idx ? { ...item, quote: (e.target as HTMLElement).innerText.replace(/[“”\"]/g, '') } : item))}>
                   &ldquo;{item.quote}&rdquo;
                 </p>
                 <div className="pt-3 border-t border-black/10 flex items-center gap-2">
@@ -1507,8 +1700,8 @@ function SectionRenderer({
                     {item.name.charAt(0)}
                   </div>
                   <div>
-                    <h4 contentEditable suppressContentEditableWarning onInput={(e) => setTestimonialsContent((prev) => prev.map((entry, index) => index === idx ? { ...entry, name: e.currentTarget.innerText } : entry))} className="font-display font-black text-xs text-black">{item.name}</h4>
-                    <p contentEditable suppressContentEditableWarning onInput={(e) => setTestimonialsContent((prev) => prev.map((entry, index) => index === idx ? { ...entry, role: e.currentTarget.innerText } : entry))} className="font-mono text-[9px] sm:text-[10px] text-neutral-500">{item.role}</p>
+                    <h4 contentEditable suppressContentEditableWarning onInput={(e) => setTestimonialsContent((prev) => prev.map((entry, index) => index === idx ? { ...entry, name: (e.target as HTMLElement).innerText } : entry))} className="font-display font-black text-xs text-black">{item.name}</h4>
+                    <p contentEditable suppressContentEditableWarning onInput={(e) => setTestimonialsContent((prev) => prev.map((entry, index) => index === idx ? { ...entry, role: (e.target as HTMLElement).innerText } : entry))} className="font-mono text-[9px] sm:text-[10px] text-neutral-500">{item.role}</p>
                   </div>
                 </div>
               </div>
@@ -1521,10 +1714,10 @@ function SectionRenderer({
       {section.type === 'cta' && (
         <div className="py-12 sm:py-16 px-4 sm:px-12 bg-black text-white text-center relative overflow-hidden">
           <div className="relative z-10 max-w-lg mx-auto space-y-3">
-            <h2 className="font-display text-xl sm:text-3xl font-black" contentEditable suppressContentEditableWarning onInput={(e) => setCtaContent((prev) => ({ ...prev, title: e.currentTarget.innerText }))}>
+            <h2 className="font-display text-xl sm:text-3xl font-black" contentEditable suppressContentEditableWarning onInput={(e) => setCtaContent((prev) => ({ ...prev, title: (e.target as HTMLElement).innerText }))}>
               {ctaContent.title}
             </h2>
-            <p className="font-mono text-xs sm:text-sm text-neutral-400" contentEditable suppressContentEditableWarning onInput={(e) => setCtaContent((prev) => ({ ...prev, desc: e.currentTarget.innerText }))}>
+            <p className="font-mono text-xs sm:text-sm text-neutral-400" contentEditable suppressContentEditableWarning onInput={(e) => setCtaContent((prev) => ({ ...prev, desc: (e.target as HTMLElement).innerText }))}>
               {ctaContent.desc}
             </p>
             <div className="pt-2">
@@ -1533,7 +1726,7 @@ function SectionRenderer({
                 style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
                 className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-white font-display text-xs sm:text-sm font-black text-black shadow-[3px_3px_0px_#FFFFFF] cursor-pointer"
               >
-                <span contentEditable suppressContentEditableWarning onInput={(e) => setCtaContent((prev) => ({ ...prev, buttonText: e.currentTarget.innerText }))}>{ctaContent.buttonText}</span>
+                <span contentEditable suppressContentEditableWarning onInput={(e) => setCtaContent((prev) => ({ ...prev, buttonText: (e.target as HTMLElement).innerText }))}>{ctaContent.buttonText}</span>
               </button>
             </div>
           </div>
@@ -1560,7 +1753,7 @@ function SectionRenderer({
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-8">
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest" style={{ color: theme.primaryColor }}>{siteTitle}</p>
-              <h2 contentEditable suppressContentEditableWarning onInput={(e) => onRename(e.currentTarget.innerText)} className="font-display text-2xl sm:text-3xl font-black mt-2">
+              <h2 contentEditable suppressContentEditableWarning onInput={(e) => onRename((e.target as HTMLElement).innerText)} className="font-display text-2xl sm:text-3xl font-black mt-2">
                 {section.name}
               </h2>
               <p className="font-mono text-xs text-neutral-600 mt-2">Thoughtfully selected for your everyday, made to last.</p>
@@ -1605,12 +1798,16 @@ function SectionProperties({
   sectionId,
   sections,
   theme,
-  setTheme
+  setTheme,
+  sectionSpacing,
+  setSectionSpacing,
 }: {
   sectionId: string;
   sections: Section[];
   theme: { primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string };
   setTheme: React.Dispatch<React.SetStateAction<{ primaryColor: string; bgColor: string; textColor: string; fontFamily: string; borderRadius: string }>>;
+  sectionSpacing: SectionSpacing;
+  setSectionSpacing: React.Dispatch<React.SetStateAction<SectionSpacing>>;
 }) {
   const section = sections.find(s => s.id === sectionId);
   if (!section) return null;
@@ -1654,10 +1851,11 @@ function SectionProperties({
           Spacing (px)
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {['Top: 48', 'Bottom: 48', 'Left: 32', 'Right: 32'].map((label) => (
-            <div key={label} className="rounded-xl border-2 border-black bg-white p-2 text-center">
-              <span className="font-mono text-xs font-bold text-black">{label}</span>
-            </div>
+          {(['top', 'bottom', 'left', 'right'] as const).map((side) => (
+            <label key={side} className="rounded-xl border-2 border-black bg-white p-2">
+              <span className="mb-1 block font-mono text-[10px] font-bold capitalize text-neutral-500">{side}: {sectionSpacing[side]}px</span>
+              <input type="range" min={0} max={120} step={4} value={sectionSpacing[side]} onChange={(event) => setSectionSpacing((current) => ({ ...current, [side]: Number(event.target.value) }))} className="w-full accent-pink" aria-label={`${side} spacing`} />
+            </label>
           ))}
         </div>
       </div>

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import { Search, Grid3X3, LayoutList, Loader2, Globe, X } from 'lucide-react';
 import TemplateCard from '@/components/TemplateCard';
 import { CATEGORIES, getTemplatesByCategory, searchTemplates, COMING_SOON_CATEGORIES } from '@/lib/templates';
@@ -22,7 +21,8 @@ export default function TemplatesPageContent() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showPro, setShowPro] = useState<boolean | null>(null);
 
-  // Force sync with URL immediately
+  // URL search parameters are external state; sync them after navigation.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (urlCategory) {
       setActiveCategory(urlCategory);
@@ -31,6 +31,7 @@ export default function TemplatesPageContent() {
       setSearchQuery(urlQuery);
     }
   }, [urlCategory, urlQuery]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Instant URL sync on state change
   useEffect(() => {
@@ -280,7 +281,7 @@ export default function TemplatesPageContent() {
               <div className="text-6xl mb-6">🚧</div>
               <h3 className="font-display font-black text-3xl text-ink mb-3">Coming Soon!</h3>
               <p className="font-mono text-sm text-muted-foreground mb-6 max-w-md">
-                The <span className="text-pink font-black">{activeCategory}</span> category is under development. We're working hard to bring you amazing templates in this category.
+                The <span className="text-pink font-black">{activeCategory}</span> category is under development. We&apos;re working hard to bring you amazing templates in this category.
               </p>
               <div className="flex flex-col sm:flex-row items-center gap-3">
                 <button
