@@ -16,6 +16,9 @@ import {
 import { TEMPLATES } from '@/lib/templates';
 import { Template } from '@/types';
 
+type LivePageSection = { id: string; type: string; name: string; content?: Record<string, unknown>; style?: Record<string, unknown>; hidden?: Record<string, boolean>; anchorId?: string };
+type LivePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; oldSlugs?: string[]; sections?: LivePageSection[] };
+
 export default function LiveWebsitePage({
   params
 }: {
@@ -36,7 +39,7 @@ export default function LiveWebsitePage({
   ]);
   const [sectionSpacing, setSectionSpacing] = useState<Record<string, { top: number; bottom: number; left: number; right: number }>>({});
   const [canvasElements, setCanvasElements] = useState<Array<{ id: string; type: 'image' | 'icon'; name: string; src?: string; icon?: string; x: number; y: number; width: number; height: number }>>([]);
-  const [sitePages, setSitePages] = useState<Array<{ id: string; title: string; description: string; slug?: string; isHome?: boolean; oldSlugs?: string[] }>>([]);
+  const [sitePages, setSitePages] = useState<LivePage[]>([]);
   const [activePage, setActivePage] = useState('home');
   const [assetUrl, setAssetUrl] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
@@ -163,11 +166,11 @@ export default function LiveWebsitePage({
         if (content?.features) setFeaturesContent(content.features as typeof featuresContent);
         if (content?.testimonials) setTestimonialsContent(content.testimonials as typeof testimonialsContent);
         if (content?.cta) setCtaContent(content.cta as typeof ctaContent);
-        const pages = Array.isArray(nestedDocument.pages) ? nestedDocument.pages as Array<{ id: string; title: string; slug: string; isHome: boolean; oldSlugs?: string[]; seo?: { description?: string }; sections?: typeof siteSections; elements?: typeof canvasElements }> : [];
+        const pages = Array.isArray(nestedDocument.pages) ? nestedDocument.pages as Array<{ id: string; title: string; slug: string; isHome: boolean; oldSlugs?: string[]; seo?: { description?: string }; sections?: LivePageSection[]; elements?: typeof canvasElements }> : [];
         const homePage = pages.find((page) => page.isHome) || pages[0];
         if (homePage?.sections?.length) setSiteSections(homePage.sections);
         if (homePage?.elements) setCanvasElements(homePage.elements);
-        if (pages.length) setSitePages(pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo?.description || '', slug: page.slug, isHome: page.isHome, oldSlugs: page.oldSlugs || [] })));
+        if (pages.length) setSitePages(pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo?.description || '', slug: page.slug, isHome: page.isHome, oldSlugs: page.oldSlugs || [], sections: page.sections || [] })));
         const assets = Array.isArray(nestedDocument.assets) ? nestedDocument.assets as Array<{ role: string; src: string }> : [];
         if (assets.length) {
           setAssetUrl(assets.find((asset) => asset.role === 'product')?.src || '');
@@ -571,6 +574,20 @@ export default function LiveWebsitePage({
         </> : <section className="min-h-[70vh] bg-[#FAF9F6] px-5 py-14 text-black sm:px-12">
           {(() => { const page = sitePages.find((entry) => entry.id === activePage); const title = page?.title || activePage.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
             return <div className="mx-auto max-w-6xl"><p className="font-mono text-xs font-bold uppercase tracking-[.2em]" style={{ color: theme.primaryColor }}>{siteTitle}</p><h1 className="mt-3 text-4xl font-black sm:text-6xl">{activePage === '404' ? 'Page not found' : title}</h1><p className="mt-4 max-w-2xl text-base leading-relaxed text-neutral-600">{activePage === '404' ? 'The page you requested could not be found.' : page?.description || `Welcome to ${title} at ${siteTitle}.`}</p>
+              {page?.sections?.filter((section) => !['nav', 'footer'].includes(section.type) && !section.hidden?.desktop).map((section) => {
+                const content = section.content || {};
+                const heading = [content.heading, content.title, section.name].find((value): value is string => typeof value === 'string' && value.length > 0) || section.type.replace(/[-_]/g, ' ');
+                const description = [content.description, content.desc, content.subtitle].find((value): value is string => typeof value === 'string') || '';
+                const items = Array.isArray(content.items) ? content.items.filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null) : [];
+                return <section key={section.id} id={section.anchorId || section.id} className="mt-10 rounded-2xl border border-black/10 bg-white p-6 shadow-sm sm:p-9">
+                  <h2 className="text-2xl font-black sm:text-3xl">{heading}</h2>
+                  {description && <p className="mt-3 max-w-3xl leading-relaxed text-neutral-600">{description}</p>}
+                  {section.type === 'faq' ? <div className="mt-6 divide-y divide-black/10">{items.map((item, index) => <details key={index} className="py-4"><summary className="cursor-pointer font-bold">{String(item.question || item.title || `Question ${index + 1}`)}</summary><p className="mt-2 leading-relaxed text-neutral-600">{String(item.answer || item.description || '')}</p></details>)}</div>
+                    : section.type === 'gallery' || section.type === 'product-grid' ? <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.map((item, index) => <article key={index} className="overflow-hidden rounded-xl border border-black/10"><div className="flex aspect-[4/3] items-center justify-center bg-neutral-100">{typeof item.src === 'string' && item.src ? <Image src={item.src} alt={String(item.alt || item.title || '')} width={640} height={480} unoptimized className="h-full w-full object-cover" /> : <span className="text-4xl font-black text-neutral-300">0{index + 1}</span>}</div><div className="p-4"><h3 className="font-bold">{String(item.title || item.name || `Item ${index + 1}`)}</h3>{typeof item.description === 'string' && <p className="mt-1 text-sm text-neutral-600">{item.description}</p>}{typeof item.price === 'string' && <p className="mt-3 font-bold">{item.price}</p>}</div></article>)}</div>
+                    : items.length ? <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.map((item, index) => <article key={index} className="rounded-xl border border-black/10 bg-neutral-50 p-5"><h3 className="font-bold">{String(item.title || item.name || item.question || `Item ${index + 1}`)}</h3>{typeof item.description === 'string' && <p className="mt-2 text-sm leading-relaxed text-neutral-600">{item.description}</p>}{typeof item.answer === 'string' && <p className="mt-2 text-sm leading-relaxed text-neutral-600">{item.answer}</p>}{typeof item.quote === 'string' && <blockquote className="mt-2 text-sm leading-relaxed text-neutral-600">“{item.quote}”</blockquote>}{typeof item.price === 'string' && <p className="mt-3 font-bold">{item.price}</p>}</article>)}</div>
+                    : typeof content.body === 'string' ? <p className="mt-5 whitespace-pre-wrap leading-relaxed text-neutral-700">{content.body}</p> : <p className="mt-5 text-sm text-neutral-500">{description || `Explore ${heading}.`}</p>}
+                </section>;
+              })}
               {/(shop|collection|store)/i.test(title) && <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{productNames.map((name, index) => <article key={name} className="overflow-hidden rounded-2xl border border-black/10 bg-white"><div className="flex h-56 items-center justify-center bg-neutral-100">{assetUrl ? <Image src={assetUrl} alt={name} width={640} height={640} unoptimized className="h-full w-full object-cover" /> : <span className="text-5xl font-black">0{index + 1}</span>}</div><div className="p-5"><h2 className="font-bold">{name}</h2><p className="mt-2 text-sm text-neutral-600">Premium materials, thoughtfully made.</p><div className="mt-4 flex items-center justify-between"><strong>${[68,124,92][index]}.00</strong><button type="button" onClick={() => setCartCount((count) => count + 1)} className="rounded-lg px-4 py-2 text-sm font-bold" style={{ backgroundColor: theme.primaryColor }}>Add to bag</button></div></div></article>)}</div>}
               {/cart/i.test(title) && <div className="mt-8 rounded-2xl border border-black/10 bg-white p-6"><h2 className="text-2xl font-bold">Your bag</h2><p className="mt-2 text-neutral-600">{cartCount ? `${cartCount} item(s) in your bag.` : 'Your bag is empty.'}</p><a href={`/live/${subdomain}?page=checkout`} className="mt-5 inline-flex rounded-lg px-5 py-3 font-bold" style={{ backgroundColor: theme.primaryColor }}>Continue to checkout</a></div>}
               {/checkout/i.test(title) && <form className="mt-8 grid max-w-xl gap-3 rounded-2xl border border-black/10 bg-white p-6" onSubmit={(event) => { event.preventDefault(); window.alert('Your order details are ready.'); }}><h2 className="text-xl font-bold">Delivery details</h2><input required type="email" aria-label="Email address" placeholder="Email address" className="rounded-lg border px-4 py-3"/><input required aria-label="Full name" placeholder="Full name" className="rounded-lg border px-4 py-3"/><input required aria-label="Shipping address" placeholder="Shipping address" className="rounded-lg border px-4 py-3"/><button className="rounded-lg px-5 py-3 font-bold" style={{ backgroundColor: theme.primaryColor }}>Continue to payment</button></form>}
