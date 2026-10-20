@@ -27,6 +27,7 @@ import DeployModal from '@/components/DeployModal';
 import SocialShareModal from '@/components/SocialShareModal';
 import { DraggablePaletteButton, SectionDropMarker, SortableSectionFrame } from '@/components/editor/DndItems';
 import TreeSectionRenderer from '@/components/editor/TreeSectionRenderer';
+import BrandWordmark from '@/components/BrandWordmark';
 
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
 type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'navigation' | 'assets';
