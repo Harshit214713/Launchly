@@ -2004,6 +2004,7 @@ function TreeElementProperties({ element, pages, device, onChange, onUpload }: {
       {element.type === 'icon' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Icon size<input type="number" min="8" max="256" value={Number(element.content.size || 36)} onChange={(event) => changeContent('size', Math.max(8, Math.min(256, Number(event.target.value) || 36)))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label>}
       {['image', 'image-caption', 'icon'].includes(element.type) && <label className="block cursor-pointer rounded-lg border-2 border-dashed border-black p-3 text-center font-mono text-xs font-bold">Upload {element.type}<input type="file" accept="image/*" className="sr-only" onChange={(event) => onUpload(event.target.files?.[0])} /></label>}
       {element.type === 'spacer' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Height (px)<input type="number" min="0" max="1200" value={Number(element.content.height || 48)} onChange={(event) => changeContent('height', Math.max(0, Number(event.target.value) || 0))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label>}
+      <StructuredContentEditor key={JSON.stringify(element.content)} value={element.content} onChange={(content) => onChange((current) => ({ ...current, content }))} label="All content fields" />
     </div>}
     {tab === 'style' && <div className="space-y-3">
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Text color<input type="color" value={effectiveStyle.color || '#111111'} onChange={(event) => changeStyle('color', event.target.value)} className="mt-1 h-9 w-full rounded border-2 border-black" /></label>
@@ -2370,7 +2371,7 @@ function SectionRenderer({
         </footer>
       )}
       {section.type === 'divider' && <hr aria-label="Section divider" className="mx-auto w-full max-w-5xl border-0 border-t-2 border-black/20" />}
-      {['gallery', 'pricing', 'contact', 'stats', 'faq', 'team', 'steps', 'newsletter', 'rich-text', 'image-text', 'announcement'].includes(section.type) && (
+      {!['nav', 'hero', 'features', 'testimonials', 'cta', 'footer', 'divider', 'custom'].includes(section.type) && (
         <section className="py-12 sm:py-16 px-4 sm:px-12 bg-[#FAF9F6] text-black">
           <div className="max-w-4xl mx-auto">
             {section.type !== 'divider' && <div className="text-center mb-8">
@@ -2414,13 +2415,29 @@ function SectionRenderer({
             ) : section.type === 'not-found' ? (
               <div className="mx-auto max-w-xl rounded-2xl border-2 border-black bg-white p-8 text-center shadow-[3px_3px_0_#000]"><p className="font-display text-6xl font-black" style={{ color: theme.primaryColor }}>404</p><p className="mt-3 font-mono text-sm text-neutral-600">{textValue(sectionContent.description)}</p><button type="button" onClick={(event) => { event.stopPropagation(); onNavigatePage('home'); }} className="mt-5 rounded-xl border-2 border-black px-4 py-2 font-bold" style={themedButtonStyle}>{textValue(sectionContent.buttonText, 'Back home')}</button></div>
             ) : (
-              null
+              <article className="mx-auto max-w-4xl rounded-2xl border-2 border-dashed border-black/30 bg-white p-6 shadow-[3px_3px_0_#000]"><h3 className="font-display text-xl font-black">{textValue(sectionContent.title, textValue(sectionContent.heading, section.name || 'Content block'))}</h3>{typeof sectionContent.description === 'string' && <p className="mt-2 leading-relaxed text-neutral-600">{sectionContent.description}</p>}{typeof sectionContent.body === 'string' && <p className="mt-3 whitespace-pre-wrap leading-relaxed">{sectionContent.body}</p>}{typeof sectionContent.text === 'string' && <p className="mt-3 leading-relaxed">{sectionContent.text}</p>}{blockItems.length > 0 && <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{blockItems.map((item, index) => <div key={index} className="rounded-xl border border-black/10 bg-neutral-50 p-4"><h4 className="font-bold">{String(item.title || item.name || item.label || `Item ${index + 1}`)}</h4><p className="mt-1 text-sm text-neutral-600">{String(item.description || item.desc || item.answer || item.quote || '')}</p></div>)}</div>}<p className="mt-4 font-mono text-[9px] font-bold uppercase text-neutral-400">Select this section to edit every field in the inspector.</p></article>
             )}
           </div>
         </section>
       )}
     </div>
   );
+}
+
+function StructuredContentEditor({ value, onChange, label = 'All content fields' }: { value: Record<string, unknown>; onChange: (value: Record<string, unknown>) => void; label?: string }) {
+  const [draft, setDraft] = useState(() => JSON.stringify(value, null, 2));
+  const [error, setError] = useState('');
+  const apply = () => {
+    try {
+      const parsed: unknown = JSON.parse(draft);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Content must be a JSON object.');
+      onChange(parsed as Record<string, unknown>);
+      setError('');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Invalid content data.');
+    }
+  };
+  return <details className="rounded-xl border border-black/20 bg-white p-2.5"><summary className="cursor-pointer font-mono text-[9px] font-black uppercase">{label} · advanced</summary><p className="mt-2 text-[10px] leading-relaxed text-neutral-500">Edit every content property, including nested items and element-specific settings. Apply validates the data before saving it to this block.</p><textarea aria-label={label} spellCheck={false} rows={10} value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={apply} className="mt-2 w-full rounded-lg border border-black/30 bg-[#FAF9F6] p-2 font-mono text-[10px] leading-relaxed"/><button type="button" onClick={apply} className="mt-2 w-full rounded-lg border-2 border-black bg-yellow py-2 font-mono text-[10px] font-bold">Apply content</button>{error && <p role="alert" className="mt-2 text-[10px] font-bold text-red-700">{error}</p>}</details>;
 }
 
 function SectionProperties({
@@ -2469,6 +2486,7 @@ function SectionProperties({
         {typeof content.image === 'string' && content.image && <NextImage src={content.image} alt="Section image preview" width={900} height={500} unoptimized className="max-h-36 w-full rounded-lg border border-black/15 object-cover" />}
         {['title', 'heading', 'badge', 'description', 'desc', 'body', 'ctaPrimary', 'ctaSecondary', 'buttonText', 'submitLabel', 'successMessage', 'text', 'linkLabel', 'image'].filter((key) => typeof content[key] === 'string').map((key) => <label key={key} className="block font-mono text-[9px] font-bold uppercase text-neutral-500">{key.replace(/([A-Z])/g, ' $1')}<textarea rows={['description', 'desc', 'body', 'successMessage'].includes(key) ? 3 : 1} value={content[key] as string} onChange={(event) => updateContent(key, event.target.value)} className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /></label>)}
         {Array.isArray(content.items) && <div className="space-y-2 border-t border-black/10 pt-2"><p className="font-mono text-[9px] font-bold uppercase text-neutral-500">Items · {repeaterItems.length}</p>{repeaterItems.map((item, index) => <div key={`${section.id}-item-${index}`} className="space-y-1 rounded-lg border border-black/20 bg-[#FAF9F6] p-2"><div className="flex items-center justify-between"><span className="font-mono text-[9px] font-bold">Item {index + 1}</span><button type="button" aria-label={`Remove item ${index + 1}`} onClick={() => updateContent('items', repeaterItems.filter((_, itemIndex) => itemIndex !== index))} className="rounded border border-black/20 p-1 hover:bg-pink"><Trash2 size={12}/></button></div>{Object.entries(item).filter(([, value]) => typeof value === 'string' || typeof value === 'number').map(([key, value]) => <label key={key} className="block font-mono text-[9px] font-bold capitalize text-neutral-500">{key}<input value={String(value)} onChange={(event) => updateContent('items', repeaterItems.map((entry, itemIndex) => itemIndex === index ? { ...entry, [key]: event.target.value } : entry))} className="mt-0.5 w-full rounded border border-black/20 bg-white px-2 py-1 font-sans text-xs font-normal text-black" /></label>)}{(section.type === 'gallery' || section.type === 'team' || section.type === 'features' || section.type === 'testimonials' || section.type === 'services' || section.type === 'logo-cloud' || item.image !== undefined || item.src !== undefined) && <><label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Image URL<input value={String(item.image || item.src || '')} onChange={(event) => updateContent('items', repeaterItems.map((entry, itemIndex) => itemIndex === index ? { ...entry, image: event.target.value, src: event.target.value } : entry))} placeholder="https://example.com/image.jpg" className="mt-0.5 w-full rounded border border-black/20 bg-white px-2 py-1 font-sans text-xs font-normal normal-case text-black" /></label><label className="flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-black/30 bg-white px-2 py-1.5 font-mono text-[9px] font-bold hover:bg-yellow/40"><ImageIcon size={12}/> Upload item image<input type="file" accept="image/*" className="sr-only" onChange={(event) => { onUploadImage(event.target.files?.[0], index); event.currentTarget.value = ''; }} /></label></>}</div>)}<button type="button" onClick={() => { const defaults = blockRegistry[section.type]?.defaultContent.items; const fallback = Array.isArray(defaults) ? defaults[0] as Record<string, unknown> : { title: 'New item', desc: 'Add a description.' }; updateContent('items', [...repeaterItems, structuredClone(repeaterItems[0] || fallback)]); }} className="w-full rounded-lg border border-black bg-yellow py-1.5 font-mono text-[10px] font-bold">＋ Add item</button></div>}
+        <StructuredContentEditor key={JSON.stringify(content)} value={content} onChange={setSectionContent} label="Complete section content" />
       </div>
 
       {/* Typography Toolbar */}
