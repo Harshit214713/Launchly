@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { addContactMessage } from '@/lib/db';
+import { addContactMessage, isValidEmail } from '@/lib/db';
 import { sendFeedbackEmail } from '@/lib/mailer';
 import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
@@ -16,6 +16,9 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    if (typeof body?.website === 'string' && body.website.trim()) {
+      return NextResponse.json({ success: true, message: 'Message received.' });
+    }
     const { name, email, message, category, rating } = body;
 
     if (!message || typeof message !== 'string' || !message.trim()) {
@@ -30,6 +33,10 @@ export async function POST(request: Request) {
         { success: false, message: 'Message exceeds maximum allowed length of 3000 characters.' },
         { status: 400 }
       );
+    }
+
+    if (email && (typeof email !== 'string' || email.length > 254 || !isValidEmail(email))) {
+      return NextResponse.json({ success: false, message: 'Please enter a valid email address.' }, { status: 400 });
     }
 
     const cleanCategory = String(category || 'IDEA').slice(0, 30);
