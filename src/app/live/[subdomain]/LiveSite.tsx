@@ -10,14 +10,17 @@ import {
   Edit3, 
   ArrowUpRight, 
   Star, 
-  ChevronDown
+  ChevronDown,
+  Menu,
+  X
   , Heart, Sparkles, Camera, CheckCircle2
 } from 'lucide-react';
 import { TEMPLATES } from '@/lib/templates';
 import { Template } from '@/types';
 
 type LivePageSection = { id: string; type: string; name: string; content?: Record<string, unknown>; style?: Record<string, unknown>; hidden?: Record<string, boolean>; anchorId?: string };
-type LivePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; oldSlugs?: string[]; sections?: LivePageSection[] };
+type LivePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; oldSlugs?: string[]; sections?: LivePageSection[] };
+type LiveMenuItem = { id: string; label: string; target: { type: 'page' | 'url' | 'anchor'; value: string }; newTab?: boolean; children?: LiveMenuItem[] };
 
 export default function LiveWebsitePage({
   params
@@ -40,6 +43,8 @@ export default function LiveWebsitePage({
   const [sectionSpacing, setSectionSpacing] = useState<Record<string, { top: number; bottom: number; left: number; right: number }>>({});
   const [canvasElements, setCanvasElements] = useState<Array<{ id: string; type: 'image' | 'icon'; name: string; src?: string; icon?: string; x: number; y: number; width: number; height: number }>>([]);
   const [sitePages, setSitePages] = useState<LivePage[]>([]);
+  const [siteMenu, setSiteMenu] = useState<LiveMenuItem[]>([]);
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [activePage, setActivePage] = useState('home');
   const [assetUrl, setAssetUrl] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
@@ -65,6 +70,13 @@ export default function LiveWebsitePage({
   const productNames = template.id === 'velvet-boutique'
     ? ['The Cashmere Coat', 'Velvet Evening Bag', 'Heirloom Gold Cuff']
     : ['Silk Column Dress', 'The Everyday Tote', 'Sculpted Gold Hoops'];
+  const liveNavigation: LiveMenuItem[] = siteMenu.length ? siteMenu : sitePages.length ? sitePages.filter((page) => !page.isHome && page.showInMenu !== false).map((page) => ({ id: page.id, label: page.title, target: { type: 'page', value: page.id } })) : template.pages.slice(1).map((title) => { const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-'); return { id, label: title, target: { type: 'page' as const, value: id } }; });
+  const navigationHref = (item: LiveMenuItem) => {
+    if (item.target.type === 'url') return item.target.value;
+    if (item.target.type === 'anchor') return `#${item.target.value.replace(/^#/, '')}`;
+    const page = sitePages.find((entry) => entry.id === item.target.value);
+    return page?.isHome ? `/live/${subdomain}` : `/live/${subdomain}${page?.slug || `/${item.target.value}`}`;
+  };
   useEffect(() => {
     const requestedPage = new URLSearchParams(window.location.search).get('page');
     if (requestedPage) setActivePage(requestedPage);
@@ -165,11 +177,12 @@ export default function LiveWebsitePage({
         if (content?.features) setFeaturesContent(content.features as typeof featuresContent);
         if (content?.testimonials) setTestimonialsContent(content.testimonials as typeof testimonialsContent);
         if (content?.cta) setCtaContent(content.cta as typeof ctaContent);
-        const pages = Array.isArray(nestedDocument.pages) ? nestedDocument.pages as Array<{ id: string; title: string; slug: string; isHome: boolean; oldSlugs?: string[]; seo?: { description?: string }; sections?: LivePageSection[]; elements?: typeof canvasElements }> : [];
+        const pages = Array.isArray(nestedDocument.pages) ? nestedDocument.pages as Array<{ id: string; title: string; slug: string; isHome: boolean; showInMenu?: boolean; oldSlugs?: string[]; seo?: { description?: string }; sections?: LivePageSection[]; elements?: typeof canvasElements }> : [];
         const homePage = pages.find((page) => page.isHome) || pages[0];
         if (homePage?.sections?.length) setSiteSections(homePage.sections);
         if (homePage?.elements) setCanvasElements(homePage.elements);
-        if (pages.length) setSitePages(pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo?.description || '', slug: page.slug, isHome: page.isHome, oldSlugs: page.oldSlugs || [], sections: page.sections || [] })));
+        if (pages.length) setSitePages(pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo?.description || '', slug: page.slug, isHome: page.isHome, showInMenu: page.showInMenu !== false, oldSlugs: page.oldSlugs || [], sections: page.sections || [] })));
+        if (Array.isArray(nestedDocument.menu)) setSiteMenu(nestedDocument.menu as LiveMenuItem[]);
         const assets = Array.isArray(nestedDocument.assets) ? nestedDocument.assets as Array<{ role: string; src: string }> : [];
         if (assets.length) {
           setAssetUrl(assets.find((asset) => asset.role === 'product')?.src || '');
@@ -345,16 +358,22 @@ export default function LiveWebsitePage({
           </div>
 
           <div className="hidden sm:flex items-center gap-6 font-mono text-xs font-bold text-neutral-700">
-            {(sitePages.length ? sitePages : template.pages.map((title, index) => ({ id: index ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'home', title, description: '', slug: index ? `/${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : '/', isHome: !index }))).map(item => (
+            {liveNavigation.map(item => (
               <a
                 key={item.id}
-                href={item.isHome || item.id === 'home' ? `/live/${subdomain}` : `/live/${subdomain}${item.slug || `/${item.id}`}`}
+                href={navigationHref(item)}
+                target={item.newTab ? '_blank' : undefined}
+                rel={item.newTab ? 'noreferrer' : undefined}
                 className="hover:text-black hover:underline cursor-pointer transition-colors"
               >
-                {item.title}
+                {item.label}
               </a>
             ))}
           </div>
+
+          <button type="button" aria-label={mobileNavigationOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={mobileNavigationOpen} onClick={() => setMobileNavigationOpen((open) => !open)} className="rounded-lg border border-black/20 p-2 sm:hidden">
+            {mobileNavigationOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
 
           <a
             href="#collection"
@@ -364,6 +383,7 @@ export default function LiveWebsitePage({
             Get Started
           </a>
         </nav>
+        {mobileNavigationOpen && <nav aria-label="Mobile navigation" className="sticky top-12 z-40 border-b border-black/10 bg-white px-5 py-4 sm:hidden"><div className="flex flex-col gap-4 font-mono text-sm font-bold">{liveNavigation.map((item) => <a key={item.id} href={navigationHref(item)} target={item.newTab ? '_blank' : undefined} rel={item.newTab ? 'noreferrer' : undefined} onClick={() => setMobileNavigationOpen(false)}>{item.label}</a>)}</div></nav>}
 
         {activePage === 'home' ? <>
 
