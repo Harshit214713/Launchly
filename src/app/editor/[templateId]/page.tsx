@@ -918,7 +918,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
               />
             </div>
             <span className="hidden xl:inline-flex">
-              <BrandWordmark size="sm" />
+              <BrandWordmark size="sm" tone="dark" />
             </span>
           </Link>
 
