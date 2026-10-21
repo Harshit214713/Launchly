@@ -1,5 +1,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import type { Column, MenuItem, Section, SectionContent, SiteDocument, SiteElement, SitePage, Theme } from '@/lib/siteDocument';
+import type { Column, Device, MenuItem, Section, SectionContent, SiteDocument, SiteElement, SitePage, Theme } from '@/lib/siteDocument';
+
+export type SelectedElementPath = { sectionId: string; columnId: string; elementId: string };
 
 export type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'offline';
 export type SiteVersion = { id: string; label: string; createdAt: string; document: SiteDocument };
@@ -10,6 +12,17 @@ export type EditorStoreState = {
   versions: SiteVersion[];
   saveStatus: SaveStatus;
   lastSavedAt: string | null;
+  // UI state kept in the store so undo/redo can reliably restore the full visual state
+  deviceMode: Device;
+  activePageId: string;
+  selectedSectionId: string | null;
+  selectedElementPath: SelectedElementPath | null;
+  isRestoring: boolean;
+  // Actions
+  setDeviceMode: (mode: Device) => void;
+  setActivePageId: (id: string) => void;
+  setSelectedSectionId: (id: string | null) => void;
+  setSelectedElementPath: (path: SelectedElementPath | null) => void;
   updateDocument: (update: (document: SiteDocument) => SiteDocument, group?: string) => void;
   replaceDocument: (document: SiteDocument) => void;
   setTheme: (theme: Theme) => void;
@@ -23,7 +36,7 @@ export type EditorStoreState = {
   updateSectionContent: (pageId: string, sectionId: string, content: SectionContent, group?: string) => void;
   insertColumn: (pageId: string, sectionId: string, column: Column, index: number) => void;
   moveColumn: (pageId: string, sectionId: string, columnId: string, targetIndex: number) => void;
-  resizeColumn: (pageId: string, sectionId: string, columnId: string, device: 'desktop' | 'tablet' | 'mobile', width: number) => void;
+  resizeColumn: (pageId: string, sectionId: string, columnId: string, device: Device, width: number) => void;
   insertElement: (pageId: string, sectionId: string, columnId: string, element: SiteElement, index: number) => void;
   moveElement: (pageId: string, fromSectionId: string, fromColumnId: string, elementId: string, toSectionId: string, toColumnId: string, targetIndex: number) => void;
   duplicateElement: (pageId: string, sectionId: string, columnId: string, elementId: string) => void;
@@ -104,8 +117,17 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
     versions: [],
     saveStatus: 'saved',
     lastSavedAt: null,
+    deviceMode: 'desktop',
+    activePageId: initial.pages.find((p) => p.isHome)?.id || initial.pages[0]?.id || 'home',
+    selectedSectionId: null,
+    selectedElementPath: null,
+    isRestoring: false,
+    setDeviceMode: (mode) => set({ deviceMode: mode }),
+    setActivePageId: (id) => set({ activePageId: id }),
+    setSelectedSectionId: (id) => set({ selectedSectionId: id }),
+    setSelectedElementPath: (path) => set({ selectedElementPath: path }),
     updateDocument: (update, group) => commit(set, get, update, group),
-    replaceDocument: (document) => { lastGroup = ''; lastEditAt = 0; set({ document, past: [], future: [], saveStatus: 'saved' }); },
+    replaceDocument: (document) => { lastGroup = ''; lastEditAt = 0; set({ document, past: [], future: [], saveStatus: 'saved', isRestoring: false }); },
     setTheme: (theme) => commit(set, get, (document) => ({ ...document, theme })),
     addSection: (pageId, section, index) => commit(set, get, (document) => ({ ...document, pages: document.pages.map((page) => {
       if (page.id !== pageId) return page;
@@ -297,16 +319,18 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
       commit(set, get, () => structuredClone(version.document));
       return true;
     },
-    undo: () => { lastGroup = ''; lastEditAt = 0; return set((state) => {
+    undo: () => { lastGroup = ''; lastEditAt = 0; set((state) => {
       if (!state.past.length) return state;
       const previous = state.past[state.past.length - 1];
-      return { document: previous, past: state.past.slice(0, -1), future: [state.document, ...state.future], saveStatus: 'unsaved' };
+      // isRestoring=true prevents the sync useEffect in the editor from re-committing the restored state as a new undo step
+      return { document: previous, past: state.past.slice(0, -1), future: [state.document, ...state.future], saveStatus: 'unsaved', isRestoring: true };
     }); },
-    redo: () => { lastGroup = ''; lastEditAt = 0; return set((state) => {
+    redo: () => { lastGroup = ''; lastEditAt = 0; set((state) => {
       if (!state.future.length) return state;
       const [next, ...future] = state.future;
-      return { document: next, past: [...state.past, state.document].slice(-50), future, saveStatus: 'unsaved' };
+      return { document: next, past: [...state.past, state.document].slice(-50), future, saveStatus: 'unsaved', isRestoring: true };
     }); },
+    clearRestoring: () => set({ isRestoring: false }),
     canUndo: () => get().past.length > 0,
     canRedo: () => get().future.length > 0,
   }));

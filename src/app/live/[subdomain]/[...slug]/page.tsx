@@ -8,14 +8,16 @@ export async function generateMetadata({ params }: { params: Promise<{ subdomain
   return getPublishedPageMetadata(subdomain, slug.join('/'));
 }
 
-export default async function LiveSiteRoute({ params }: { params: Promise<{ subdomain: string; slug: string[] }> }) {
+export default async function LiveSiteRoute({ params, searchParams }: { params: Promise<{ subdomain: string; slug: string[] }>; searchParams: Promise<{ preview?: string }> }) {
   const routeParams = await params;
+  const query = await searchParams;
+  const isPreview = query.preview === '1';
   const newSlug = await getPublishedSlugRedirect(routeParams.subdomain, routeParams.slug.join('/'));
   if (newSlug) {
     const host = (await headers()).get('host') || '';
     const customHost = host.endsWith('.launchly.site') || host.includes('.localhost');
     permanentRedirect(customHost ? newSlug : `/live/${routeParams.subdomain}${newSlug}`);
   }
-  if (!await hasPublishedPage(routeParams.subdomain, routeParams.slug.join('/'))) notFound();
+  if (!isPreview && !await hasPublishedPage(routeParams.subdomain, routeParams.slug.join('/'))) notFound();
   return <LiveWebsitePage params={Promise.resolve(routeParams)} />;
 }

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, use, useEffect, useCallback, useRef, useId, useMemo } from 'react';
+import { useState, use, useEffect, useCallback, useRef, useId, useMemo, type FormEvent, type MouseEvent } from 'react';
 import { useStore } from 'zustand';
 import Link from 'next/link';
 import NextImage from 'next/image';
 import { closestCenter, DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import {
-  Undo2, Redo2, Monitor, Tablet, Smartphone, Save, Globe,
+  Undo2, Redo2, Monitor, Tablet, Smartphone, Globe,
   Layers, Type, Image as ImageIcon, Palette, Settings, Menu as MenuIcon, ExternalLink,
   Plus, Trash2, ChevronRight, Eye, EyeOff, Lock, Unlock, X,
   Bold, Italic, AlignLeft, AlignCenter, AlignRight,
@@ -19,7 +19,7 @@ import { getTemplateById, TEMPLATES } from '@/lib/templates';
 import { cn } from '@/lib/utils';
 import { exportTemplateAsZip } from '@/lib/zipExport';
 import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/contrast';
-import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type Column, type MenuItem, type SectionStyle, type SiteAsset, type SiteDocument, type SiteElement, type Theme } from '@/lib/siteDocument';
+import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type Column, type Device, type MenuItem, type SectionStyle, type SiteAsset, type SiteDocument, type SiteElement, type Theme } from '@/lib/siteDocument';
 import { blockRegistry } from '@/lib/blockRegistry';
 import { hydrateVersionDocument, loadEditorDraft, loadEditorVersions, saveEditorDraft, saveEditorVersions } from '@/lib/editorPersistence';
 import { createEditorStore } from '@/store/editorStore';
@@ -33,10 +33,12 @@ import { getAnimationClass, type ButtonTarget } from '@/lib/elementActions';
 import { editorCatalog, getEditorCatalogItem, paletteCategories, type EditorPaletteCategory } from '@/lib/editorCatalog';
 import { createStorefrontPages } from '@/lib/templateContent';
 import StoreHeroArtwork from '@/components/storefront/StoreHeroArtwork';
+import { normalizeAnchorId, scrollToAnchor as scrollToResolvedAnchor } from '@/lib/navigation';
 
-type DeviceMode = 'desktop' | 'tablet' | 'mobile';
-type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'navigation' | 'assets' | 'settings';
-type MobileTab = 'canvas' | 'sections' | 'styles' | 'inspector' | 'elements' | 'pages' | 'navigation' | 'assets' | 'settings';
+type DeviceMode = Device;
+type SitePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; noindex?: boolean; ogImage?: string; seoTitle?: string; useSharedHeader?: boolean; useSharedFooter?: boolean; oldSlugs?: string[] };
+type LeftPanel = 'sections' | 'ai' | 'styles' | 'elements' | 'pages' | 'navigation' | 'assets' | 'tools' | 'settings';
+type MobileTab = 'canvas' | 'sections' | 'styles' | 'inspector' | 'elements' | 'pages' | 'navigation' | 'assets' | 'tools' | 'settings';
 
 const DEVICE_WIDTHS = {
   desktop: '100%',
@@ -58,7 +60,6 @@ interface Section {
 }
 type SectionSpacing = { top: number; bottom: number; left: number; right: number };
 type CanvasElement = { id: string; type: 'image' | 'icon'; name: string; src?: string; icon?: string; x: number; y: number; width: number; height: number };
-type SitePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; noindex?: boolean; ogImage?: string; seoTitle?: string; useSharedHeader?: boolean; useSharedFooter?: boolean; oldSlugs?: string[] };
 const DEFAULT_SPACING: SectionSpacing = { top: 0, bottom: 0, left: 0, right: 0 };
 
 const DEFAULT_SECTIONS: Section[] = [
@@ -177,10 +178,11 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [showShareModal, setShowShareModal] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [zoomScale, setZoomScale] = useState<number>(1);
   const [exportingZip, setExportingZip] = useState(false);
   const [userPlan, setUserPlan] = useState<'loading' | 'free' | 'pro'>('loading');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('Pro features');
   const [logoUrl, setLogoUrl] = useState('');
@@ -258,8 +260,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   useEffect(() => {
     fetch('/api/auth/me').then((response) => response.json()).then((data) => {
+      setIsAuthenticated(Boolean(data?.authenticated && data.user));
       setUserPlan(data?.authenticated && data.user?.plan === 'pro' ? 'pro' : 'free');
-    }).catch(() => setUserPlan('free'));
+    }).catch(() => { setUserPlan('free'); setIsAuthenticated(false); }).finally(() => setAuthResolved(true));
   }, []);
 
   // Bespoke content state (can be updated via AI)
@@ -305,6 +308,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const undoCount = useStore(editorStore, (state) => state.past.length);
   const redoCount = useStore(editorStore, (state) => state.future.length);
   const versions = useStore(editorStore, (state) => state.versions);
+  // Guard ref: prevents the sync useEffect from re-committing to the store during undo/redo restoration
+  const isRestoringRef = useRef(false);
   const dragSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -338,10 +343,16 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         editorStore.getState().replaceDocument(migrated);
         setTheme(migrated.theme);
         setSiteTitle(migrated.name);
-        setHeroContent((current) => ({ ...current, ...migrated.content.hero }));
-        setFeaturesContent(migrated.content.features);
-        setTestimonialsContent(migrated.content.testimonials);
-        setCtaContent(migrated.content.cta);
+        // v4: extract content from sections, not from document.content
+        const homePageSections = migrated.pages.find((page) => page.isHome)?.sections || [];
+        const heroSection = homePageSections.find((section) => section.type === 'hero');
+        const featuresSection = homePageSections.find((section) => section.type === 'features');
+        const testimonialsSection = homePageSections.find((section) => section.type === 'testimonials');
+        const ctaSection = homePageSections.find((section) => section.type === 'cta');
+        if (heroSection?.content && Object.keys(heroSection.content).length) setHeroContent((current) => ({ ...current, ...heroSection.content }));
+        if (Array.isArray(featuresSection?.content?.items)) setFeaturesContent(featuresSection.content.items as typeof featuresContent);
+        if (Array.isArray(testimonialsSection?.content?.items)) setTestimonialsContent(testimonialsSection.content.items as typeof testimonialsContent);
+        if (ctaSection?.content && Object.keys(ctaSection.content).length) setCtaContent((current) => ({ ...current, ...ctaSection.content }) as typeof ctaContent);
         const homePage = migrated.pages.find((page) => page.isHome) || migrated.pages[0];
         if (homePage?.sections.length) setSections(homePage.sections.map((section) => ({ ...section })));
         setSectionSpacing(Object.fromEntries(migrated.pages.flatMap((page) => page.sections.filter((section) => section.style?.padding).map((section) => [section.id, { top: section.style?.padding?.top || 0, right: section.style?.padding?.right || 0, bottom: section.style?.padding?.bottom || 0, left: section.style?.padding?.left || 0 }]))));
@@ -362,6 +373,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   useEffect(() => {
     if (!isHistoryReady || !serverDraftReady) return;
+    // Skip sync when a restore (undo/redo) is in progress to prevent the loop:
+    // undo → applyDocumentToEditor → setSections → this effect → updateDocument → new undo entry
+    if (isRestoringRef.current) {
+      isRestoringRef.current = false;
+      return;
+    }
     const nextDocument = documentFromState({ theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, sectionSpacing, canvasElements, sitePages, assetUrl, logoUrl, faviconUrl, mediaAssets });
     editorStore.getState().updateDocument((current) => {
       const merged = mergeEditorProjection(current, nextDocument, activePageId);
@@ -381,27 +398,42 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       }
       editorStore.getState().setSaveStatus('saving');
       await saveEditorDraft(template.id, currentDocument);
+      if (!isAuthenticated) {
+        editorStore.getState().setSaveStatus('saved', new Date().toISOString());
+        return;
+      }
       try {
         const response = await fetch('/api/sites/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document: currentDocument }) });
-        editorStore.getState().setSaveStatus(response.ok ? 'saved' : response.status === 401 ? 'saved' : 'offline', new Date().toISOString());
+        editorStore.getState().setSaveStatus(response.ok ? 'saved' : 'offline', new Date().toISOString());
       } catch { editorStore.getState().setSaveStatus('offline'); }
     }, 1500);
     return () => window.clearTimeout(timer);
-  }, [editorDocument, isHistoryReady, serverDraftReady, editorStore, template.id]);
+  }, [editorDocument, isHistoryReady, serverDraftReady, editorStore, template.id, isAuthenticated]);
   const applyDocumentToEditor = useCallback((document: SiteDocument, requestedPageId = activePageId) => {
     const page = document.pages.find((entry) => entry.id === requestedPageId) || document.pages.find((entry) => entry.isHome) || document.pages[0];
     if (!page) return;
+    // Set the restoring flag BEFORE any state setters so the sync useEffect skips this cycle
+    isRestoringRef.current = true;
     setActivePageId(page.id);
     setTheme(document.theme);
     setSiteTitle(document.name);
-    const hero = page.sections.find((section) => section.type === 'hero')?.content as Partial<typeof heroContent> | undefined;
-    const features = page.sections.find((section) => section.type === 'features')?.content.items;
-    const testimonials = page.sections.find((section) => section.type === 'testimonials')?.content.items;
-    const cta = page.sections.find((section) => section.type === 'cta')?.content as Partial<typeof ctaContent> | undefined;
-    setHeroContent((current) => ({ ...current, ...document.content.hero, ...hero }));
-    setFeaturesContent(Array.isArray(features) ? features as unknown as typeof featuresContent : document.content.features);
-    setTestimonialsContent(Array.isArray(testimonials) ? testimonials as unknown as typeof testimonialsContent : document.content.testimonials);
-    setCtaContent({ ...document.content.cta, ...cta });
+    // In v4 we extract content directly from each section; no more shared document.content
+    const heroSection = page.sections.find((section) => section.type === 'hero');
+    const featuresSection = page.sections.find((section) => section.type === 'features');
+    const testimonialsSection = page.sections.find((section) => section.type === 'testimonials');
+    const ctaSection = page.sections.find((section) => section.type === 'cta');
+    if (heroSection?.content && Object.keys(heroSection.content).length) {
+      setHeroContent((current) => ({ ...current, ...heroSection.content }));
+    }
+    if (Array.isArray(featuresSection?.content?.items)) {
+      setFeaturesContent(featuresSection.content.items as typeof featuresContent);
+    }
+    if (Array.isArray(testimonialsSection?.content?.items)) {
+      setTestimonialsContent(testimonialsSection.content.items as typeof testimonialsContent);
+    }
+    if (ctaSection?.content && Object.keys(ctaSection.content).length) {
+      setCtaContent((current) => ({ ...current, ...ctaSection.content }) as typeof ctaContent);
+    }
     const restoredSections = removeDuplicateTemplateParts(page.sections.map((section) => ({ ...section })));
     const homeSections = document.pages.find((entry) => entry.isHome)?.sections || [];
     if (page.useSharedHeader && !restoredSections.some((section) => section.type === 'nav')) {
@@ -417,9 +449,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         : makeSection('footer', `${page.id}-footer`, 'Footer', {}, blockRegistry.footer.defaultContent));
     }
     setSections(restoredSections);
-    setSectionSpacing(Object.fromEntries(page.sections.filter((section) => section.style.padding).map((section) => [section.id, { top: section.style.padding?.top || 0, right: section.style.padding?.right || 0, bottom: section.style.padding?.bottom || 0, left: section.style.padding?.left || 0 }])));
-    setCanvasElements(page.elements || []);
-    setSitePages(document.pages.map((entry) => ({ id: entry.isHome ? 'home' : entry.id, title: entry.title, description: entry.seo.description, slug: entry.slug.replace(/^\//, ''), isHome: entry.isHome, showInMenu: entry.showInMenu, noindex: entry.seo.noindex, ogImage: entry.seo.ogImage, seoTitle: entry.seo.title, useSharedHeader: entry.useSharedHeader, useSharedFooter: entry.useSharedFooter, oldSlugs: entry.oldSlugs })));
+    setSectionSpacing(Object.fromEntries(page.sections.filter((section) => section.style?.padding).map((section) => [section.id, { top: section.style?.padding?.top || 0, right: section.style?.padding?.right || 0, bottom: section.style?.padding?.bottom || 0, left: section.style?.padding?.left || 0 }])));
+    setCanvasElements((page.elements || []) as CanvasElement[]);
+    setSitePages(document.pages.map((entry) => ({ id: entry.isHome ? 'home' : entry.id, title: entry.title, description: entry.seo?.description || '', slug: (entry.slug || '/').replace(/^\//, ''), isHome: entry.isHome, showInMenu: entry.showInMenu, noindex: entry.seo?.noindex || false, ogImage: entry.seo?.ogImage || '', seoTitle: entry.seo?.title || entry.title, useSharedHeader: entry.useSharedHeader, useSharedFooter: entry.useSharedFooter, oldSlugs: entry.oldSlugs })));
     setAssetUrl(document.assets.find((asset) => asset.role === 'product')?.src || '');
     setLogoUrl(document.assets.find((asset) => asset.role === 'logo')?.src || '');
     setFaviconUrl(document.assets.find((asset) => asset.role === 'favicon')?.src || '');
@@ -428,12 +460,13 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   const serverDraftLookupStarted = useRef(false);
   useEffect(() => {
-    if (!isHistoryReady || serverDraftLookupStarted.current) return;
+    if (!isHistoryReady || !authResolved || serverDraftLookupStarted.current) return;
     serverDraftLookupStarted.current = true;
     let cancelled = false;
     void loadEditorDraft(template.id).then((localDraft) => {
       if (cancelled) return;
       if (localDraft) { setServerDraftReady(true); return; }
+      if (!isAuthenticated) { setServerDraftReady(true); return; }
     const subdomain = siteTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || template.id;
     fetch(`/api/sites/draft?subdomain=${encodeURIComponent(subdomain)}`)
       .then((response) => response.ok ? response.json() : null)
@@ -447,7 +480,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       .finally(() => { if (!cancelled) setServerDraftReady(true); });
     }).catch(() => { if (!cancelled) setServerDraftReady(true); });
     return () => { cancelled = true; };
-  }, [isHistoryReady, siteTitle, template.id, editorStore, applyDocumentToEditor]);
+  }, [isHistoryReady, authResolved, isAuthenticated, siteTitle, template.id, editorStore, applyDocumentToEditor]);
 
   const handleUndo = useCallback(() => {
     if (!editorStore.getState().canUndo()) return;
@@ -617,15 +650,13 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     editorStore.getState().setSaveStatus('saving');
     try {
       await saveEditorDraft(template.id, editorStore.getState().document);
-      const response = await fetch('/api/sites/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document: editorStore.getState().document }) });
-      editorStore.getState().setSaveStatus(response.ok || response.status === 401 ? 'saved' : 'offline', new Date().toISOString());
+      const response = isAuthenticated ? await fetch('/api/sites/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document: editorStore.getState().document }) }) : null;
+      editorStore.getState().setSaveStatus(!response || response.ok ? 'saved' : 'offline', new Date().toISOString());
       editorStore.getState().captureVersion('Manual save');
       await saveEditorVersions(template.id, editorStore.getState().versions);
     } catch { editorStore.getState().setSaveStatus('offline'); }
     await new Promise(r => setTimeout(r, 600));
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   };
 
   const handleAiGenerate = async (promptToUse?: string) => {
@@ -897,21 +928,16 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             {sitePages.map((page) => <option key={page.id} value={page.id}>{page.title}</option>)}
           </select>
 
-          <span role="status" aria-live="polite" className="hidden xl:inline-flex items-center gap-1.5 rounded-full border border-black/20 bg-white px-2 py-1 font-mono text-[9px] font-bold text-neutral-600">
-            <span className={`h-1.5 w-1.5 rounded-full ${saveStatus === 'saved' ? 'bg-green-500' : saveStatus === 'offline' ? 'bg-red-500' : saveStatus === 'saving' ? 'bg-yellow-500' : 'bg-pink'}`} />
-            {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving' : saveStatus === 'offline' ? 'Offline · local copy saved' : 'Unsaved changes'}
-          </span>
-
-          {/* AI Designer Button */}
-          <button
-            type="button"
-            onClick={() => setShowAiModal(true)}
-            className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border-2 border-black bg-yellow hover:bg-yellow/90 font-mono text-[11px] sm:text-xs font-black text-black shadow-[2px_2px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer shrink-0"
-          >
-            <Wand2 size={13} className="stroke-[2.5]" />
-            <span className="hidden xs:inline">AI</span>
-            <span className="hidden sm:inline">Designer</span>
-          </button>
+          <details className="relative shrink-0">
+            <summary aria-label={`Save status: ${saveStatus}`} title="Save status" className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-full border border-black/20 bg-white hover:bg-neutral-100">
+              <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full ${saveStatus === 'saved' ? 'bg-green-500' : saveStatus === 'offline' ? 'bg-red-500' : saveStatus === 'saving' ? 'animate-pulse bg-yellow-500' : 'bg-pink'}`} />
+            </summary>
+            <div role="status" aria-live="polite" className="absolute left-0 top-full z-[80] mt-2 w-60 rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0_#000]">
+              <p className="font-mono text-[10px] font-black uppercase text-neutral-500">Save status</p>
+              <p className="mt-1 font-mono text-xs font-bold">{saveStatus === 'saved' ? 'All changes saved' : saveStatus === 'saving' ? 'Saving your changes…' : saveStatus === 'offline' ? 'Offline · local copy saved' : 'Unsaved changes'}</p>
+              <button type="button" onClick={() => { void handleSave(); }} disabled={saving} className="mt-3 w-full rounded-lg border-2 border-black bg-yellow px-3 py-2 font-mono text-[10px] font-bold disabled:opacity-50">{saving ? 'Saving…' : 'Save now'}</button>
+            </div>
+          </details>
 
           {/* Undo / Redo Buttons */}
           <div className="hidden sm:flex items-center gap-1 rounded-xl border-2 border-black bg-[#FAF9F6] p-0.5 shadow-[1.5px_1.5px_0px_#000]">
@@ -993,52 +1019,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           </div>
         </div>
 
-        {/* Right: Save, Export ZIP & Publish */}
+        {/* Right: Preview and publish */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={handleExportZip}
-            disabled={exportingZip || userPlan === 'loading'}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-yellow hover:bg-yellow/90 font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer disabled:opacity-50"
-            title={userPlan === 'pro' ? 'Download Next.js 16 source code as a ZIP archive' : 'Upgrade to Pro to export source code'}
-          >
-            {exportingZip ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} className="stroke-[2.5]" />}
-            <span>{exportingZip ? 'Exporting…' : userPlan === 'loading' ? 'Checking plan…' : userPlan === 'pro' ? 'Export .zip' : 'Export .zip · Pro'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              const subdomain = siteTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || template.id;
-              if (typeof window !== 'undefined') {
-                const previewWindow = window.open('about:blank', '_blank');
-                void handleSave().finally(() => {
-                  if (previewWindow) previewWindow.location.href = `/live/${subdomain}?preview=1`;
-                });
-              }
-            }}
-            className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-black bg-white hover:bg-yellow font-mono text-xs font-bold text-black shadow-[2px_2px_0px_#000] transition-all cursor-pointer"
-            title="Preview live site"
-          >
-            <Eye size={13} className="stroke-[2.5]" />
-            <span>Preview</span>
-          </button>
-
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className={cn(
-              'inline-flex items-center gap-1 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl border-2 border-black font-mono text-xs font-bold transition-all cursor-pointer shadow-[2px_2px_0px_#000]',
-              saved ? 'bg-mint text-black' : 'bg-white hover:bg-mint text-black'
-            )}
-            title="Save changes"
-          >
-            {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <Check size={13} className="stroke-[3]" /> : <Save size={13} className="stroke-[2.5]" />}
-            <span className="hidden sm:inline">{saving ? 'Saving…' : saved ? 'Saved!' : 'Save'}</span>
-          </button>
-
-          <button type="button" onClick={() => setShowVersionHistory(true)} title="Version history" className="hidden md:inline-flex items-center gap-1 rounded-xl border-2 border-black bg-white px-2 py-1.5 font-mono text-[10px] font-bold hover:bg-yellow"><HistoryIcon size={13}/><span>History</span></button>
-
           <button
             onClick={() => setShowPublishDialog(true)}
             className="inline-flex items-center gap-1 px-3 sm:px-5 py-1 sm:py-1.5 rounded-xl border-2 border-black bg-pink hover:bg-pink/90 font-display text-xs sm:text-sm font-black text-black shadow-[2.5px_2.5px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
@@ -1061,6 +1043,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             { id: 'pages', icon: ChevronRight, label: 'Pages' },
             { id: 'navigation', icon: MenuIcon, label: 'Navigation' },
             { id: 'assets', icon: ImageIcon, label: 'Assets' },
+            { id: 'tools', icon: SlidersHorizontal, label: 'Tools and export' },
           ] as { id: LeftPanel; icon: typeof Layers; label: string }[]).map(({ id, icon: Icon, label }) => (
             <button
               key={id}
@@ -1097,14 +1080,14 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             // Mobile full screen overlay when tab selected
             mobileTab === 'sections' && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white',
             mobileTab === 'styles' && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white',
-            ['elements', 'pages', 'navigation', 'assets', 'settings'].includes(mobileTab) && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white'
+            ['elements', 'pages', 'navigation', 'assets', 'tools', 'settings'].includes(mobileTab) && '!flex fixed inset-x-0 top-14 bottom-14 w-full z-40 bg-white'
           )}
           style={{ width: leftPanelWidth }}
         >
           <div className="p-3.5 border-b-[2px] border-black bg-white flex items-center justify-between">
             <div className="font-mono text-xs font-black uppercase text-black tracking-wider flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-pink" />
-              <span>{(mobileTab !== 'canvas' ? mobileTab : leftPanel) === 'elements' ? 'Element Library' : mobileTab !== 'canvas' ? mobileTab : leftPanel}</span>
+              <span>{(mobileTab !== 'canvas' ? mobileTab : leftPanel) === 'elements' ? 'Element Library' : (mobileTab !== 'canvas' ? mobileTab : leftPanel) === 'tools' ? 'Tools and export' : mobileTab !== 'canvas' ? mobileTab : leftPanel}</span>
             </div>
             {/* Close button on mobile */}
             <button
@@ -1114,7 +1097,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
               Done ✕
             </button>
             <span className="hidden md:inline font-mono text-[10px] text-neutral-400">
-              {leftPanel === 'elements' || mobileTab === 'elements' ? `${editorCatalog.length} widgets` : `${sections.length} blocks`}
+              {leftPanel === 'elements' || mobileTab === 'elements' ? `${editorCatalog.length} widgets` : leftPanel === 'sections' || mobileTab === 'sections' ? `${sections.length} blocks` : null}
             </span>
           </div>
 
@@ -1383,6 +1366,16 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 </div>
               </div>
             )}
+            {(leftPanel === 'tools' || mobileTab === 'tools') && (
+              <div className="space-y-2">
+                <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Build and manage</p>
+                <button type="button" onClick={() => setShowAiModal(true)} className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-yellow px-3 py-2.5 text-left font-mono text-xs font-bold shadow-[2px_2px_0_#000]"><Wand2 size={15}/> Open AI Designer</button>
+                <button type="button" onClick={() => { void handleExportZip(); }} disabled={exportingZip || userPlan === 'loading'} title={userPlan === 'pro' ? 'Download the website source as a ZIP archive' : 'Upgrade to Pro to export source code'} className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2.5 text-left font-mono text-xs font-bold hover:bg-yellow disabled:opacity-50"><Download size={15}/>{exportingZip ? 'Exporting…' : userPlan === 'loading' ? 'Checking availability…' : userPlan === 'pro' ? 'Export .zip' : 'Export .zip · Pro'}</button>
+                <button type="button" onClick={() => setShowVersionHistory(true)} className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2.5 text-left font-mono text-xs font-bold hover:bg-yellow"><HistoryIcon size={15}/> Version history</button>
+                <button type="button" onClick={() => { const subdomain = siteTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || template.id; const previewWindow = window.open('about:blank', '_blank'); void handleSave().finally(() => { if (previewWindow) previewWindow.location.href = `/live/${subdomain}?preview=1`; }); }} className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2.5 text-left font-mono text-xs font-bold hover:bg-yellow"><Eye size={15}/> Open preview</button>
+                <p className="rounded-lg bg-white p-2 font-mono text-[10px] leading-relaxed text-neutral-500">Export, AI design, previews, and revision history are grouped here to keep the main toolbar focused.</p>
+              </div>
+            )}
             {(leftPanel === 'settings' || mobileTab === 'settings') && (
               <SiteSettingsPanel
                 siteTitle={siteTitle}
@@ -1526,8 +1519,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 setSectionSpacing={(nextSpacing) => setSectionSpacing((current) => ({ ...current, [selectedSection]: typeof nextSpacing === 'function' ? nextSpacing(current[selectedSection] || DEFAULT_SPACING) : nextSpacing }))}
               />
             ) : (
-              <div className="text-center py-10 font-mono text-xs text-neutral-400">
-                Click any section on the canvas to inspect properties.
+              <div className="space-y-3 rounded-xl border border-black/10 bg-white p-4">
+                <p className="font-display text-sm font-bold text-black">Page settings</p>
+                <p className="font-mono text-[10px] leading-relaxed text-neutral-500">Select a block on the canvas to edit it. These shortcuts open site-wide controls.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[['Pages', 'pages'], ['Navigation', 'navigation'], ['Theme', 'styles'], ['Media', 'assets']].map(([label, panel]) => <button key={panel} type="button" onClick={() => { setLeftPanel(panel as LeftPanel); setMobileTab(panel as MobileTab); }} className="rounded-lg border border-black/20 bg-[#FAF9F6] px-2 py-2 text-left font-mono text-[10px] font-bold hover:bg-yellow">{label} ↗</button>)}
+                </div>
               </div>
             )}
           </div>
@@ -1543,6 +1540,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           { id: 'pages' as const, label: 'Pages', icon: ChevronRight },
           { id: 'navigation' as const, label: 'Menu', icon: MenuIcon },
           { id: 'assets' as const, label: 'Assets', icon: ImageIcon },
+          { id: 'tools' as const, label: 'Tools', icon: SlidersHorizontal },
           { id: 'styles' as const, label: 'Styles', icon: Palette },
           { id: 'settings' as const, label: 'Settings', icon: Settings },
           { id: 'inspector' as const, label: 'Inspect', icon: SlidersHorizontal },
@@ -2066,9 +2064,9 @@ function TreeElementProperties({ element, pages, device, onChange, onUpload }: {
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Corner radius (px)<input type="number" min="0" max="100" value={effectiveStyle.borderRadius || 0} onChange={(event) => changeStyle('borderRadius', Math.max(0, Number(event.target.value) || 0))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label>
     </div>}
     {tab === 'interactions' && <div className="space-y-3">
-      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Entrance animation<select value={String(element.animation?.entrance || 'none')} onChange={(event) => onChange((current) => ({ ...current, animation: { ...current.animation, entrance: event.target.value, durationMs: current.animation?.durationMs || 400 } }))} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs"><option value="none">None</option><option value="fade">Fade</option><option value="slide-up">Slide up</option><option value="slide-left">Slide from left</option><option value="scale">Scale</option><option value="reveal">Reveal</option></select></label>
-      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Duration (ms)<input type="number" min="0" max="5000" step="50" value={Number(element.animation?.durationMs || 400)} onChange={(event) => onChange((current) => ({ ...current, animation: { ...current.animation, entrance: current.animation?.entrance || 'none', durationMs: Math.max(0, Number(event.target.value) || 0) } }))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs" /></label>
-      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Hover effect<select value={String(element.animation?.hover || 'none')} onChange={(event) => onChange((current) => ({ ...current, animation: { ...current.animation, entrance: current.animation?.entrance || 'none', hover: event.target.value } }))} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs"><option value="none">None</option><option value="lift">Lift</option><option value="scale">Grow</option><option value="glow">Glow</option></select></label>
+      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Entrance animation<select value={element.animation?.entrance || ''} onChange={(event) => onChange((current) => ({ ...current, animation: { ...current.animation, entrance: event.target.value ? event.target.value as NonNullable<SiteElement['animation']>['entrance'] : undefined, duration: current.animation?.duration || 400 } }))} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs"><option value="">None</option><option value="fade">Fade</option><option value="slide-up">Slide up</option><option value="slide-down">Slide down</option><option value="slide-left">Slide left</option><option value="slide-right">Slide right</option><option value="zoom-in">Zoom in</option><option value="zoom-out">Zoom out</option><option value="flip">Flip</option><option value="rotate">Rotate</option><option value="bounce">Bounce</option><option value="blur-in">Blur in</option><option value="reveal">Reveal</option></select></label>
+      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Duration (ms)<input type="number" min="0" max="5000" step="50" value={Number(element.animation?.duration || 400)} onChange={(event) => onChange((current) => ({ ...current, animation: { ...current.animation, duration: Math.max(0, Number(event.target.value) || 0) } }))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs" /></label>
+      <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Hover effect<select value={element.states?.hover?.transform === 'translateY(-4px)' ? 'lift' : element.states?.hover?.transform === 'scale(1.04)' ? 'scale' : element.states?.hover?.boxShadow ? 'glow' : ''} onChange={(event) => onChange((current) => { const effect = event.target.value; return { ...current, states: { ...current.states, hover: { ...current.states?.hover, transform: effect === 'lift' ? 'translateY(-4px)' : effect === 'scale' ? 'scale(1.04)' : undefined, boxShadow: effect === 'glow' ? '0 0 18px rgba(255, 85, 136, .55)' : undefined } } }; })} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs"><option value="">None</option><option value="lift">Lift</option><option value="scale">Grow</option><option value="glow">Glow</option></select></label>
       <p className="font-mono text-[9px] font-bold uppercase text-neutral-500">Click interactions</p>
       {(element.interactions || []).map((interaction, index) => <div key={interaction.id} className="space-y-2 rounded-lg border border-black/20 bg-neutral-50 p-2"><div className="grid grid-cols-2 gap-2"><select aria-label="Interaction trigger" value={interaction.trigger} onChange={(event) => onChange((current) => ({ ...current, interactions: (current.interactions || []).map((item, i) => i === index ? { ...item, trigger: event.target.value as typeof item.trigger } : item) }))} className="rounded border bg-white px-2 py-1 text-xs"><option value="click">Click</option><option value="hover">Hover</option><option value="scroll-into-view">On scroll</option></select><select aria-label="Interaction action" value={interaction.action} onChange={(event) => onChange((current) => ({ ...current, interactions: (current.interactions || []).map((item, i) => i === index ? { ...item, action: event.target.value as typeof item.action } : item) }))} className="rounded border bg-white px-2 py-1 text-xs"><option value="navigate">Navigate</option><option value="scroll-to">Scroll to</option><option value="open-modal">Open modal</option><option value="toggle">Toggle</option><option value="copy">Copy text</option><option value="play-video">Play video</option><option value="add-to-cart">Add to cart</option></select></div><input aria-label="Interaction target" value={interaction.target || ''} onChange={(event) => onChange((current) => ({ ...current, interactions: (current.interactions || []).map((item, i) => i === index ? { ...item, target: event.target.value } : item) }))} placeholder="Target URL, anchor ID or element ID" className="w-full rounded border px-2 py-1.5 text-xs"/><button type="button" onClick={() => onChange((current) => ({ ...current, interactions: (current.interactions || []).filter((_, i) => i !== index) }))} className="text-xs font-bold text-red-700">Remove interaction</button></div>)}
       <button type="button" onClick={() => onChange((current) => ({ ...current, interactions: [...(current.interactions || []), { id: `interaction-${Date.now()}`, trigger: 'click', action: 'navigate', target: '' }] }))} className="w-full rounded-lg border-2 border-black bg-white px-3 py-2 font-mono text-xs font-bold">+ Add interaction</button><p className="text-[10px] leading-relaxed text-neutral-500">Animations respect reduced-motion preferences. Some actions require a matching target or integration.</p>
@@ -2161,18 +2159,74 @@ function SectionRenderer({
   const themedButtonStyle: React.CSSProperties = { backgroundColor: theme.buttonStyle === 'outline' ? 'transparent' : theme.primaryColor, borderRadius: theme.buttonStyle === 'pill' ? '9999px' : theme.borderRadius, color: theme.buttonStyle === 'outline' ? theme.primaryColor : undefined };
   const blockItems = Array.isArray(sectionContent.items) ? sectionContent.items as Array<Record<string, unknown>> : [];
   const textValue = (value: unknown, fallback = '') => typeof value === 'string' ? value : fallback;
+  const navBrand = textValue(sectionContent.brandLabel, siteTitle) || siteTitle;
+  const navCtaLabel = textValue(sectionContent.ctaLabel, isStorefront ? 'Bag' : 'Get Started');
+  const navCtaTarget = textValue(sectionContent.ctaTarget, isStorefront ? '#collection' : '#collection');
   const updateBlockItem = (index: number, key: string, value: unknown) => onUpdateSectionContent(section.id, { ...sectionContent, items: blockItems.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) });
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+  const submitBlockForm = async (event: FormEvent<HTMLFormElement>, kind: 'contact' | 'newsletter') => {
+    event.preventDefault();
+    setFormSubmitting(true);
+    setFormError('');
+    const fields = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const configured = textValue(sectionContent.apiEndpoint).trim();
+    const endpoint = configured || (kind === 'contact' ? '/api/contact' : '/api/newsletter');
+    if (!endpoint.startsWith('/api/') && !/^https:\/\//i.test(endpoint)) {
+      setFormError('Use a local /api/ route or a secure https:// endpoint.');
+      setFormSubmitting(false);
+      return;
+    }
+    const payload = kind === 'contact'
+      ? { name: fields.name, email: fields.email, message: fields.message, category: siteTitle, website: '' }
+      : { email: fields.email, source: siteTitle, website: '' };
+    try {
+      const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const result = await response.json().catch(() => ({})) as { message?: string };
+      if (!response.ok) throw new Error(result.message || 'Submission failed. Please try again.');
+      setFormSubmitted(true);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Submission failed. Please try again.');
+    } finally { setFormSubmitting(false); }
+  };
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const scrollToAnchor = (value: string) => {
-    const anchorId = value.replace(/^#/, '');
-    const target = document.getElementById(anchorId) || (anchorId === 'collection' ? document.querySelector('[data-section-id*="best-sellers"]') : null);
-    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const anchorId = normalizeAnchorId(value);
+    if (!scrollToResolvedAnchor(anchorId)) {
+      // Keep custom anchors shareable even when a section was renamed or removed.
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${anchorId}`);
+    }
+  };
+  const activateEditorLink = (event: MouseEvent<HTMLElement>, href: string, newTab = false) => {
+    if (href.startsWith('#')) {
+      event.preventDefault();
+      event.stopPropagation();
+      scrollToAnchor(href.slice(1));
+      return;
+    }
+    if (href.startsWith('/')) {
+      const page = sitePages.find((entry) => entry.slug === href.replace(/^\//, '') || entry.id === href.replace(/^\//, ''));
+      if (page) {
+        event.preventDefault();
+        event.stopPropagation();
+        onNavigatePage(page.id);
+      }
+      return;
+    }
+    if (/^(https?:|mailto:|tel:)/i.test(href)) {
+      event.stopPropagation();
+      if (newTab && /^https?:/i.test(href)) {
+        event.preventDefault();
+        window.open(href, '_blank', 'noopener,noreferrer');
+      }
+    } else event.preventDefault();
   };
   const renderMenuItem = (item: MenuItem) => {
     if (item.target.type === 'page') {
-      const page = sitePages.find((entry) => entry.id === item.target.value);
+      const requested = item.target.value.replace(/^\//, '');
+      const page = sitePages.find((entry) => entry.id === item.target.value || entry.slug === requested || entry.slug === `/${requested}`);
       return page ? <button key={item.id} type="button" onClick={(event) => { event.stopPropagation(); onNavigatePage(page.id); setMobileMenuOpen(false); }} className="hover:text-black hover:underline cursor-pointer">{item.label}</button> : null;
     }
     const href = item.target.type === 'anchor' ? `#${item.target.value.replace(/^#/, '')}` : item.target.value;
@@ -2197,38 +2251,38 @@ function SectionRenderer({
       {/* Navigation Block */}
       {section.type === 'nav' && (
         <>
-        <nav style={{ backgroundColor: isFreshCrate ? '#FFF8EC' : isVoltGear ? '#0B0D12' : undefined }} className={cn('flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 backdrop-blur-sm', isVoltGear ? 'border-white/10' : 'border-black/10')}>
+        <nav style={{ backgroundColor: isFreshCrate ? '#FFF8EC' : isVoltGear ? '#0B0D12' : undefined }} className={cn('flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 backdrop-blur-sm', isVoltGear ? 'border-white/10' : 'border-black/10', sectionContent.sticky === true && 'sticky top-0 z-40')}>
           <div className="flex items-center gap-2">
-            {logoUrl ? <NextImage src={logoUrl} alt={`${siteTitle} logo`} width={32} height={32} unoptimized className="h-8 w-8 rounded-lg object-contain" /> : <div
+            {sectionContent.showLogo !== false && (logoUrl ? <NextImage src={logoUrl} alt={textValue(sectionContent.logoAlt, `${navBrand} logo`)} width={32} height={32} unoptimized className="h-8 w-8 rounded-lg object-contain" /> : <div
               style={{ backgroundColor: theme.primaryColor }}
               className="w-7 h-7 rounded-lg border-2 border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-display font-black text-xs text-black"
             >
-              {siteTitle.charAt(0)}
-            </div>}
-            <span className={cn('font-display font-black text-sm sm:text-base tracking-tight', isVoltGear ? 'text-white' : 'text-ink')}>
-              {siteTitle}
-            </span>
+              {navBrand.charAt(0)}
+            </div>)}
+            <div className="min-w-0">
+              <span contentEditable suppressContentEditableWarning onInput={(event) => onUpdateSectionContent(section.id, { ...sectionContent, brandLabel: event.currentTarget.innerText })} className={cn('block font-display font-black text-sm sm:text-base tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-pink', isVoltGear ? 'text-white' : isFreshCrate ? 'text-[#1F2A1B]' : 'text-ink')}>
+                {navBrand}
+              </span>
+              {typeof sectionContent.brandTagline === 'string' && <span contentEditable suppressContentEditableWarning onInput={(event) => onUpdateSectionContent(section.id, { ...sectionContent, brandTagline: event.currentTarget.innerText })} className={cn('block font-mono text-[8px] uppercase tracking-wider opacity-60 outline-none focus-visible:ring-2 focus-visible:ring-pink', isVoltGear ? 'text-white' : 'text-neutral-600')}>{sectionContent.brandTagline}</span>}
+            </div>
+
           </div>
 
-          <div aria-label="Site pages" className={cn('hidden sm:flex min-w-0 max-w-[62%] items-center gap-4 overflow-x-auto whitespace-nowrap px-1 font-mono text-xs font-bold [scrollbar-width:thin]', isVoltGear ? 'text-white/70' : 'text-neutral-700', deviceMode === 'mobile' && 'hidden')}>
+          <div aria-label="Site pages" className={cn('hidden sm:flex min-w-0 max-w-[62%] items-center gap-4 overflow-x-auto whitespace-nowrap px-1 font-mono text-xs font-bold [scrollbar-width:thin]', isVoltGear ? 'text-white/70' : 'text-neutral-700', (deviceMode === 'mobile' || sectionContent.showMenu === false) && 'hidden')}>
             {menuItems.map(renderMenuItem)}
           </div>
-          <button type="button" aria-expanded={mobileMenuOpen} aria-label="Toggle site navigation" onClick={(event) => { event.stopPropagation(); setMobileMenuOpen((open) => !open); }} className="sm:hidden rounded-lg border border-black px-2 py-1 font-mono text-xs font-bold">{mobileMenuOpen ? 'Close' : 'Menu'}</button>
+          {sectionContent.showMenu !== false && <button type="button" aria-expanded={mobileMenuOpen} aria-label="Toggle site navigation" onClick={(event) => { event.stopPropagation(); setMobileMenuOpen((open) => !open); }} className="sm:hidden rounded-lg border border-black px-2 py-1 font-mono text-xs font-bold">{mobileMenuOpen ? textValue(sectionContent.mobileCloseLabel, 'Close') : textValue(sectionContent.mobileMenuLabel, 'Menu')}</button>}
 
           <button
             type="button"
-            disabled={!menuItems.length}
             onClick={(event) => {
               event.stopPropagation();
-              const target = menuItems[0]?.target;
-              if (target?.type === 'page') onNavigatePage(target.value);
-              else if (target?.type === 'anchor') scrollToAnchor(target.value);
-              else if (target?.type === 'url' && /^(https?:|mailto:|tel:)/i.test(target.value)) window.open(target.value, menuItems[0].newTab ? '_blank' : '_self', 'noopener,noreferrer');
+              activateEditorLink(event, navCtaTarget, sectionContent.ctaNewTab === true);
             }}
             style={themedButtonStyle}
             className="px-3 sm:px-4 py-1.5 rounded-xl border-2 border-black font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isStorefront ? 'Bag' : 'Get Started'}
+            {navCtaLabel}
           </button>
         </nav>
         {mobileMenuOpen && <nav aria-label="Mobile navigation" className="sm:hidden max-h-[65vh] overflow-y-auto border-b-2 border-black bg-white px-4 py-3"><div className="flex flex-col gap-3 font-mono text-xs font-bold">{menuItems.map(renderMenuItem)}</div></nav>}
@@ -2286,6 +2340,7 @@ function SectionRenderer({
             <div className={cn('pt-2 flex flex-wrap gap-2.5', isStorefront ? 'justify-start' : 'items-center justify-center')}>
               <button
                 type="button"
+                onClick={(event) => activateEditorLink(event, textValue(sectionContent.buttonLink, '#collection'), sectionContent.buttonNewTab === true)}
                 style={themedButtonStyle}
                 className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-black font-display text-xs sm:text-sm font-black text-black shadow-[2.5px_2.5px_0px_#000] flex items-center gap-1.5 cursor-pointer"
               >
@@ -2294,6 +2349,7 @@ function SectionRenderer({
               </button>
               <button
                 type="button"
+                onClick={(event) => activateEditorLink(event, textValue(sectionContent.secondaryButtonLink, '#home-how-it-works'), sectionContent.secondaryButtonNewTab === true)}
                 className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl border-2 border-current bg-white/10 hover:bg-white/20 font-mono text-xs sm:text-sm font-bold transition-all cursor-pointer"
               >
                 <span contentEditable suppressContentEditableWarning onInput={(e) => setHero((prev) => ({ ...prev, ctaSecondary: (e.target as HTMLElement).innerText }))}>{sectionHero.ctaSecondary}</span>
@@ -2401,13 +2457,16 @@ function SectionRenderer({
               {sectionCta.desc}
             </p>
             <div className="pt-2">
-              <button
-                type="button"
+              <a
+                href={textValue(sectionContent.buttonLink, '#collection')}
+                target={sectionContent.buttonNewTab === true ? '_blank' : undefined}
+                rel={sectionContent.buttonNewTab === true ? 'noopener noreferrer' : undefined}
+                onClick={(event) => activateEditorLink(event, textValue(sectionContent.buttonLink, '#collection'), sectionContent.buttonNewTab === true)}
                 style={themedButtonStyle}
                 className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-white font-display text-xs sm:text-sm font-black text-black shadow-[3px_3px_0px_#FFFFFF] cursor-pointer"
               >
                 <span contentEditable suppressContentEditableWarning onInput={(e) => setCta((prev) => ({ ...prev, buttonText: (e.target as HTMLElement).innerText }))}>{sectionCta.buttonText}</span>
-              </button>
+              </a>
             </div>
           </div>
         </div>
@@ -2419,12 +2478,13 @@ function SectionRenderer({
           <div className="flex items-center gap-2 font-bold text-black">
             <span>{siteTitle}</span>
             <span>•</span>
-            <span className="text-[10px] text-neutral-400">Powered by Launchly</span>
+            <span className="text-[10px] text-neutral-400">{textValue(sectionContent.copyright, 'All rights reserved.')}</span>
           </div>
-          <div className="flex gap-4">
-            <span className="hover:text-black cursor-pointer">Privacy</span>
-            <span className="hover:text-black cursor-pointer">Terms</span>
-            <span className="hover:text-black cursor-pointer">Security</span>
+          <div className="flex flex-wrap gap-4">
+            {(blockItems.length ? blockItems : (Array.isArray(sectionContent.links) ? sectionContent.links.map((label) => ({ label: String(label), href: `/${String(label).toLowerCase()}` })) : [{ label: 'Privacy', href: '/privacy-terms' }, { label: 'Terms', href: '/privacy-terms' }, { label: 'Contact', href: '/contact' }])).map((item, index) => {
+              const href = textValue(item.href, '#');
+              return <a key={`${section.id}-footer-${index}`} href={href} target={'newTab' in item && item.newTab === true ? '_blank' : undefined} rel={'newTab' in item && item.newTab === true ? 'noopener noreferrer' : undefined} onClick={(event) => activateEditorLink(event, href, 'newTab' in item && item.newTab === true)} className="hover:text-black hover:underline">{textValue(item.label, `Link ${index + 1}`)}</a>;
+            })}
           </div>
         </footer>
       )}
@@ -2438,14 +2498,16 @@ function SectionRenderer({
               {typeof sectionContent.description === 'string' && <p contentEditable suppressContentEditableWarning onInput={(e) => onUpdateSectionContent(section.id, { ...sectionContent, description: (e.target as HTMLElement).innerText })} className="font-mono text-xs text-neutral-600 mt-2">{sectionContent.description}</p>}
             </div>}
             {section.type === 'contact' ? (
-              formSubmitted ? <p role="status" className="mx-auto max-w-lg rounded-xl border-2 border-black bg-white p-4 text-center font-mono text-sm">{textValue(sectionContent.successMessage, 'Thanks for reaching out. We will be in touch soon.')}</p> : <form className="max-w-lg mx-auto grid gap-3" onSubmit={(event) => { event.preventDefault(); setFormSubmitted(true); }}>
-                <input required aria-label="Your name" placeholder="Your name" className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
-                <input required type="email" aria-label="Email address" placeholder="Email address" className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
-                <textarea required aria-label="Message" placeholder="How can we help?" rows={4} className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
-                <button type="submit" className="rounded-xl border-2 border-black px-4 py-3 font-display font-black shadow-[3px_3px_0px_#000]" style={themedButtonStyle}>{textValue(sectionContent.submitLabel, 'Send message')}</button>
+              formSubmitted ? <p role="status" className="mx-auto max-w-lg rounded-xl border-2 border-black bg-white p-4 text-center font-mono text-sm">{textValue(sectionContent.successMessage, 'Thanks for reaching out. We will be in touch soon.')}</p> : <form className="max-w-lg mx-auto grid gap-3" onSubmit={(event) => { void submitBlockForm(event, 'contact'); }}>
+                <input name="name" required aria-label="Your name" placeholder="Your name" className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
+                <input name="email" required type="email" aria-label="Email address" placeholder="Email address" className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
+                <textarea name="message" required aria-label="Message" placeholder="How can we help?" rows={4} className="rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm" />
+                <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
+                {formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
+                <button type="submit" disabled={formSubmitting} className="rounded-xl border-2 border-black px-4 py-3 font-display font-black shadow-[3px_3px_0px_#000] disabled:opacity-60" style={themedButtonStyle}>{formSubmitting ? 'Sending…' : textValue(sectionContent.submitLabel, 'Send message')}</button>
               </form>
             ) : section.type === 'newsletter' ? (
-              formSubmitted ? <p role="status" className="mx-auto max-w-lg rounded-xl border-2 border-black bg-white p-4 text-center font-mono text-sm">You are subscribed. Thank you!</p> : <form className="mx-auto flex max-w-lg flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); setFormSubmitted(true); }}><label className="sr-only" htmlFor={`newsletter-${section.id}`}>Email address</label><input id={`newsletter-${section.id}`} required type="email" placeholder="Email address" className="min-w-0 flex-1 rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm"/><button type="submit" className="rounded-xl border-2 border-black px-4 py-3 font-display font-black shadow-[3px_3px_0px_#000]" style={themedButtonStyle}>{textValue(sectionContent.submitLabel, 'Subscribe')}</button></form>
+              formSubmitted ? <p role="status" className="mx-auto max-w-lg rounded-xl border-2 border-black bg-white p-4 text-center font-mono text-sm">You are subscribed. Thank you!</p> : <form className="mx-auto flex max-w-lg flex-col gap-2 sm:flex-row" onSubmit={(event) => { void submitBlockForm(event, 'newsletter'); }}><label className="sr-only" htmlFor={`newsletter-${section.id}`}>Email address</label><input name="email" id={`newsletter-${section.id}`} required type="email" placeholder="Email address" className="min-w-0 flex-1 rounded-xl border-2 border-black bg-white px-4 py-3 font-mono text-sm"/><input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden"/>{formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}<button type="submit" disabled={formSubmitting} className="rounded-xl border-2 border-black px-4 py-3 font-display font-black shadow-[3px_3px_0px_#000] disabled:opacity-60" style={themedButtonStyle}>{formSubmitting ? 'Submitting…' : textValue(sectionContent.submitLabel, 'Subscribe')}</button></form>
             ) : section.type === 'pricing' ? (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">{blockItems.map((item, index) => <article key={`${section.id}-plan-${index}`} className={`rounded-2xl border-2 border-black bg-white p-5 shadow-[3px_3px_0px_#000] ${item.highlighted ? 'ring-2 ring-offset-2' : ''}`} style={item.highlighted ? { outlineColor: theme.primaryColor } : undefined}><h3 contentEditable suppressContentEditableWarning onInput={(e) => updateBlockItem(index, 'title', (e.target as HTMLElement).innerText)} className="font-display text-lg font-black">{textValue(item.title, 'Plan')}</h3><p className="mt-2 font-mono text-xs text-neutral-600">{textValue(item.description)}</p><p className="my-4 font-display text-3xl font-black">{textValue(item.price)}<span className="font-mono text-xs font-normal">{textValue(item.interval)}</span></p><ul className="space-y-2 font-mono text-xs">{(Array.isArray(item.features) ? item.features as string[] : []).map((feature, featureIndex) => <li key={featureIndex}>✓ {feature}</li>)}</ul><p className="mt-4 rounded-lg bg-neutral-100 px-3 py-2 text-center font-mono text-xs">Choose a plan by contacting us.</p></article>)}</div>
             ) : section.type === 'gallery' ? (
@@ -2524,10 +2586,12 @@ function SectionProperties({
   setSectionSpacing: React.Dispatch<React.SetStateAction<SectionSpacing>>;
 }) {
   const section = sections.find(s => s.id === sectionId);
+  const [inspectorTab, setInspectorTab] = useState<'content' | 'style' | 'advanced'>('content');
   if (!section) return null;
   const content = section.content || {};
   const updateContent = (key: string, value: unknown) => setSectionContent({ ...content, [key]: value });
   const repeaterItems = Array.isArray(content.items) ? content.items as Array<Record<string, unknown>> : [];
+  const footerItems = repeaterItems.length ? repeaterItems : Array.isArray(content.links) ? content.links.map((link) => ({ label: String(link), href: `/${String(link).toLowerCase()}` })) : [];
 
   return (
     <div className="space-y-4">
@@ -2537,18 +2601,43 @@ function SectionProperties({
         <span className="font-display font-black text-sm text-black">{section.name}</span>
       </div>
 
-      <div className="space-y-2 rounded-xl border-2 border-black bg-white p-3">
+      <div role="tablist" aria-label="Section properties" className="grid grid-cols-3 gap-1 rounded-xl border-2 border-black bg-[#FAF9F6] p-1">
+        {(['content', 'style', 'advanced'] as const).map((tab) => <button key={tab} type="button" role="tab" aria-selected={inspectorTab === tab} onClick={() => setInspectorTab(tab)} className={cn('rounded-lg px-2 py-2 font-mono text-[9px] font-black uppercase transition-colors', inspectorTab === tab ? 'border border-black bg-yellow text-black shadow-[1px_1px_0_#000]' : 'text-neutral-500 hover:bg-white')}>{tab}</button>)}
+      </div>
+
+      <div hidden={inspectorTab !== 'content'} className="space-y-2 rounded-xl border-2 border-black bg-white p-3">
         <p className="font-mono text-[10px] font-black uppercase text-neutral-500">Block content</p>
         <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Section image URL<input type="url" value={typeof content.image === 'string' ? content.image : ''} onChange={(event) => updateContent('image', event.target.value)} placeholder="https://example.com/image.jpg" className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /></label>
         <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-black/40 bg-neutral-50 px-3 py-2 font-mono text-[10px] font-bold hover:bg-yellow/40"><ImageIcon size={14}/> Upload section image<input type="file" accept="image/*" className="sr-only" onChange={(event) => { onUploadImage(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>
         {typeof content.image === 'string' && content.image && <NextImage src={content.image} alt="Section image preview" width={900} height={500} unoptimized className="max-h-36 w-full rounded-lg border border-black/15 object-cover" />}
-        {['title', 'heading', 'badge', 'description', 'desc', 'body', 'ctaPrimary', 'ctaSecondary', 'buttonText', 'submitLabel', 'successMessage', 'text', 'linkLabel', 'image'].filter((key) => typeof content[key] === 'string').map((key) => <label key={key} className="block font-mono text-[9px] font-bold uppercase text-neutral-500">{key.replace(/([A-Z])/g, ' $1')}<textarea rows={['description', 'desc', 'body', 'successMessage'].includes(key) ? 3 : 1} value={content[key] as string} onChange={(event) => updateContent(key, event.target.value)} className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /></label>)}
-        {Array.isArray(content.items) && <div className="space-y-2 border-t border-black/10 pt-2"><p className="font-mono text-[9px] font-bold uppercase text-neutral-500">Items · {repeaterItems.length}</p>{repeaterItems.map((item, index) => <div key={`${section.id}-item-${index}`} className="space-y-1 rounded-lg border border-black/20 bg-[#FAF9F6] p-2"><div className="flex items-center justify-between"><span className="font-mono text-[9px] font-bold">Item {index + 1}</span><button type="button" aria-label={`Remove item ${index + 1}`} onClick={() => updateContent('items', repeaterItems.filter((_, itemIndex) => itemIndex !== index))} className="rounded border border-black/20 p-1 hover:bg-pink"><Trash2 size={12}/></button></div>{Object.entries(item).filter(([, value]) => typeof value === 'string' || typeof value === 'number').map(([key, value]) => <label key={key} className="block font-mono text-[9px] font-bold capitalize text-neutral-500">{key}<input value={String(value)} onChange={(event) => updateContent('items', repeaterItems.map((entry, itemIndex) => itemIndex === index ? { ...entry, [key]: event.target.value } : entry))} className="mt-0.5 w-full rounded border border-black/20 bg-white px-2 py-1 font-sans text-xs font-normal text-black" /></label>)}{(section.type === 'gallery' || section.type === 'team' || section.type === 'features' || section.type === 'testimonials' || section.type === 'services' || section.type === 'logo-cloud' || item.image !== undefined || item.src !== undefined) && <><label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Image URL<input value={String(item.image || item.src || '')} onChange={(event) => updateContent('items', repeaterItems.map((entry, itemIndex) => itemIndex === index ? { ...entry, image: event.target.value, src: event.target.value } : entry))} placeholder="https://example.com/image.jpg" className="mt-0.5 w-full rounded border border-black/20 bg-white px-2 py-1 font-sans text-xs font-normal normal-case text-black" /></label><label className="flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-black/30 bg-white px-2 py-1.5 font-mono text-[9px] font-bold hover:bg-yellow/40"><ImageIcon size={12}/> Upload item image<input type="file" accept="image/*" className="sr-only" onChange={(event) => { onUploadImage(event.target.files?.[0], index); event.currentTarget.value = ''; }} /></label></>}</div>)}<button type="button" onClick={() => { const defaults = blockRegistry[section.type]?.defaultContent.items; const fallback = Array.isArray(defaults) ? defaults[0] as Record<string, unknown> : { title: 'New item', desc: 'Add a description.' }; updateContent('items', [...repeaterItems, structuredClone(repeaterItems[0] || fallback)]); }} className="w-full rounded-lg border border-black bg-yellow py-1.5 font-mono text-[10px] font-bold">＋ Add item</button></div>}
+        <div className="space-y-2">
+          {Object.entries(content).filter(([key, value]) => key !== 'image' && !Array.isArray(value) && value !== null && ['string', 'number', 'boolean'].includes(typeof value)).map(([key, value]) => <label key={key} className="block font-mono text-[9px] font-bold uppercase text-neutral-500">{key.replace(/([A-Z])/g, ' $1').replace(/[_-]/g, ' ')}{typeof value === 'boolean' ? <span className="mt-1 flex items-center gap-2 rounded-lg border border-black/20 bg-[#FAF9F6] px-2 py-2 font-sans text-xs font-normal normal-case text-black"><input type="checkbox" checked={value} onChange={(event) => updateContent(key, event.target.checked)} />Enabled</span> : typeof value === 'number' ? <input type="number" value={value} onChange={(event) => updateContent(key, Number(event.target.value))} className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /> : <textarea rows={typeof value === 'string' && value.length > 90 ? 3 : 1} value={String(value)} onChange={(event) => updateContent(key, event.target.value)} className="mt-1 w-full resize-y rounded-lg border border-black/30 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" />}</label>)}
+        </div>
+        {section.type === 'nav' && <details className="rounded-lg border-2 border-black/15 bg-yellow/10 p-2.5" open>
+          <summary className="cursor-pointer font-mono text-[9px] font-black uppercase">Navbar controls</summary>
+          <div className="mt-2 space-y-2">
+            <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">Brand label<input value={typeof content.brandLabel === 'string' ? content.brandLabel : ''} onChange={(event) => updateContent('brandLabel', event.target.value)} placeholder="Uses website name" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label>
+            <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">Brand tagline<input value={typeof content.brandTagline === 'string' ? content.brandTagline : ''} onChange={(event) => updateContent('brandTagline', event.target.value)} placeholder="Optional short tagline" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label>
+            <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">Logo alt text<input value={typeof content.logoAlt === 'string' ? content.logoAlt : ''} onChange={(event) => updateContent('logoAlt', event.target.value)} placeholder="Accessible logo description" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label>
+            <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">CTA label<input value={typeof content.ctaLabel === 'string' ? content.ctaLabel : ''} onChange={(event) => updateContent('ctaLabel', event.target.value)} placeholder="Get started or Bag" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label>
+            <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">CTA destination<input value={typeof content.ctaTarget === 'string' ? content.ctaTarget : ''} onChange={(event) => updateContent('ctaTarget', event.target.value)} placeholder="#collection, /contact, or https://…" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label>
+            <label className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase"><input type="checkbox" checked={content.ctaNewTab === true} onChange={(event) => updateContent('ctaNewTab', event.target.checked)} />Open CTA in new tab</label>
+            <label className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase"><input type="checkbox" checked={content.showLogo !== false} onChange={(event) => updateContent('showLogo', event.target.checked)} />Show logo</label>
+            <label className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase"><input type="checkbox" checked={content.showMenu !== false} onChange={(event) => updateContent('showMenu', event.target.checked)} />Show navigation links</label>
+            <label className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase"><input type="checkbox" checked={content.sticky === true} onChange={(event) => updateContent('sticky', event.target.checked)} />Sticky on scroll</label>
+            <div className="grid grid-cols-2 gap-2"><label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">Mobile label<input value={typeof content.mobileMenuLabel === 'string' ? content.mobileMenuLabel : ''} onChange={(event) => updateContent('mobileMenuLabel', event.target.value)} placeholder="Menu" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label><label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">Close label<input value={typeof content.mobileCloseLabel === 'string' ? content.mobileCloseLabel : ''} onChange={(event) => updateContent('mobileCloseLabel', event.target.value)} placeholder="Close" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label></div>
+            <p className="font-mono text-[9px] leading-relaxed text-neutral-500">Edit the actual page links in the Navigation panel. Changes here control this navbar instance only.</p>
+          </div>
+        </details>}
+        {(section.type === 'cta' || typeof content.buttonText === 'string' || typeof content.ctaPrimary === 'string') && <details className="rounded-lg border border-black/20 bg-[#FAF9F6] p-2"><summary className="cursor-pointer font-mono text-[9px] font-bold uppercase">Button actions</summary><label className="mt-2 block font-mono text-[9px] font-bold uppercase text-neutral-500">Primary destination URL or #anchor<input type="text" value={typeof content.buttonLink === 'string' ? content.buttonLink : '#collection'} onChange={(event) => updateContent('buttonLink', event.target.value)} placeholder="/contact or #products" className="mt-1 w-full rounded border border-black/30 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /></label><label className="mt-2 flex items-center gap-2 font-mono text-[9px] font-bold uppercase text-neutral-600"><input type="checkbox" checked={content.buttonNewTab === true} onChange={(event) => updateContent('buttonNewTab', event.target.checked)} />Open primary destination in new tab</label>{typeof content.ctaSecondary === 'string' && <><label className="mt-2 block font-mono text-[9px] font-bold uppercase text-neutral-500">Secondary destination<input type="text" value={typeof content.secondaryButtonLink === 'string' ? content.secondaryButtonLink : '#home-how-it-works'} onChange={(event) => updateContent('secondaryButtonLink', event.target.value)} placeholder="/about or #details" className="mt-1 w-full rounded border border-black/30 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /></label><label className="mt-2 flex items-center gap-2 font-mono text-[9px] font-bold uppercase text-neutral-600"><input type="checkbox" checked={content.secondaryButtonNewTab === true} onChange={(event) => updateContent('secondaryButtonNewTab', event.target.checked)} />Open secondary destination in new tab</label></>}</details>}
+        {(section.type === 'contact' || section.type === 'newsletter' || /form/i.test(section.type)) && <details className="rounded-lg border border-black/20 bg-[#FAF9F6] p-2"><summary className="cursor-pointer font-mono text-[9px] font-bold uppercase">Form delivery</summary><p className="mt-2 font-mono text-[9px] leading-relaxed text-neutral-500">Default routes submit to Launchly’s contact or newsletter API. A custom HTTPS endpoint receives a JSON POST. Keep private API keys on your server.</p><label className="mt-2 block font-mono text-[9px] font-bold uppercase text-neutral-500">API endpoint<input type="text" value={typeof content.apiEndpoint === 'string' ? content.apiEndpoint : ''} onChange={(event) => updateContent('apiEndpoint', event.target.value)} placeholder="https://api.example.com/submit" className="mt-1 w-full rounded border border-black/30 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /></label></details>}
+        {section.type === 'footer' && <details className="rounded-lg border border-black/20 bg-[#FAF9F6] p-2" open><summary className="cursor-pointer font-mono text-[9px] font-bold uppercase">Footer links · {footerItems.length}</summary><div className="mt-2 space-y-2">{footerItems.map((item, index) => <div key={`footer-link-${index}`} className="grid grid-cols-[1fr_1.3fr_auto] gap-1"><input aria-label={`Footer link ${index + 1} label`} value={String(item.label || '')} onChange={(event) => updateContent('items', footerItems.map((entry, itemIndex) => itemIndex === index ? { ...entry, label: event.target.value } : entry))} placeholder="Label" className="min-w-0 rounded border border-black/20 bg-white px-1.5 py-1 font-sans text-[10px]"/><input aria-label={`Footer link ${index + 1} destination`} value={String(item.href || '')} onChange={(event) => updateContent('items', footerItems.map((entry, itemIndex) => itemIndex === index ? { ...entry, href: event.target.value } : entry))} placeholder="/page or https://" className="min-w-0 rounded border border-black/20 bg-white px-1.5 py-1 font-sans text-[10px]"/><button type="button" aria-label={`Remove footer link ${index + 1}`} onClick={() => updateContent('items', footerItems.filter((_, itemIndex) => itemIndex !== index))} className="rounded border border-black/20 px-1.5 hover:bg-pink"><Trash2 size={12}/></button></div>)}<button type="button" onClick={() => updateContent('items', [...footerItems, { label: 'New link', href: '/' }])} className="w-full rounded border border-black bg-yellow py-1.5 font-mono text-[9px] font-bold">＋ Add footer link</button><label className="mt-2 block font-mono text-[9px] font-bold uppercase text-neutral-500">Footer note<input value={typeof content.copyright === 'string' ? content.copyright : 'All rights reserved.'} onChange={(event) => updateContent('copyright', event.target.value)} className="mt-1 w-full rounded border border-black/20 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label></div></details>}
+        {Array.isArray(content.items) && <div className="space-y-2 border-t border-black/10 pt-2"><p className="font-mono text-[9px] font-bold uppercase text-neutral-500">Items · {repeaterItems.length}</p>{repeaterItems.map((item, index) => <div key={`${section.id}-item-${index}`} className="space-y-1 rounded-lg border border-black/20 bg-[#FAF9F6] p-2"><div className="flex items-center justify-between"><span className="font-mono text-[9px] font-bold">Item {index + 1}</span><button type="button" aria-label={`Remove item ${index + 1}`} onClick={() => updateContent('items', repeaterItems.filter((_, itemIndex) => itemIndex !== index))} className="rounded border border-black/20 p-1 hover:bg-pink"><Trash2 size={12}/></button></div>{Object.entries(item).filter(([, value]) => ['string', 'number', 'boolean'].includes(typeof value)).map(([key, value]) => <label key={key} className="block font-mono text-[9px] font-bold capitalize text-neutral-500">{key}{typeof value === 'boolean' ? <input type="checkbox" checked={value} onChange={(event) => updateContent('items', repeaterItems.map((entry, itemIndex) => itemIndex === index ? { ...entry, [key]: event.target.checked } : entry))} className="ml-2"/> : <input type={typeof value === 'number' ? 'number' : 'text'} value={String(value)} onChange={(event) => updateContent('items', repeaterItems.map((entry, itemIndex) => itemIndex === index ? { ...entry, [key]: typeof value === 'number' ? Number(event.target.value) : event.target.value } : entry))} className="mt-0.5 w-full rounded border border-black/20 bg-white px-2 py-1 font-sans text-xs font-normal text-black" />}</label>)}{(section.type === 'gallery' || section.type === 'team' || section.type === 'features' || section.type === 'testimonials' || section.type === 'services' || section.type === 'logo-cloud' || item.image !== undefined || item.src !== undefined) && <><label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Image URL<input value={String(item.image || item.src || '')} onChange={(event) => updateContent('items', repeaterItems.map((entry, itemIndex) => itemIndex === index ? { ...entry, image: event.target.value, src: event.target.value } : entry))} placeholder="https://example.com/image.jpg" className="mt-0.5 w-full rounded border border-black/20 bg-white px-2 py-1 font-sans text-xs font-normal normal-case text-black" /></label><label className="flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-black/30 bg-white px-2 py-1.5 font-mono text-[9px] font-bold hover:bg-yellow/40"><ImageIcon size={12}/> Upload item image<input type="file" accept="image/*" className="sr-only" onChange={(event) => { onUploadImage(event.target.files?.[0], index); event.currentTarget.value = ''; }} /></label></>}</div>)}<button type="button" onClick={() => { const defaults = blockRegistry[section.type]?.defaultContent.items; const fallback = Array.isArray(defaults) ? defaults[0] as Record<string, unknown> : { title: 'New item', desc: 'Add a description.' }; updateContent('items', [...repeaterItems, structuredClone(repeaterItems[0] || fallback)]); }} className="w-full rounded-lg border border-black bg-yellow py-1.5 font-mono text-[10px] font-bold">＋ Add item</button></div>}
         <StructuredContentEditor key={JSON.stringify(content)} value={content} onChange={setSectionContent} label="Complete section content" />
       </div>
 
       {/* Typography Toolbar */}
-      <div>
+      <div hidden={inspectorTab !== 'style'} className="space-y-4 rounded-xl border-2 border-black bg-white p-3">
         <div className="font-mono text-[10px] font-black uppercase text-neutral-500 tracking-wider mb-1.5">
           Typography
         </div>
@@ -2570,8 +2659,6 @@ function SectionProperties({
             <AlignRight size={13} />
           </button>
         </div>
-      </div>
-
       {/* Spacing Controls */}
       <div>
         <div className="font-mono text-[10px] font-black uppercase text-neutral-500 tracking-wider mb-1.5">
@@ -2632,7 +2719,8 @@ function SectionProperties({
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Section background
         <span className="mt-1 flex items-center gap-2 rounded-xl border-2 border-black bg-white p-2"><input type="color" value={section.style?.backgroundColor || '#ffffff'} onChange={(event) => setSectionStyle({ backgroundColor: event.target.value })} aria-label="Section background color" className="h-8 w-9 rounded border border-black" /><input value={section.style?.backgroundColor || ''} onChange={(event) => setSectionStyle({ backgroundColor: event.target.value || undefined })} placeholder="Use theme default" className="min-w-0 flex-1 font-mono text-xs font-bold uppercase" /></span>
       </label>
-      <div className="space-y-2 rounded-xl border-2 border-black bg-white p-3">
+      </div>
+      <div hidden={inspectorTab !== 'advanced'} className="space-y-2 rounded-xl border-2 border-black bg-white p-3">
         <p className="font-mono text-[10px] font-black uppercase text-neutral-500">Advanced</p>
         <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Section animation<select value={section.style?.animation || ''} onChange={(event) => setSectionStyle({ animation: event.target.value || undefined })} className="mt-1 w-full rounded-lg border border-black/30 bg-white px-2 py-1.5 font-mono text-xs font-normal normal-case text-black"><option value="">None</option><option value="fade-in">Fade in</option><option value="slide-up">Slide up</option><option value="slide-left">Slide in from left</option><option value="zoom-in">Zoom in</option><option value="float">Float</option><option value="pulse">Pulse</option></select></label>
         <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Anchor ID<input value={section.anchorId || ''} onChange={(event) => setSectionSettings({ anchorId: event.target.value || undefined })} placeholder={section.id} className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-mono text-xs font-normal normal-case text-black" /></label>
