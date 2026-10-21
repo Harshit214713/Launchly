@@ -19,7 +19,7 @@ import {
   Lock,
   X,
 } from 'lucide-react';
-import { TEMPLATES } from '@/lib/templates';
+import { getTemplateById } from '@/lib/templates';
 import { notFound } from 'next/navigation';
 import PaymentModal from '@/components/PaymentModal';
 
@@ -31,13 +31,22 @@ const COLOR_PALETTES = [
   { name: 'Emerald', color: '#10B981' },
 ];
 
+function PreviewProductArt({ fresh, index }: { fresh: boolean; index: number }) {
+  const accent = fresh ? ['#3FA34D', '#E76F51', '#F4A93B'][index % 3] : ['#C6FF3D', '#7C5CFF', '#40D9E8'][index % 3];
+  return <svg viewBox="0 0 480 320" aria-hidden="true" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
+    <defs><linearGradient id={`preview-art-${fresh ? 'fresh' : 'volt'}-${index}`} x1="0" y1="0" x2="1" y2="1"><stop stopColor={fresh ? '#FFF8EC' : '#252C3B'}/><stop offset="1" stopColor={fresh ? '#DCEBD4' : '#11141C'}/></linearGradient></defs>
+    <rect width="480" height="320" fill={`url(#preview-art-${fresh ? 'fresh' : 'volt'}-${index})`}/><circle cx="390" cy="55" r="90" fill={accent} opacity=".15"/>
+    {fresh ? <g><path d="M112 135h256l-24 142H136z" fill="#C3874D"/><path d="M130 158h220M136 205h208M143 251h194" stroke="#8F5C36" strokeWidth="10"/><path d="M155 141c-4-72 51-88 68-25 22-80 83-77 91-5 39-57 84-30 71 30" fill="none" stroke={accent} strokeWidth="15" strokeLinecap="round"/><circle cx="177" cy="165" r="31" fill="#E76F51"/><circle cx="238" cy="155" r="29" fill="#F4A93B"/><circle cx="297" cy="169" r="32" fill="#89B85D"/><circle cx="211" cy="209" r="27" fill="#D84D42"/><circle cx="275" cy="216" r="29" fill="#F2BC47"/></g> : <g><path d="M156 196v-48c0-85 36-124 84-124s84 39 84 124v48" fill="none" stroke={accent} strokeWidth="19" strokeLinecap="round"/><rect x="123" y="166" width="62" height="94" rx="24" fill="#30384A" stroke={accent} strokeWidth="7"/><rect x="295" y="166" width="62" height="94" rx="24" fill="#30384A" stroke={accent} strokeWidth="7"/><path d="M181 277h118" stroke="#8993A7" strokeWidth="8" strokeLinecap="round"/></g>}
+  </svg>;
+}
+
 export default function TemplatePreviewPage({ 
   params 
 }: { 
   params: Promise<{ templateId: string }> 
 }) {
   const { templateId } = use(params);
-  const template = TEMPLATES.find((t) => t.id === templateId);
+  const template = getTemplateById(templateId);
 
   if (!template) {
     notFound();
@@ -63,17 +72,7 @@ export default function TemplatePreviewPage({
   }, [template.id, template.pages]);
 
   const currentAccent = COLOR_PALETTES[activePalette].color || template.accent;
-  const products = template.id === 'velvet-boutique'
-    ? [
-        { name: 'The Cashmere Coat', category: 'Outerwear', price: 598, detail: 'Italian cashmere, tailored for a timeless silhouette.' },
-        { name: 'Velvet Evening Bag', category: 'Accessories', price: 248, detail: 'A sculptural velvet clutch with a polished brass clasp.' },
-        { name: 'Heirloom Gold Cuff', category: 'Jewelry', price: 328, detail: 'An everyday statement in recycled 18k gold vermeil.' },
-      ]
-    : [
-        { name: 'Silk Column Dress', category: 'New season', price: 189, detail: 'Fluid silk with a flattering, modern drape.' },
-        { name: 'The Everyday Tote', category: 'Bestseller', price: 128, detail: 'Soft Italian leather, sized for your daily essentials.' },
-        { name: 'Sculpted Gold Hoops', category: 'Jewelry', price: 78, detail: 'Lightweight hoops finished in 14k gold vermeil.' },
-      ];
+  const products = template.products || [];
   const visibleProducts = activeSection.includes('wishlist')
     ? products.filter((product) => wishlist.includes(product.name))
     : products;
@@ -153,6 +152,18 @@ export default function TemplatePreviewPage({
               </button>
             ))}
           </div>
+
+          <label className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-card px-2 py-1.5 font-mono text-[10px] font-bold text-ink shadow-brutal-xs shrink-0">
+            <span className="hidden sm:inline">Preview page</span>
+            <select
+              aria-label="Choose preview page"
+              value={activeSection}
+              onChange={(event) => setActiveSection(event.target.value)}
+              className="max-w-24 sm:max-w-32 cursor-pointer bg-transparent outline-none"
+            >
+              {template.pages.map((page) => <option key={page} value={page.toLowerCase()}>{page}</option>)}
+            </select>
+          </label>
 
           {/* Right: Palette & Actions (Compact, fits comfortably on 1366px screen) */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
@@ -298,11 +309,11 @@ export default function TemplatePreviewPage({
                 </span>
               </div>
 
-              {/* Interactive Tab Links */}
-              <div className={`hidden sm:flex items-center gap-5 text-xs font-semibold overflow-x-auto max-w-[55vw] ${
+              {/* Keep primary storefront navigation concise; the page picker contains every preview route. */}
+              <div className={`hidden sm:flex items-center gap-5 text-xs font-semibold ${
                 isDarkTemplate ? 'text-neutral-300' : 'text-[#525252]'
               }`}>
-                {template.pages.map((p) => {
+                {template.pages.filter((page) => ['home', 'shop', 'about', 'contact'].includes(page.toLowerCase())).map((p) => {
                   const key = p.toLowerCase();
                   const isActive = activeSection === key;
                   return (
@@ -323,9 +334,6 @@ export default function TemplatePreviewPage({
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                <select aria-label="Choose preview page" value={activeSection} onChange={(event) => setActiveSection(event.target.value)} className="sm:hidden max-w-28 rounded-lg border px-2 py-2 text-[10px] font-bold bg-transparent">
-                  {template.pages.map((page) => <option key={page} value={page.toLowerCase()}>{page}</option>)}
-                </select>
                 <button type="button" onClick={() => setActiveSection(template.pages.find((page) => page.toLowerCase().includes('cart'))?.toLowerCase() || template.pages[0].toLowerCase())} className="relative rounded-full border px-3 py-2 text-xs font-bold" aria-label={`Shopping bag, ${cartCount} items`}>
                   Bag{cartCount > 0 && <span className="ml-1 rounded-full px-1.5 py-0.5 text-[9px] text-black" style={{ backgroundColor: currentAccent }}>{cartCount}</span>}
                 </button>
@@ -344,19 +352,19 @@ export default function TemplatePreviewPage({
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-2 border-black font-mono text-[11px] sm:text-xs font-black uppercase text-black shadow-[2px_2px_0px_#000] mb-5"
                     style={{ backgroundColor: currentAccent }}
                   >
-                    <span>{template.category.toUpperCase()}{' // '}{template.badge?.toUpperCase() || 'POPULAR'}</span>
+                    <span>{template.id === 'fresh-crate' ? 'FRESH CRATE / LOCAL MARKET' : template.id === 'volt-gear' ? 'VOLT GEAR / FIELD TESTED' : `${template.category.toUpperCase()} / ${template.badge?.toUpperCase() || 'POPULAR'}`}</span>
                   </div>
 
                   <h1 className={`font-display text-4xl sm:text-6xl font-black tracking-tight mb-4 leading-[1.08] ${
                     isDarkTemplate ? 'text-white' : 'text-[#171717]'
                   }`}>
-                    {template.name}
+                    {template.id === 'fresh-crate' ? 'Good food starts close to home.' : template.id === 'volt-gear' ? 'Gear for your next big idea.' : template.name}
                   </h1>
 
                   <p className={`font-mono text-xs sm:text-base opacity-80 max-w-xl mx-auto mb-8 leading-relaxed ${
                     isDarkTemplate ? 'text-neutral-300' : 'text-[#525252]'
                   }`}>
-                    {template.description}
+                    {template.id === 'fresh-crate' ? 'Seasonal produce from nearby farms, thoughtful pantry staples, and a fresh delivery at your door.' : template.id === 'volt-gear' ? 'Thoughtful technology for work, play, and everything you want to build next.' : template.description}
                   </p>
 
                   <div className="flex flex-wrap items-center justify-center gap-3">
@@ -386,13 +394,13 @@ export default function TemplatePreviewPage({
                   <div className="max-w-5xl mx-auto">
                     <div className="flex items-end justify-between mb-5">
                       <div><span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: currentAccent }}>Curated for you</span><h2 className="text-2xl font-black mt-1">Featured pieces</h2></div>
-                      <button type="button" onClick={() => setActiveSection(template.pages[1]?.toLowerCase() || 'shop')} className="text-xs font-bold underline underline-offset-4">Shop all</button>
+                      <button type="button" onClick={() => document.getElementById('template-featured-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="text-xs font-bold underline underline-offset-4">Shop all</button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {products.map((product, index) => (
+                    <div id="template-featured-products" className="grid grid-cols-1 scroll-mt-24 sm:grid-cols-3 gap-4">
+                      {products.slice(0, 3).map((product, index) => (
                         <article key={product.name} className={`overflow-hidden rounded-2xl border ${isDarkTemplate ? 'bg-white/5 border-white/10' : 'bg-white border-black/10'}`}>
-                          <div className="h-40 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${currentAccent}40, ${currentAccent}10)` }}><span className="font-display text-5xl font-black opacity-60">0{index + 1}</span></div>
-                          <div className="p-4"><span className="font-mono text-[9px] uppercase tracking-wider opacity-60">{product.category}</span><h3 className="font-bold mt-1">{product.name}</h3><p className="text-xs opacity-65 mt-1">{product.detail}</p><div className="flex items-center justify-between mt-4"><span className="font-black">${product.price}</span><button type="button" onClick={() => setCartCount((count) => count + 1)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#111' : '#171717' }}>Add to bag</button></div></div>
+                          <div className="h-40 overflow-hidden"><PreviewProductArt fresh={template.id === 'fresh-crate'} index={index}/></div>
+                          <div className="p-4"><span className="font-mono text-[9px] uppercase tracking-wider opacity-60">{product.category}</span><h3 className="font-bold mt-1">{product.name}</h3><p className="text-xs opacity-65 mt-1">{product.detail}</p><div className="flex items-center justify-between mt-4"><span className="font-black">₹{product.price.toLocaleString('en-IN')}</span><button type="button" onClick={() => setCartCount((count) => count + 1)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#111' : '#171717' }}>Add to {template.id === 'fresh-crate' ? 'crate' : 'bag'}</button></div></div>
                         </article>
                       ))}
                     </div>
@@ -462,14 +470,14 @@ export default function TemplatePreviewPage({
                 ) : activeSection.includes('cart') ? (
                   <div className={`max-w-xl mx-auto rounded-2xl border p-6 text-center ${isDarkTemplate ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-black/10 text-black'}`}>
                     <h3 className="font-bold text-lg">Your bag</h3><p className="font-mono text-sm mt-2">{cartCount ? `${cartCount} item${cartCount === 1 ? '' : 's'} in your bag` : 'Your bag is currently empty.'}</p>
-                    <button type="button" onClick={() => setActiveSection(template.pages[1]?.toLowerCase() || 'collections')} className="mt-5 rounded-lg px-4 py-2 font-bold text-black" style={{ backgroundColor: currentAccent }}>Continue shopping</button>
+                    <button type="button" onClick={() => { setActiveSection(template.pages[0].toLowerCase()); window.setTimeout(() => document.getElementById('template-featured-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} className="mt-5 rounded-lg px-4 py-2 font-bold text-black" style={{ backgroundColor: currentAccent }}>Continue shopping</button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                     {visibleProducts.length ? visibleProducts.map((product, index) => (
                       <article key={product.name} className={`overflow-hidden rounded-2xl border ${isDarkTemplate ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-black/10 text-black'}`}>
-                        <div className="h-48 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${currentAccent}40, ${currentAccent}10)` }}><span className="font-display text-6xl font-black opacity-50">0{index + 1}</span></div>
-                        <div className="p-4"><span className="font-mono text-[9px] uppercase tracking-wider opacity-60">{product.category}</span><h3 className="font-bold mt-1">{product.name}</h3><p className="text-xs opacity-65 mt-1">{product.detail}</p><div className="flex items-center justify-between mt-4"><span className="font-black">${product.price}</span><div className="flex gap-2"><button type="button" aria-label={`Save ${product.name}`} onClick={() => setWishlist((items) => items.includes(product.name) ? items.filter((item) => item !== product.name) : [...items, product.name])} className="rounded-lg border px-2 py-1 text-xs">{wishlist.includes(product.name) ? '♥' : '♡'}</button><button type="button" onClick={() => setCartCount((count) => count + 1)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-black" style={{ backgroundColor: currentAccent }}>Add to bag</button></div></div></div>
+                        <div className="h-48 overflow-hidden"><PreviewProductArt fresh={template.id === 'fresh-crate'} index={index}/></div>
+                        <div className="p-4"><span className="font-mono text-[9px] uppercase tracking-wider opacity-60">{product.category}</span><h3 className="font-bold mt-1">{product.name}</h3><p className="text-xs opacity-65 mt-1">{product.detail}</p><div className="flex items-center justify-between mt-4"><span className="font-black">₹{product.price.toLocaleString('en-IN')}</span><div className="flex gap-2"><button type="button" aria-label={`Save ${product.name}`} onClick={() => setWishlist((items) => items.includes(product.name) ? items.filter((item) => item !== product.name) : [...items, product.name])} className="rounded-lg border px-2 py-1 text-xs">{wishlist.includes(product.name) ? '♥' : '♡'}</button><button type="button" onClick={() => setCartCount((count) => count + 1)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-black" style={{ backgroundColor: currentAccent }}>Add to {template.id === 'fresh-crate' ? 'crate' : 'bag'}</button></div></div></div>
                       </article>
                   )) : <p className="col-span-full py-12 text-center text-sm opacity-60">No saved items yet. Tap the heart on a piece to add it to your wishlist.</p>}
                   </div>

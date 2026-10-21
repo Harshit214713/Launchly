@@ -11,7 +11,7 @@ import {
   Loader2, ExternalLink, Mail, Zap, CheckCircle2, Crown
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { TEMPLATES } from '@/lib/templates';
+import { getTemplateById, TEMPLATES } from '@/lib/templates';
 import { cn, formatDate } from '@/lib/utils';
 import BrandWordmark from '@/components/BrandWordmark';
 import { scrollToSection } from '@/lib/navigation';
@@ -58,6 +58,22 @@ export default function Dashboard() {
     const greeting = hours < 12 ? 'Good Morning' : hours < 17 ? 'Good Afternoon' : 'Good Evening';
     requestAnimationFrame(() => setGreetingTime(greeting));
   }, []);
+
+  useEffect(() => {
+    if (!openMenu) return;
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (event.target instanceof Element && !event.target.closest('[data-website-action-menu]')) setOpenMenu(null);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenMenu(null);
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePress);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePress);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [openMenu]);
 
   // Sync theme with document class
   useEffect(() => {
@@ -815,7 +831,7 @@ export default function Dashboard() {
                     <div className="p-3.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#181824] shadow-brutal-xs">
                       <span className="font-mono text-xs font-black text-pink block mb-1">01 / CHOOSE</span>
                       <span className="font-display text-xs font-black text-black dark:text-white block">Pick a Template</span>
-                      <span className="font-mono text-[10px] text-neutral-500">12+ responsive templates ready to deploy.</span>
+                      <span className="font-mono text-[10px] text-neutral-500">Two complete stores, ready to customize and deploy.</span>
                     </div>
 
                     <div className="p-3.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#181824] shadow-brutal-xs">
@@ -860,18 +876,18 @@ export default function Dashboard() {
                       + Create Another Website
                     </div>
                     <div className="font-mono text-[11px] text-neutral-500 mt-0.5">
-                      Choose from 12+ templates
+                      Choose Fresh Crate or Volt Gear
                     </div>
                   </div>
                 </Link>
 
                 {filteredWebsites.map((website) => {
-                  const template = TEMPLATES.find(t => t.id === website.templateId) || TEMPLATES[0];
+                  const template = getTemplateById(website.templateId) || TEMPLATES[0];
 
                   return (
                     <div
                       key={website.id}
-                      className="bg-card dark:bg-[#12121a] rounded-3xl border-[2.5px] border-black dark:border-[#262638] overflow-hidden shadow-brutal hover:shadow-brutal-md transition-all flex flex-col justify-between group"
+                      className="bg-card dark:bg-[#12121a] rounded-3xl border-[2.5px] border-black dark:border-[#262638] shadow-brutal hover:shadow-brutal-md transition-all flex flex-col justify-between group"
                     >
                       <div>
                         {/* Visual Banner Preview */}
@@ -952,17 +968,19 @@ export default function Dashboard() {
                             </div>
 
                             {/* Options Dropdown Menu */}
-                            <div className="relative shrink-0">
+                            <div className="relative z-40 shrink-0" data-website-action-menu>
                               <button
                                 onClick={() => setOpenMenu(openMenu === website.id ? null : website.id)}
                                 className="p-1.5 rounded-lg border border-black/10 dark:border-[#262638] hover:bg-neutral-100 dark:hover:bg-[#1a1a26] text-neutral-500 hover:text-ink transition-colors cursor-pointer"
                                 aria-label="Website actions menu"
+                                aria-expanded={openMenu === website.id}
+                                aria-controls={`website-actions-${website.id}`}
                               >
                                 <MoreHorizontal size={16} />
                               </button>
 
                               {openMenu === website.id && (
-                                <div className="absolute right-0 top-8 bg-card dark:bg-[#161622] border-2 border-black dark:border-[#262638] rounded-2xl shadow-brutal z-30 py-1.5 min-w-44">
+                                <div id={`website-actions-${website.id}`} role="menu" className="absolute right-0 top-8 bg-card dark:bg-[#161622] border-2 border-black dark:border-[#262638] rounded-2xl shadow-brutal z-50 py-1.5 min-w-44">
                                   <Link
                                     href={`/editor/${website.templateId}`}
                                     className="flex items-center gap-2.5 px-3.5 py-2 font-mono text-xs font-bold text-ink hover:bg-pink hover:text-black transition-colors"

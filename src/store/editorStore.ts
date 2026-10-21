@@ -1,5 +1,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import type { Column, MenuItem, Section, SectionContent, SiteDocument, SiteElement, SitePage, Theme } from '@/lib/siteDocument';
+import type { Column, Device, MenuItem, Section, SectionContent, SiteDocument, SiteElement, SitePage, Theme } from '@/lib/siteDocument';
+
+export type SelectedElementPath = { sectionId: string; columnId: string; elementId: string };
 
 export type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'offline';
 export type SiteVersion = { id: string; label: string; createdAt: string; document: SiteDocument };
@@ -10,6 +12,17 @@ export type EditorStoreState = {
   versions: SiteVersion[];
   saveStatus: SaveStatus;
   lastSavedAt: string | null;
+  // UI state kept in the store so undo/redo can reliably restore the full visual state
+  deviceMode: Device;
+  activePageId: string;
+  selectedSectionId: string | null;
+  selectedElementPath: SelectedElementPath | null;
+  isRestoring: boolean;
+  // Actions
+  setDeviceMode: (mode: Device) => void;
+  setActivePageId: (id: string) => void;
+  setSelectedSectionId: (id: string | null) => void;
+  setSelectedElementPath: (path: SelectedElementPath | null) => void;
   updateDocument: (update: (document: SiteDocument) => SiteDocument, group?: string) => void;
   replaceDocument: (document: SiteDocument) => void;
   setTheme: (theme: Theme) => void;
@@ -23,9 +36,9 @@ export type EditorStoreState = {
   updateSectionContent: (pageId: string, sectionId: string, content: SectionContent, group?: string) => void;
   insertColumn: (pageId: string, sectionId: string, column: Column, index: number) => void;
   moveColumn: (pageId: string, sectionId: string, columnId: string, targetIndex: number) => void;
-  resizeColumn: (pageId: string, sectionId: string, columnId: string, device: 'desktop' | 'tablet' | 'mobile', width: number) => void;
+  resizeColumn: (pageId: string, sectionId: string, columnId: string, device: Device, width: number) => void;
   insertElement: (pageId: string, sectionId: string, columnId: string, element: SiteElement, index: number) => void;
-  moveElement: (pageId: string, sectionId: string, fromColumnId: string, elementId: string, toColumnId: string, targetIndex: number) => void;
+  moveElement: (pageId: string, fromSectionId: string, fromColumnId: string, elementId: string, toSectionId: string, toColumnId: string, targetIndex: number) => void;
   duplicateElement: (pageId: string, sectionId: string, columnId: string, elementId: string) => void;
   deleteElement: (pageId: string, sectionId: string, columnId: string, elementId: string) => void;
   updateElement: (pageId: string, sectionId: string, columnId: string, elementId: string, update: (element: SiteElement) => SiteElement, group?: string) => void;
@@ -75,11 +88,6 @@ function mapColumn(document: SiteDocument, pageId: string, sectionId: string, co
   return mapSection(document, pageId, sectionId, (section) => ({ ...section, columns: (section.columns || []).map((column) => column.id === columnId ? update(column) : column) }));
 }
 
-function mapElement(document: SiteDocument, pageId: string, sectionId: string, columnId: string, elementId: string, update: (element: SiteElement) => SiteElement): SiteDocument {
-  if (!document.pages.some((page) => page.id === pageId && page.sections.some((section) => section.id === sectionId && section.columns?.some((column) => column.id === columnId && column.elements.some((element) => element.id === elementId))))) return document;
-  return mapColumn(document, pageId, sectionId, columnId, (column) => ({ ...column, elements: column.elements.map((element) => element.id === elementId ? update(element) : element) }));
-}
-
 function uniqueSlug(value: string, pages: SitePage[], excludeId?: string): string {
   const base = makeSlug(value);
   const safeBase = reservedSlugs.has(base) ? `${base}-page` : base;
@@ -109,8 +117,17 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
     versions: [],
     saveStatus: 'saved',
     lastSavedAt: null,
+    deviceMode: 'desktop',
+    activePageId: initial.pages.find((p) => p.isHome)?.id || initial.pages[0]?.id || 'home',
+    selectedSectionId: null,
+    selectedElementPath: null,
+    isRestoring: false,
+    setDeviceMode: (mode) => set({ deviceMode: mode }),
+    setActivePageId: (id) => set({ activePageId: id }),
+    setSelectedSectionId: (id) => set({ selectedSectionId: id }),
+    setSelectedElementPath: (path) => set({ selectedElementPath: path }),
     updateDocument: (update, group) => commit(set, get, update, group),
-    replaceDocument: (document) => { lastGroup = ''; lastEditAt = 0; set({ document, past: [], future: [], saveStatus: 'saved' }); },
+    replaceDocument: (document) => { lastGroup = ''; lastEditAt = 0; set({ document, past: [], future: [], saveStatus: 'saved', isRestoring: false }); },
     setTheme: (theme) => commit(set, get, (document) => ({ ...document, theme })),
     addSection: (pageId, section, index) => commit(set, get, (document) => ({ ...document, pages: document.pages.map((page) => {
       if (page.id !== pageId) return page;
@@ -171,16 +188,35 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
       elements.splice(Math.max(0, Math.min(index, elements.length)), 0, structuredClone(element));
       return { ...column, elements };
     })),
-    moveElement: (pageId, sectionId, fromColumnId, elementId, toColumnId, targetIndex) => commit(set, get, (document) => mapSection(document, pageId, sectionId, (section) => {
-      const columns = (section.columns || []).map((column) => ({ ...column, elements: [...column.elements] }));
-      const from = columns.find((column) => column.id === fromColumnId);
-      const to = columns.find((column) => column.id === toColumnId);
-      const index = from?.elements.findIndex((element) => element.id === elementId) ?? -1;
-      if (!from || !to || index < 0) return section;
-      const [element] = from.elements.splice(index, 1);
-      to.elements.splice(Math.max(0, Math.min(targetIndex, to.elements.length)), 0, element);
-      return { ...section, columns };
-    })),
+    moveElement: (pageId, fromSectionId, fromColumnId, elementId, toSectionId, toColumnId, targetIndex) => commit(set, get, (document) => {
+      const page = document.pages.find((entry) => entry.id === pageId);
+      const fromSection = page?.sections.find((section) => section.id === fromSectionId);
+      const toSection = page?.sections.find((section) => section.id === toSectionId);
+      if (!page || !fromSection || !toSection) return document;
+      const fromColumn = fromSection.columns?.find((column) => column.id === fromColumnId);
+      const toColumn = toSection.columns?.find((column) => column.id === toColumnId);
+      const elementIndex = fromColumn?.elements.findIndex((element) => element.id === elementId) ?? -1;
+      if (!fromColumn || !toColumn || elementIndex < 0) return document;
+      const element = fromColumn.elements[elementIndex];
+      if (fromSectionId === toSectionId) {
+        const columns = (fromSection.columns || []).map((column) => ({ ...column, elements: [...column.elements] }));
+        const from = columns.find((column) => column.id === fromColumnId);
+        const to = columns.find((column) => column.id === toColumnId);
+        if (!from || !to) return document;
+        const [moved] = from.elements.splice(elementIndex, 1);
+        to.elements.splice(Math.max(0, Math.min(targetIndex, to.elements.length)), 0, moved);
+        return { ...document, pages: document.pages.map((entry) => entry.id !== pageId ? entry : { ...entry, sections: entry.sections.map((section) => section.id === fromSectionId ? { ...section, columns } : section) }) };
+      }
+      const pages = document.pages.map((entry) => {
+        if (entry.id !== pageId) return entry;
+        return { ...entry, sections: entry.sections.map((section) => {
+          if (section.id === fromSectionId) return { ...section, columns: (section.columns || []).map((column) => column.id === fromColumnId ? { ...column, elements: column.elements.filter((_, index) => index !== elementIndex) } : column) };
+          if (section.id === toSectionId) return { ...section, columns: (section.columns || []).map((column) => column.id === toColumnId ? { ...column, elements: [...column.elements.slice(0, Math.max(0, targetIndex)), element, ...column.elements.slice(Math.max(0, targetIndex))] } : column) };
+          return section;
+        }) };
+      });
+      return { ...document, pages };
+    }),
     duplicateElement: (pageId, sectionId, columnId, elementId) => commit(set, get, (document) => mapColumn(document, pageId, sectionId, columnId, (column) => {
       const index = column.elements.findIndex((element) => element.id === elementId);
       if (index < 0) return column;
@@ -191,7 +227,18 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
       return { ...column, elements };
     })),
     deleteElement: (pageId, sectionId, columnId, elementId) => commit(set, get, (document) => mapColumn(document, pageId, sectionId, columnId, (column) => ({ ...column, elements: column.elements.filter((element) => element.id !== elementId) }))),
-    updateElement: (pageId, sectionId, columnId, elementId, update, group) => commit(set, get, (document) => mapElement(document, pageId, sectionId, columnId, elementId, update), group),
+    updateElement: (pageId, sectionId, columnId, elementId, update, group) => commit(set, get, (document) => mapSection(document, pageId, sectionId, (section) => {
+      const column = section.columns?.find((entry) => entry.id === columnId);
+      const currentElement = column?.elements.find((entry) => entry.id === elementId);
+      if (!currentElement) return section;
+      const nextElement = update(currentElement);
+      const columns = (section.columns || []).map((entry) => entry.id !== columnId ? entry : ({ ...entry, elements: entry.elements.map((element) => element.id === elementId ? nextElement : element) }));
+      const isSectionRendererElement = section.type !== 'custom' && section.columns?.[0]?.id === columnId && column?.elements[0]?.id === elementId && currentElement.type === 'block';
+      if (!isSectionRendererElement) return { ...section, columns };
+      const content = { ...nextElement.content };
+      delete content.blockType;
+      return { ...section, content, columns };
+    }), group),
     addPage: (title, sections) => {
       const current = get().document;
       const slug = uniqueSlug(title, current.pages);
@@ -268,19 +315,22 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
     restoreVersion: (versionId) => {
       const version = get().versions.find((entry) => entry.id === versionId);
       if (!version) return false;
+      lastGroup = ''; lastEditAt = 0;
       commit(set, get, () => structuredClone(version.document));
       return true;
     },
-    undo: () => set((state) => {
+    undo: () => { lastGroup = ''; lastEditAt = 0; set((state) => {
       if (!state.past.length) return state;
       const previous = state.past[state.past.length - 1];
-      return { document: previous, past: state.past.slice(0, -1), future: [state.document, ...state.future], saveStatus: 'unsaved' };
-    }),
-    redo: () => set((state) => {
+      // isRestoring=true prevents the sync useEffect in the editor from re-committing the restored state as a new undo step
+      return { document: previous, past: state.past.slice(0, -1), future: [state.document, ...state.future], saveStatus: 'unsaved', isRestoring: true };
+    }); },
+    redo: () => { lastGroup = ''; lastEditAt = 0; set((state) => {
       if (!state.future.length) return state;
       const [next, ...future] = state.future;
-      return { document: next, past: [...state.past, state.document].slice(-50), future, saveStatus: 'unsaved' };
-    }),
+      return { document: next, past: [...state.past, state.document].slice(-50), future, saveStatus: 'unsaved', isRestoring: true };
+    }); },
+    clearRestoring: () => set({ isRestoring: false }),
     canUndo: () => get().past.length > 0,
     canRedo: () => get().future.length > 0,
   }));

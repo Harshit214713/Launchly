@@ -88,7 +88,7 @@ test('legacy drafts migrate content, section order, spacing, assets, and pages',
     assetUrl: 'data:image/png;base64,AA==',
     sitePages: [{ id: 'home', title: 'Home', description: 'Welcome' }, { id: 'about', title: 'About', description: 'Our story' }],
   }, fixture());
-  assert.equal(migrated.version, 2);
+  assert.equal(migrated.version, 3);
   assert.equal(migrated.name, 'Old Store');
   assert.equal(migrated.content.hero.title, 'Old headline');
   assert.equal(migrated.pages[0].sections[0].style.padding?.top, 24);
@@ -107,12 +107,27 @@ test('nested elements insert, move, resize, delete, and undo as document edits',
   assert.equal(store.getState().document.pages[0].sections[0].columns[1].width.desktop, 8);
   const element = { id: 'new-heading', type: 'heading', content: { text: 'Hello' }, style: {} };
   store.getState().insertElement('home', hero.id, first.id, element, 1);
-  store.getState().moveElement('home', hero.id, first.id, element.id, columnTwo.id, 0);
+  store.getState().moveElement('home', hero.id, first.id, element.id, hero.id, columnTwo.id, 0);
   assert.equal(store.getState().document.pages[0].sections[0].columns[1].elements[0].id, element.id);
   store.getState().deleteElement('home', hero.id, columnTwo.id, element.id);
   assert.equal(store.getState().document.pages[0].sections[0].columns[1].elements.some((entry) => entry.id === element.id), false);
   store.getState().undo();
   assert.equal(store.getState().document.pages[0].sections[0].columns[1].elements[0].id, element.id);
+});
+
+
+test('elements can move between sections as one undoable action', () => {
+  const store = createEditorStore(fixture());
+  const [source, destination] = store.getState().document.pages[0].sections;
+  const element = { id: 'move-between-sections', type: 'heading', content: { text: 'Move me' }, style: {} };
+  const sourceColumn = source.columns[0];
+  const destinationColumn = destination.columns[0];
+  store.getState().insertElement('home', source.id, sourceColumn.id, element, 1);
+  store.getState().moveElement('home', source.id, sourceColumn.id, element.id, destination.id, destinationColumn.id, 0);
+  assert.equal(store.getState().document.pages[0].sections[0].columns[0].elements.some((entry) => entry.id === element.id), false);
+  assert.equal(store.getState().document.pages[0].sections[1].columns[0].elements[0].id, element.id);
+  store.getState().undo();
+  assert.equal(store.getState().document.pages[0].sections[0].columns[0].elements.some((entry) => entry.id === element.id), true);
 });
 
 test('versioned documents load without losing page and theme data', () => {

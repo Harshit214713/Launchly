@@ -1,7 +1,7 @@
 import { Template, TemplateCategory } from '@/types';
 
 // Category definitions with coming soon status
-// Only Ecommerce is currently available, others are marked as coming soon
+// Ecommerce is currently available; the remaining categories are marked as coming soon.
 export const CATEGORIES: TemplateCategory[] = [
   'All',
   'SaaS',
@@ -13,8 +13,7 @@ export const CATEGORIES: TemplateCategory[] = [
   'Media'
 ];
 
-// Categories that are marked as coming soon (exclude Ecommerce)
-// These categories will display a coming soon message when selected
+// Categories that display a coming soon message when selected.
 export const COMING_SOON_CATEGORIES: TemplateCategory[] = [
   'SaaS',
   'AI',
@@ -24,96 +23,81 @@ export const COMING_SOON_CATEGORIES: TemplateCategory[] = [
   'Media'
 ];
 
-// Premium e-commerce templates with modern aesthetics
-// 2 e-commerce templates available
+// The ecommerce catalog is intentionally focused on these two complete starter stores.
 export const TEMPLATES: Template[] = [
   {
-    id: 'luxe-store',
-    name: 'Luxe Store',
+    id: 'fresh-crate',
+    name: 'Fresh Crate',
     category: 'Ecommerce',
-    description: 'Complete premium e-commerce platform with elegant product showcases, seamless checkout flow, advanced filtering, wishlist management, real-time inventory tracking, multi-currency support, and conversion-optimized design patterns. Built for scale with Stripe payments, Supabase backend, and full responsive design.',
-    tags: ['ecommerce', 'luxury', 'modern', 'minimal', 'conversion', 'stripe', 'responsive', 'inventory'],
-    badge: 'Featured',
-    isPro: true,
-    previewUrl: '/templates/luxe-store',
-    thumbnail: '/templates/luxe-store.png',
-    accent: '#FF6B6B',
-    bgColor: '#FAFAFA',
-    textColor: '#1A1A1A',
-    pages: ['Home', 'Shop', 'Product Details', 'Cart', 'Checkout', 'Wishlist', 'Account', 'About'],
-    features: [
-      'Product quick view modal',
-      'Advanced variant selector',
-      'Wishlist system',
-      'Customer reviews',
-      'Related products',
-      'Advanced search & filters',
-      'Real-time inventory',
-      'Multi-currency support',
-      'Stripe payments',
-      'Guest checkout',
-      'Order tracking',
-      'Responsive design',
-      'SEO optimized',
-      'Analytics dashboard',
-      'Email notifications',
-      'Discount codes'
+    description: 'A friendly neighborhood grocer for just-picked produce, pantry staples, and quick local delivery. Browse seasonal crates, choose a delivery slot, and bring the farm closer to home.',
+    tags: ['ecommerce', 'grocery', 'organic', 'local delivery', 'fresh food', 'farm to table'],
+    badge: 'New',
+    isPro: false,
+    previewUrl: '/templates/fresh-crate',
+    thumbnail: '/templates/fresh-crate.svg',
+    accent: '#3FA34D',
+    bgColor: '#FFF8EC',
+    textColor: '#1F2A1B',
+    pages: ['Home'],
+    features: ['Single-page farm-to-door storefront starter', 'Twelve sample grocery products', 'Seasonal product grid with add-to-bag actions', 'Freshness and origin storytelling', 'Combo baskets and weekly offers', 'Delivery area and ordering information', 'Customer testimonials and common questions', 'Newsletter and contact sections', 'Responsive shared navigation and footer', 'Add and customize more pages in the editor'],
+    rating: 4.9,
+    reviewsCount: 126,
+    products: [
+      { name: 'Market Morning Crate', category: 'Seasonal crate', price: 1499, detail: 'A bright mix of farm-picked vegetables for the week.' },
+      { name: 'Heirloom Tomato Box', category: 'Vegetables', price: 349, detail: 'Sun-ripened tomatoes from small partner farms.' },
+      { name: 'Baby Spinach', category: 'Greens', price: 129, detail: 'Tender leaves washed and packed the same morning.' },
+      { name: 'Rainbow Carrots', category: 'Vegetables', price: 179, detail: 'Sweet, colorful carrots with their greens attached.' },
+      { name: 'Avocado Duo', category: 'Fruit', price: 219, detail: 'Creamy avocados selected for a ready-soon ripeness.' },
+      { name: 'Strawberry Punnet', category: 'Fruit', price: 249, detail: 'Small-batch berries picked at peak sweetness.' },
+      { name: 'Country Sourdough', category: 'Bakery', price: 189, detail: 'Slow-fermented loaf baked fresh before delivery.' },
+      { name: 'Farmhouse Eggs', category: 'Dairy & eggs', price: 159, detail: 'A dozen free-range eggs from nearby farms.' },
+      { name: 'Raw Forest Honey', category: 'Pantry', price: 399, detail: 'Unfiltered honey with a delicate floral finish.' },
+      { name: 'Cold-Pressed Apple Juice', category: 'Drinks', price: 229, detail: 'Crisp orchard apples, pressed without added sugar.' },
+      { name: 'Weekly Pantry Basket', category: 'Combo baskets', price: 1299, detail: 'Everyday staples paired with seasonal produce.' },
+      { name: 'Green Goodness Bundle', category: 'Combo baskets', price: 899, detail: 'A generous bundle of greens, herbs, and citrus.' },
     ],
-    rating: 4.95,
-    reviewsCount: 247,
-    topReview: {
-      author: 'Sarah Chen',
-      role: 'E-commerce Director',
-      comment: 'Incredible template - saved us months of development. The checkout flow is flawless and conversions increased by 40%. Highly recommend!'
-    },
     sourceCodeAvailable: true,
-    sourceCodeUrl: '/api/templates/luxe-store/source',
-    techStack: ['Next.js 16', 'Tailwind v4', 'TypeScript', 'Framer Motion', 'Stripe', 'Supabase', 'React Query']
+    sourceCodeUrl: '/api/templates/fresh-crate/source',
+    techStack: ['Next.js 16', 'Tailwind v4', 'TypeScript', 'Zustand'],
   },
   {
-    id: 'velvet-boutique',
-    name: 'Velvet Boutique',
+    id: 'volt-gear',
+    name: 'Volt Gear',
     category: 'Ecommerce',
-    description: 'High-end fashion boutique template with sophisticated dark theme, elegant typography, and premium product photography showcase. Perfect for luxury fashion brands, jewelry stores, and premium lifestyle products.',
-    tags: ['ecommerce', 'fashion', 'luxury', 'dark', 'boutique', 'premium'],
+    description: 'A high-contrast drop shop for audio, gaming, and everyday technology. Compare detailed specs, build a setup bundle, and follow each limited release from launch to delivery.',
+    tags: ['ecommerce', 'electronics', 'gadgets', 'audio', 'gaming', 'technology'],
     badge: 'New',
-    isPro: true,
-    previewUrl: '/templates/velvet-boutique',
-    thumbnail: '/templates/velvet-boutique.png',
-    accent: '#D4AF37',
-    bgColor: '#0A0A0A',
-    textColor: '#FFFFFF',
-    pages: ['Home', 'Collections', 'Product Details', 'Lookbook', 'Cart', 'Checkout', 'Account', 'About'],
-    features: [
-      'Immersive product galleries',
-      'Lookbook collection pages',
-      'Size guide integration',
-      'Color variant swatches',
-      'Virtual try-on ready',
-      'Instagram feed integration',
-      'Store locator',
-      'Gift card system',
-      'Pre-order functionality',
-      'Dark mode optimized',
-      'Smooth page transitions',
-      'Product video support',
-      'Custom font pairing',
-      'Newsletter signup',
-      'Social sharing',
-      'Wishlist with sharing'
+    isPro: false,
+    previewUrl: '/templates/volt-gear',
+    thumbnail: '/templates/volt-gear.svg',
+    accent: '#C6FF3D',
+    bgColor: '#0B0D12',
+    textColor: '#F5F7FA',
+    pages: ['Home'],
+    features: ['Single-page drop-style ecommerce starter', 'Twelve sample technology products', 'High-contrast product grid with add-to-bag actions', 'Clear product specifications and categories', 'Limited-drop campaign storytelling', 'Setup bundle and comparison highlights', 'Customer reviews and support information', 'Newsletter and contact sections', 'Responsive shared navigation and footer', 'Add and customize more pages in the editor'],
+    rating: 4.9,
+    reviewsCount: 98,
+    products: [
+      { name: 'Pulse ANC Headphones', category: 'Audio', price: 12999, detail: 'Adaptive noise cancellation with 40-hour battery life.' },
+      { name: 'Volt Mechanical Keyboard', category: 'Desk setup', price: 7499, detail: 'Hot-swappable switches in a compact aluminum frame.' },
+      { name: 'Arc Wireless Mouse', category: 'Desk setup', price: 3999, detail: 'A low-latency sensor with a sculpted ergonomic shell.' },
+      { name: 'Nova 27 Gaming Monitor', category: 'Displays', price: 28999, detail: 'QHD resolution, vivid color, and a smooth 165Hz panel.' },
+      { name: 'Orbit Portable Speaker', category: 'Audio', price: 5999, detail: 'Room-filling sound in a rugged, travel-ready body.' },
+      { name: 'Flux USB-C Dock', category: 'Accessories', price: 6499, detail: 'One cable for displays, power, storage, and peripherals.' },
+      { name: 'Core 65W Charger', category: 'Power', price: 2499, detail: 'Compact GaN charging for laptops, phones, and tablets.' },
+      { name: 'Echo Studio Microphone', category: 'Creator gear', price: 8999, detail: 'Clear USB audio with a tap-to-mute control.' },
+      { name: 'Stride Fitness Watch', category: 'Wearables', price: 11999, detail: 'Training metrics, GPS, and a week of battery life.' },
+      { name: 'Prism Smart Light Bar', category: 'Lighting', price: 3499, detail: 'A desk-ready light bar with adjustable color temperature.' },
+      { name: 'Travel Tech Kit', category: 'Bundles', price: 9999, detail: 'A charger, cable set, and compact hub for the road.' },
+      { name: 'Creator Desk Bundle', category: 'Bundles', price: 42999, detail: 'Keyboard, microphone, dock, and lighting for a clean setup.' },
     ],
-    rating: 4.98,
-    reviewsCount: 89,
-    topReview: {
-      author: 'Marcus Williams',
-      role: 'Fashion Brand Owner',
-      comment: 'The dark theme is absolutely stunning. Our customers love the premium feel and the lookbook feature has increased our engagement by 60%. Worth every penny!'
-    },
     sourceCodeAvailable: true,
-    sourceCodeUrl: '/api/templates/velvet-boutique/source',
-    techStack: ['Next.js 16', 'Tailwind v4', 'TypeScript', 'Framer Motion', 'Stripe', 'Supabase', 'React Query']
+    sourceCodeUrl: '/api/templates/volt-gear/source',
+    techStack: ['Next.js 16', 'Tailwind v4', 'TypeScript', 'Zustand'],
   },
 ];
+
+export const ALL_TEMPLATES: Template[] = [...TEMPLATES];
 
 export function getTemplatesByCategory(category: string): Template[] {
   if (category === 'All') return TEMPLATES;
@@ -132,5 +116,5 @@ export function searchTemplates(query: string): Template[] {
 }
 
 export function getTemplateById(id: string): Template | undefined {
-  return TEMPLATES.find((t) => t.id === id);
+  return ALL_TEMPLATES.find((t) => t.id === id);
 }
