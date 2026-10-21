@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use, useState, useEffect, useMemo } from 'react';
 import type { ElementType } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -25,22 +25,83 @@ import ImageCarousel from '@/components/ImageCarousel';
 import StoreHeroArtwork from '@/components/storefront/StoreHeroArtwork';
 import { getAnimationClass, resolveButtonHref, type ButtonTarget } from '@/lib/elementActions';
 import { createStorefrontPages } from '@/lib/templateContent';
+import { normalizeAnchorId, scrollToAnchor as scrollToResolvedAnchor } from '@/lib/navigation';
+import { elementVisualStyle } from '@/lib/elementVisualStyle';
 
 type LivePageSection = { id: string; type: string; name: string; content?: Record<string, unknown>; style?: Record<string, unknown>; columns?: Column[]; hidden?: Partial<Record<'desktop' | 'tablet' | 'mobile', boolean>>; anchorId?: string };
 type LivePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; oldSlugs?: string[]; sections?: LivePageSection[] };
 type LiveMenuItem = { id: string; label: string; target: { type: 'page' | 'url' | 'anchor'; value: string }; newTab?: boolean; children?: LiveMenuItem[] };
 
-function LiveTreeElement({ element, pages, subdomain, onOpenCart, cartCount = 0 }: { element: SiteElement; pages: LivePage[]; subdomain: string; onOpenCart?: () => void; cartCount?: number }) {
-  const style: React.CSSProperties = { color: element.style.color, backgroundColor: element.style.backgroundColor, fontFamily: element.style.fontFamily, fontSize: element.style.fontSize, fontWeight: element.style.fontWeight, textAlign: element.style.textAlign, borderRadius: element.style.borderRadius, width: element.style.width ? `${element.style.width}%` : undefined, maxWidth: element.style.maxWidth, marginLeft: element.style.textAlign === 'center' || element.style.textAlign === 'right' ? 'auto' : undefined, marginRight: element.style.textAlign === 'center' || element.style.textAlign === 'left' ? 'auto' : undefined, position: element.style.position, top: element.style.top, right: element.style.right, bottom: element.style.bottom, left: element.style.left, zIndex: element.style.zIndex };
+function normalizeLivePagePath(value: string | undefined): string {
+  const clean = String(value || '').trim().replace(/^\/+|\/+$/g, '');
+  return clean ? `/${clean}` : '/';
+}
+
+function resolveLiveElementHref(value: string, pages: LivePage[], subdomain: string, previewSuffix = ''): string {
+  if (value.startsWith('#') || /^(https?:|mailto:|tel:|data:)/i.test(value)) return value;
+  if (!value.startsWith('/')) return '#';
+  const rawPath = (value.replace(/^\/live\/[^/]+/i, '').split(/[?#]/, 1)[0] || '/');
+  const path = normalizeLivePagePath(rawPath);
+  const page = pages.find((entry) => normalizeLivePagePath(entry.slug) === path || entry.id === rawPath.replace(/^\/+/, ''));
+  const resolvedPath = page?.isHome ? '' : normalizeLivePagePath(page?.slug || rawPath);
+  return `/live/${subdomain}${resolvedPath}${previewSuffix}`;
+}
+
+/**
+ * Saved editor drafts can be older, partial documents. Keep all saved changes,
+ * but restore any starter sections that are missing so preview and the editor
+ * always render the same complete page.
+ */
+function completeStoreSections(saved: LivePageSection[] | undefined, defaults: LivePageSection[] | undefined): LivePageSection[] {
+  if (!saved?.length) return defaults || [];
+  if (!defaults?.length) return saved;
+
+  const defaultById = new Map(defaults.map((section) => [section.id, section]));
+  const usedDefaults = new Set<string>();
+  const merged = saved.map((section) => {
+    const starter = defaultById.get(section.id);
+    if (!starter) return section;
+    usedDefaults.add(starter.id);
+    const starterItems = starter.content?.items;
+    const savedItems = section.content?.items;
+    const mergedItems = Array.isArray(starterItems) && Array.isArray(savedItems)
+      ? [...savedItems, ...starterItems.filter((defaultItem) => {
+          if (typeof defaultItem !== 'object' || defaultItem === null) return true;
+          const defaultRecord = defaultItem as Record<string, unknown>;
+          const defaultKey = defaultRecord.id || defaultRecord.name || defaultRecord.title || defaultRecord.question;
+          return !savedItems.some((savedItem) => {
+            if (typeof savedItem !== 'object' || savedItem === null) return false;
+            const savedRecord = savedItem as Record<string, unknown>;
+            const savedKey = savedRecord.id || savedRecord.name || savedRecord.title || savedRecord.question;
+            return defaultKey !== undefined && defaultKey === savedKey;
+          });
+        })]
+      : undefined;
+    return {
+      ...starter,
+      ...section,
+      content: { ...(starter.content || {}), ...(section.content || {}), ...(mergedItems ? { items: mergedItems } : {}) },
+      style: { ...(starter.style || {}), ...(section.style || {}) },
+    };
+  });
+
+  // Append missing starter sections in their authored order. This preserves
+  // the user's section order while preventing a stale draft from blanking the
+  // rest of a template.
+  return [...merged, ...defaults.filter((section) => !usedDefaults.has(section.id) && !saved.some((entry) => entry.id === section.id))];
+}
+
+function LiveTreeElement({ element, pages, subdomain, previewSuffix = '', onOpenCart, cartCount = 0 }: { element: SiteElement; pages: LivePage[]; subdomain: string; previewSuffix?: string; onOpenCart?: () => void; cartCount?: number }) {
+  const style: React.CSSProperties = { ...elementVisualStyle(element.style), marginLeft: element.style.textAlign === 'center' || element.style.textAlign === 'right' ? 'auto' : undefined, marginRight: element.style.textAlign === 'center' || element.style.textAlign === 'left' ? 'auto' : undefined };
   const text = String(element.content.text || element.content.title || '');
   switch (element.type) {
     case 'heading': { const Heading = `h${Math.max(1, Math.min(6, Number(element.content.level) || 2))}` as ElementType; return <Heading style={style} className="text-3xl font-black">{text || 'Heading'}</Heading>; }
     case 'text': return <p style={style} className="whitespace-pre-wrap leading-relaxed">{text}</p>;
-    case 'button': { const target = String(element.content.linkTarget || 'url') as ButtonTarget; const value = String(element.content.linkValue || element.content.href || ''); const href = resolveButtonHref(target, value, pages, `/live/${subdomain}`); return <a href={href} download={target === 'download' ? String(element.content.downloadName || '') || undefined : undefined} target={element.content.newTab ? '_blank' : undefined} rel={element.content.newTab ? 'noreferrer' : undefined} aria-label={String(element.content.ariaLabel || '') || undefined} style={style} className="inline-flex rounded-xl px-5 py-3 font-bold">{text || 'Button'}</a>; }
+    case 'button': { const target = String(element.content.linkTarget || 'url') as ButtonTarget; const value = String(element.content.linkValue || element.content.href || ''); const resolved = resolveButtonHref(target, value, pages, `/live/${subdomain}`); const href = resolveLiveElementHref(resolved, pages, subdomain, previewSuffix); return <a href={href} download={target === 'download' ? String(element.content.downloadName || '') || undefined : undefined} target={element.content.newTab ? '_blank' : undefined} rel={element.content.newTab ? 'noreferrer' : undefined} aria-label={String(element.content.ariaLabel || '') || undefined} style={style} className="inline-flex rounded-xl px-5 py-3 font-bold">{text || 'Button'}</a>; }
     case 'form': return <SiteForm id={element.id} content={element.content} style={style} />;
-    case 'image': return typeof element.content.src === 'string' && element.content.src ? <Image src={element.content.src} alt={String(element.content.alt || '')} width={1200} height={900} unoptimized className="w-full rounded-xl object-cover" /> : null;
+    case 'image': return typeof element.content.src === 'string' && element.content.src ? <Image src={element.content.src} alt={String(element.content.alt || 'Site image')} width={1200} height={900} unoptimized className="w-full rounded-xl object-cover" /> : <div style={style} className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-current/30 bg-current/5 p-6 text-center text-sm opacity-70">Add an image in the editor</div>;
     case 'icon': return typeof element.content.src === 'string' && element.content.src ? <Image src={element.content.src} alt={String(element.content.alt || '')} width={256} height={256} unoptimized style={style} className="h-12 w-12 object-contain" /> : <span aria-hidden="true" style={style} className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100">✦</span>;
-    case 'video': return typeof element.content.src === 'string' && element.content.src ? <video controls src={element.content.src} className="w-full rounded-xl" /> : null;
+    case 'video': return typeof element.content.src === 'string' && element.content.src ? <video controls src={element.content.src} className="w-full rounded-xl" /> : <div style={style} className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-current/30 bg-current/5 p-6 text-center text-sm opacity-70">Add a video URL in the editor</div>;
     case 'divider': return <hr style={{ borderColor: element.style.borderColor || '#111', borderWidth: element.style.borderWidth || 1 }} />;
     case 'spacer': return <div style={{ height: Number(element.content.height || 48) }} />;
     case 'list': return <ul style={style} className="list-inside list-disc space-y-1">{(Array.isArray(element.content.items) ? element.content.items : []).map((item, index) => <li key={index}>{String(item)}</li>)}</ul>;
@@ -49,7 +110,7 @@ function LiveTreeElement({ element, pages, subdomain, onOpenCart, cartCount = 0 
     case 'quote': return <blockquote style={style} className="border-l-4 border-pink py-2 pl-4 text-xl italic">“{text || 'A memorable quote.'}”{Boolean(element.content.attribution) && <cite className="mt-2 block text-sm not-italic">— {String(element.content.attribution)}</cite>}</blockquote>;
     case 'badge': return <span style={style} className="inline-flex rounded-full border border-black/20 bg-yellow px-3 py-1 font-mono text-xs font-bold">{text || 'Badge'}</span>;
     case 'numbered-list': return <ol style={style} className="list-inside list-decimal space-y-1">{(Array.isArray(element.content.items) ? element.content.items : []).map((item, index) => <li key={index}>{String(item)}</li>)}</ol>;
-    case 'image-caption': return typeof element.content.src === 'string' && element.content.src ? <figure><Image src={element.content.src} alt={String(element.content.alt || '')} width={1200} height={900} unoptimized className="w-full rounded-xl object-cover"/><figcaption className="mt-2 text-sm opacity-75">{String(element.content.caption || '')}</figcaption></figure> : null;
+    case 'image-caption': return typeof element.content.src === 'string' && element.content.src ? <figure><Image src={element.content.src} alt={String(element.content.alt || 'Site image')} width={1200} height={900} unoptimized className="w-full rounded-xl object-cover"/><figcaption className="mt-2 text-sm opacity-75">{String(element.content.caption || 'Image caption')}</figcaption></figure> : <figure style={style} className="rounded-xl border border-dashed border-current/30 bg-current/5 p-6 text-center"><div className="text-sm opacity-70">Add an image in the editor</div><figcaption className="mt-2 text-sm opacity-70">{String(element.content.caption || 'Image caption')}</figcaption></figure>;
     case 'anchor': return <span id={element.anchorId || String(element.content.id || '')} className="sr-only">Anchor</span>;
     case 'accordion': return <div className="divide-y divide-black/15">{(Array.isArray(element.content.items) ? element.content.items as Array<Record<string, unknown>> : []).map((item, index) => <details key={index} className="py-3"><summary className="cursor-pointer font-bold">{String(item.title || `Question ${index + 1}`)}</summary><p className="mt-2 text-sm opacity-75">{String(item.description || '')}</p></details>)}</div>;
     case 'tabs': return <LiveTabs items={Array.isArray(element.content.items) ? element.content.items as Array<Record<string, unknown>> : []}/>;
@@ -62,10 +123,10 @@ function LiveTreeElement({ element, pages, subdomain, onOpenCart, cartCount = 0 
       const rawActionHref = String(element.content.href || '').trim();
       const actionHref = /^(https?:\/\/|mailto:|tel:|\/|#)/i.test(rawActionHref) ? rawActionHref : '';
       if (/cart|shopping bag|mini cart|cart drawer|cart modal/.test(kind)) return <section style={style} className="rounded-2xl border-2 border-current/20 p-4"><div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-black">{heading}</h2><p className="mt-1 text-sm opacity-70">{cartCount} item{cartCount === 1 ? '' : 's'} in your bag</p></div><button type="button" onClick={() => onOpenCart ? onOpenCart() : window.dispatchEvent(new CustomEvent('launchly:open-cart'))} className="rounded-lg border-2 border-current px-4 py-2 text-sm font-bold">{actionLabel || 'Open cart'}</button></div></section>;
-      if (/sidebar menu|navbar|navigation menu|mega menu|dropdown menu|footer menu|mobile menu/.test(kind)) {
-        const configured: Array<Record<string, unknown>> = items.length ? items : pages.filter((page) => page.showInMenu !== false).map((page) => ({ title: page.title, href: `/live/${subdomain}${page.isHome ? '' : page.slug || `/${page.id}`}` }));
+       if (/sidebar menu|navbar|navigation menu|mega menu|dropdown menu|flyout menu|footer menu|mobile menu/.test(kind)) {
+        const configured: Array<Record<string, unknown>> = items.length ? items : pages.filter((page) => page.showInMenu !== false).map((page) => ({ title: page.title, href: `/live/${subdomain}${page.isHome ? '' : normalizeLivePagePath(page.slug || page.id)}${previewSuffix}` }));
         const vertical = kind.includes('sidebar') || kind.includes('footer');
-        return <nav aria-label={heading} style={style} className={`rounded-xl border border-current/15 p-4 ${vertical ? 'max-w-xs' : 'overflow-x-auto'}`}><p className="mb-3 font-mono text-[10px] font-bold uppercase tracking-wider opacity-60">{heading}</p><ul className={vertical ? 'space-y-1' : 'flex min-w-max items-center gap-2'}>{configured.map((item, index) => { const rawHref = String(item.href || item.url || '#'); const href = /^(https?:\/\/|mailto:|tel:|\/|#)/i.test(rawHref) ? rawHref : '#'; return <li key={index}><a href={href} className={`block rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-black/10 ${vertical ? 'w-full' : 'whitespace-nowrap'}`}>{String(item.title || item.label || `Page ${index + 1}`)}</a></li>; })}</ul></nav>;
+        return <nav aria-label={heading} style={style} className={`rounded-xl border border-current/15 p-4 ${vertical ? 'max-w-xs' : 'overflow-x-auto'}`}><p className="mb-3 font-mono text-[10px] font-bold uppercase tracking-wider opacity-60">{heading}</p><ul className={vertical ? 'space-y-1' : 'flex min-w-max items-center gap-2'}>{configured.map((item, index) => { const rawHref = String(item.href || item.url || '#'); const href = resolveLiveElementHref(rawHref, pages, subdomain, previewSuffix); return <li key={index}><a href={href} className={`block rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-black/10 ${vertical ? 'w-full' : 'whitespace-nowrap'}`}>{String(item.title || item.label || `Page ${index + 1}`)}</a></li>; })}</ul></nav>;
       }
       if (kind.includes('faq') || kind.includes('accordion')) return <section style={style} className="mx-auto max-w-3xl py-4"><h2 className="mb-5 text-2xl font-black">{heading}</h2><div className="divide-y divide-black/15 border-y border-black/15">{items.map((item,index) => <details key={index} className="group py-4" open={index === 0}><summary className="cursor-pointer list-none font-bold">{String(item.title || `Question ${index + 1}`)}<span aria-hidden="true" className="float-right group-open:rotate-45">＋</span></summary><p className="mt-3 leading-relaxed opacity-75">{String(item.description || item.answer || '')}</p></details>)}</div></section>;
       if (kind.includes('pricing') || kind.includes('plan comparison')) return <section style={style} className="py-5"><h2 className="text-center text-2xl font-black">{heading}</h2>{Boolean(element.content.description) && <p className="mx-auto mt-2 max-w-2xl text-center opacity-75">{String(element.content.description)}</p>}<div className="mt-6 grid gap-4 md:grid-cols-3">{items.map((item,index) => <article key={index} className={`rounded-2xl border-2 p-5 ${item.highlighted ? 'border-black bg-yellow shadow-[4px_4px_0_#000]' : 'border-black/15 bg-white text-black'}`}><h3 className="text-lg font-black">{String(item.title || `Plan ${index + 1}`)}</h3><p className="mt-3 text-3xl font-black">{String(item.price || 'Contact us')}<small className="ml-1 text-xs font-normal">{String(item.interval || '')}</small></p><p className="mt-2 text-sm opacity-75">{String(item.description || '')}</p><ul className="mt-4 space-y-2 text-sm">{(Array.isArray(item.features) ? item.features : []).map((feature,featureIndex) => <li key={featureIndex}>✓ {String(feature)}</li>)}</ul><a href={String(item.href || '#contact')} className="mt-5 inline-flex rounded-lg border-2 border-black bg-white px-4 py-2 text-sm font-bold text-black">{String(item.buttonText || 'Choose plan')}</a></article>)}</div></section>;
@@ -170,8 +231,9 @@ function StoreCatalog({
   </div>;
 }
 
-function LiveTree({ columns, pages, subdomain, onOpenCart, cartCount }: { columns: Column[]; pages: LivePage[]; subdomain: string; onOpenCart?: () => void; cartCount?: number }) {
-  return <div className="grid grid-cols-12 gap-4">{columns.map((column) => <div key={column.id} className="min-w-0 space-y-4" style={{ gridColumn: `span ${column.width.desktop || 12} / span ${column.width.desktop || 12}`, backgroundColor: column.style.backgroundColor }}>{column.elements.filter((element) => !element.hidden?.desktop).map((element) => <div key={element.id} className={getAnimationClass(element.style.animation)}><LiveTreeElement element={element} pages={pages} subdomain={subdomain} onOpenCart={onOpenCart} cartCount={cartCount} /></div>)}</div>)}</div>;
+function LiveTree({ columns, pages, subdomain, previewSuffix, onOpenCart, cartCount }: { columns: Column[]; pages: LivePage[]; subdomain: string; previewSuffix?: string; onOpenCart?: () => void; cartCount?: number }) {
+  const effectivePreviewSuffix = previewSuffix ?? (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('preview') === '1' ? '?preview=1' : '');
+  return <div className="grid grid-cols-12 gap-4">{columns.map((column) => <div key={column.id} className="min-w-0 space-y-4" style={{ gridColumn: `span ${column.width.desktop || 12} / span ${column.width.desktop || 12}`, backgroundColor: column.style.backgroundColor }}>{column.elements.filter((element) => !element.hidden?.desktop).map((element) => <div key={element.id} className={getAnimationClass(element.style.animation)}><LiveTreeElement element={element} pages={pages} subdomain={subdomain} previewSuffix={effectivePreviewSuffix} onOpenCart={onOpenCart} cartCount={cartCount} /></div>)}</div>)}</div>;
 }
 
 export default function LiveWebsitePage({
@@ -185,8 +247,11 @@ export default function LiveWebsitePage({
   const isFreshCrate = template.id === 'fresh-crate';
   const isVoltGear = template.id === 'volt-gear';
   const isBrandedStore = isFreshCrate || isVoltGear;
-  const storeProducts = template.products || [];
-  const initialStoreSections = isBrandedStore ? createStorefrontPages(template.id, template.pages, storeProducts)[0]?.sections : undefined;
+  const storeProducts = useMemo(() => template.products || [], [template.products]);
+  const initialStoreSections = useMemo(
+    () => isBrandedStore ? createStorefrontPages(template.id, template.pages, storeProducts)[0]?.sections : undefined,
+    [isBrandedStore, storeProducts, template.id, template.pages],
+  );
   const [copied, setCopied] = useState(false);
   const [bannerCollapsed, setBannerCollapsed] = useState(false);
   const [siteSections, setSiteSections] = useState<LivePageSection[]>(() => initialStoreSections || [
@@ -295,7 +360,13 @@ export default function LiveWebsitePage({
         return typeof name === 'string' && storeProducts.some((product) => product.name === name) ? [name] : [];
       })
     : [];
-  const productNames = (configuredProductNames.length ? configuredProductNames : storeProducts.slice(0, 3).map((product) => product.name)).slice(0, 6);
+  // Keep a useful catalog even when an older draft only saved one product
+  // card. Valid saved items stay first, then the starter catalog fills the
+  // remaining slots so the preview never collapses into a sparse grid.
+  const productNames = [...new Set([
+    ...configuredProductNames,
+    ...storeProducts.map((product) => product.name),
+  ])].slice(0, 6);
   const pageNavigation: LiveMenuItem[] = sitePages.filter((page) => !page.isHome && page.showInMenu !== false).map((page) => ({ id: page.id, label: page.title, target: { type: 'page', value: page.id } }));
   const templateNavigation: LiveMenuItem[] = isFreshCrate
     ? [{ id: 'menu-shop', label: 'Shop', target: { type: 'anchor', value: 'collection' } }, { id: 'menu-how-it-works', label: 'How it works', target: { type: 'anchor', value: 'home-how-it-works' } }, { id: 'menu-recipes', label: 'Recipes', target: { type: 'anchor', value: 'home-recipes' } }, { id: 'menu-our-story', label: 'Our story', target: { type: 'anchor', value: 'home-story' } }]
@@ -305,13 +376,22 @@ export default function LiveWebsitePage({
   const previewSuffix = isPreview ? '?preview=1' : '';
   const navigationHref = (item: LiveMenuItem) => {
     if (item.target.type === 'url') return item.target.value;
-    if (item.target.type === 'anchor') return `#${item.target.value.replace(/^#/, '')}`;
-    const page = sitePages.find((entry) => entry.id === item.target.value);
-    return page?.isHome ? `/live/${subdomain}${previewSuffix}` : `/live/${subdomain}${page?.slug || `/${item.target.value}`}${previewSuffix}`;
+    if (item.target.type === 'anchor') {
+      const anchor = normalizeAnchorId(item.target.value);
+      // Anchors from another page always return to the home page first. The
+      // hash is preserved so the browser can scroll after the page renders.
+      return activePage === 'home' && !routeSlug
+        ? `#${anchor}`
+        : `/live/${subdomain}${previewSuffix}#${anchor}`;
+    }
+    const requested = item.target.value.replace(/^\/+/, '').replace(/\/+$/, '');
+    const page = sitePages.find((entry) => entry.id === item.target.value || entry.id === requested || normalizeLivePagePath(entry.slug) === normalizeLivePagePath(requested) || entry.title.toLowerCase() === requested.toLowerCase());
+    const pagePath = page?.isHome ? '' : normalizeLivePagePath(page?.slug || requested);
+    return `/live/${subdomain}${pagePath}${previewSuffix}`;
   };
   const productHref = (name: string) => {
     const page = sitePages.find((entry) => entry.title === name);
-    return page ? `/live/${subdomain}${page.slug || ''}${previewSuffix}` : '#collection';
+    return page ? `/live/${subdomain}${page.isHome ? '' : normalizeLivePagePath(page.slug)}${previewSuffix}` : '#collection';
   };
   const checkoutPage = sitePages.find((page) => /checkout/i.test(page.title));
   useEffect(() => {
@@ -320,17 +400,27 @@ export default function LiveWebsitePage({
   }, []);
   useEffect(() => {
     if (!routeSlug || !sitePages.length) return;
-    const path = `/${routeSlug.replace(/^\/+|\/+$/g, '')}`;
-    const page = sitePages.find((entry) => entry.slug === path || entry.id === routeSlug.split('/').at(-1));
-    const renamedPage = sitePages.find((entry) => entry.oldSlugs?.includes(path));
+    const path = normalizeLivePagePath(routeSlug);
+    const routeId = routeSlug.split('/').filter(Boolean).at(-1) || '';
+    const page = sitePages.find((entry) => normalizeLivePagePath(entry.slug) === path || entry.id === routeId);
+    const renamedPage = sitePages.find((entry) => entry.oldSlugs?.some((oldSlug) => normalizeLivePagePath(oldSlug) === path));
     if (renamedPage?.slug) {
-      window.history.replaceState(null, '', `/live/${subdomain}${renamedPage.slug}`);
+      window.history.replaceState(null, '', `/live/${subdomain}${normalizeLivePagePath(renamedPage.slug)}`);
       setActivePage(renamedPage.id);
       return;
     }
     const notFoundPage = sitePages.find((entry) => entry.slug === '/404' || entry.id === '404' || entry.title.toLowerCase() === '404');
     setActivePage(page?.id || notFoundPage?.id || '404');
   }, [routeSlug, sitePages, subdomain]);
+  useEffect(() => {
+    const scrollToHash = () => {
+      if (!window.location.hash) return;
+      window.requestAnimationFrame(() => { scrollToResolvedAnchor(window.location.hash); });
+    };
+    scrollToHash();
+    window.addEventListener('hashchange', scrollToHash);
+    return () => window.removeEventListener('hashchange', scrollToHash);
+  }, [activePage, routeSlug, siteSections]);
 
   // Theme & content state (will be populated from localStorage or API or template defaults)
   const [siteTitle, setSiteTitle] = useState(template.name);
@@ -341,6 +431,18 @@ export default function LiveWebsitePage({
     fontFamily: 'Inter, sans-serif',
     borderRadius: '16px',
   });
+  const navSection = siteSections.find((section) => section.type === 'nav');
+  const navContent = (navSection?.content || {}) as Record<string, unknown>;
+  const navBrand = typeof navContent.brandLabel === 'string' && navContent.brandLabel.trim() ? navContent.brandLabel : siteTitle;
+  const navLogo = typeof navContent.logoUrl === 'string' && navContent.logoUrl.trim() ? navContent.logoUrl : logoUrl;
+  const navCtaLabel = typeof navContent.ctaLabel === 'string' && navContent.ctaLabel.trim() ? navContent.ctaLabel : (isBrandedStore ? 'Bag' : 'Get Started');
+  const navCtaTarget = typeof navContent.ctaTarget === 'string' && navContent.ctaTarget.trim() ? navContent.ctaTarget : (isBrandedStore ? '#collection' : '#collection');
+  const navCtaVariant = typeof navContent.ctaVariant === 'string' ? navContent.ctaVariant : 'solid';
+  const navCtaStyle: React.CSSProperties = navCtaVariant === 'outline'
+    ? { backgroundColor: 'transparent', borderColor: theme.primaryColor, color: theme.primaryColor, borderRadius: theme.borderRadius }
+    : navCtaVariant === 'ghost'
+      ? { backgroundColor: 'transparent', borderColor: 'transparent', color: isVoltGear ? '#F5F7FA' : theme.textColor, boxShadow: 'none' }
+      : { backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius };
 
   const getCategoryDefaults = (t: Template) => {
     const isAi = t.category.toLowerCase().includes('ai');
@@ -418,9 +520,9 @@ export default function LiveWebsitePage({
         if (content?.cta) setCtaContent(content.cta as typeof ctaContent);
         const pages = Array.isArray(nestedDocument.pages) ? nestedDocument.pages as Array<{ id: string; title: string; slug: string; isHome: boolean; showInMenu?: boolean; oldSlugs?: string[]; seo?: { description?: string }; sections?: LivePageSection[]; elements?: typeof canvasElements }> : [];
         const homePage = pages.find((page) => page.isHome) || pages[0];
-        if (homePage?.sections?.length) setSiteSections(homePage.sections);
+         if (homePage?.sections?.length) setSiteSections(completeStoreSections(homePage.sections, initialStoreSections as LivePageSection[] | undefined));
         if (homePage?.elements) setCanvasElements(homePage.elements);
-        if (pages.length) setSitePages(pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo?.description || '', slug: page.slug, isHome: page.isHome, showInMenu: page.showInMenu !== false, oldSlugs: page.oldSlugs || [], sections: page.sections || [] })));
+        if (pages.length) setSitePages(pages.map((page) => ({ id: page.isHome ? 'home' : page.id, title: page.title, description: page.seo?.description || '', slug: page.slug, isHome: page.isHome, showInMenu: page.showInMenu !== false, oldSlugs: page.oldSlugs || [], sections: page.isHome ? completeStoreSections(page.sections, initialStoreSections as LivePageSection[] | undefined) : page.sections || [] })));
         if (Array.isArray(nestedDocument.menu)) setSiteMenu(nestedDocument.menu as LiveMenuItem[]);
         const assets = Array.isArray(nestedDocument.assets) ? nestedDocument.assets as Array<{ role: string; src: string }> : [];
         if (assets.length) {
@@ -434,7 +536,7 @@ export default function LiveWebsitePage({
       if (data.featuresContent) setFeaturesContent(data.featuresContent as typeof featuresContent);
       if (data.testimonialsContent) setTestimonialsContent(data.testimonialsContent as typeof testimonialsContent);
       if (data.ctaContent) setCtaContent(data.ctaContent as typeof ctaContent);
-      if (Array.isArray(data.sections) && data.sections.length) setSiteSections(data.sections as typeof siteSections);
+       if (Array.isArray(data.sections) && data.sections.length) setSiteSections(completeStoreSections(data.sections as LivePageSection[], initialStoreSections as LivePageSection[] | undefined));
       if (data.sectionSpacing) setSectionSpacing(data.sectionSpacing as typeof sectionSpacing);
       if (Array.isArray(data.canvasElements)) setCanvasElements(data.canvasElements as typeof canvasElements);
       if (Array.isArray(data.sitePages)) setSitePages(data.sitePages as typeof sitePages);
@@ -457,7 +559,7 @@ export default function LiveWebsitePage({
         if (draft.featuresContent) setFeaturesContent(draft.featuresContent);
         if (draft.testimonialsContent) setTestimonialsContent(draft.testimonialsContent);
         if (draft.ctaContent) setCtaContent(draft.ctaContent);
-        if (draft.sections?.length) setSiteSections(draft.sections);
+         if (draft.sections?.length) setSiteSections(completeStoreSections(draft.sections as LivePageSection[], initialStoreSections as LivePageSection[] | undefined));
         if (draft.sectionSpacing) setSectionSpacing(draft.sectionSpacing);
         if (Array.isArray(draft.canvasElements)) setCanvasElements(draft.canvasElements as typeof canvasElements);
         if (Array.isArray(draft.sitePages)) setSitePages(draft.sitePages as typeof sitePages);
@@ -490,7 +592,7 @@ export default function LiveWebsitePage({
         setIsPreview(false);
         setWatermarkRequired(true);
       });
-  }, [subdomain, template.id, template.name]);
+  }, [initialStoreSections, subdomain, template.id, template.name]);
 
   useEffect(() => {
     if (!faviconUrl) return;
@@ -597,20 +699,20 @@ export default function LiveWebsitePage({
       {/* ACTUAL LIVE WEBSITE SURFACE — 100% Identical to Editor Preview Canvas */}
       <main id="top" className={`relative flex flex-col flex-1 pt-12 sm:pt-13 ${isFreshCrate ? 'bg-[#FFF8EC] text-[#1F2A1B]' : isVoltGear ? 'bg-[#0B0D12] text-[#F5F7FA]' : ''}`}>
         {/* Navigation Block */}
-        <nav style={{ order: sectionOrder('nav'), display: sectionVisible('nav') ? undefined : 'none', ...sectionPadding('nav') }} className={`sticky top-12 z-40 flex items-center justify-between border-b px-4 py-3 backdrop-blur-md sm:px-10 sm:py-4 ${isVoltGear ? 'border-white/10 bg-[#0B0D12]/90' : isFreshCrate ? 'border-[#1F2A1B]/10 bg-[#FFF8EC]/90' : 'border-black/10 border-b-2 bg-white/90'}`}>
+        <nav style={{ order: sectionOrder('nav'), display: sectionVisible('nav') ? undefined : 'none', ...sectionPadding('nav') }} className={`sticky top-12 z-40 flex items-center justify-between border-b px-4 py-3 backdrop-blur-md sm:px-10 sm:py-4 ${navContent.sticky === true ? 'top-0' : ''} ${isVoltGear ? 'border-white/10 bg-[#0B0D12]/90' : isFreshCrate ? 'border-[#1F2A1B]/10 bg-[#FFF8EC]/90' : 'border-black/10 border-b-2 bg-white/90'}`}>
           <a href={`/live/${subdomain}`} aria-label={`Go to ${siteTitle} home page`} title={`Go to ${siteTitle} home page`} className="flex items-center gap-2.5 rounded-lg outline-offset-4 hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black">
-            {logoUrl ? <Image src={logoUrl} alt={`${siteTitle} logo`} width={36} height={36} unoptimized className="h-9 w-9 rounded-lg object-contain" /> : <div
+            {navContent.showLogo !== false && (navLogo ? <Image src={navLogo} alt={String(navContent.logoAlt || `${navBrand} logo`)} width={36} height={36} unoptimized className="h-9 w-9 rounded-lg object-contain" /> : <div
               style={{ backgroundColor: theme.primaryColor }}
               className="w-8 h-8 rounded-lg border-2 border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-display font-black text-sm text-black"
             >
-              {siteTitle.charAt(0)}
-            </div>}
+              {navBrand.charAt(0)}
+            </div>)}
             <span className={`font-display text-base font-black tracking-tight sm:text-lg ${isVoltGear ? 'text-white' : isFreshCrate ? 'text-[#1F2A1B]' : 'text-ink'}`}>
-              {siteTitle}
+              {navBrand}
             </span>
           </a>
 
-          <div aria-label="Site pages" className={`hidden min-w-0 max-w-[65%] items-center gap-5 overflow-x-auto whitespace-nowrap px-1 font-mono text-xs font-bold [scrollbar-width:thin] sm:flex ${isVoltGear ? 'text-white/70' : isFreshCrate ? 'text-[#53604C]' : 'text-neutral-700'}`}>
+          <div aria-label="Site pages" className={`${navContent.showMenu === false ? 'hidden' : 'hidden sm:flex'} min-w-0 max-w-[65%] items-center gap-5 overflow-x-auto whitespace-nowrap px-1 font-mono text-xs font-bold [scrollbar-width:thin] ${isVoltGear ? 'text-white/70' : isFreshCrate ? 'text-[#53604C]' : 'text-neutral-700'}`}>
             {liveNavigation.map(item => (
               <a
                 key={item.id}
@@ -628,7 +730,7 @@ export default function LiveWebsitePage({
             {mobileNavigationOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
 
-          {template.category === 'Ecommerce' ? <button type="button" aria-label={`Open shopping bag, ${cartCount} items`} aria-haspopup="dialog" aria-expanded={cartOpen} onClick={() => setCartOpen(true)} style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }} className="rounded-full border-2 border-black px-4 py-2 font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] hover:scale-103">Bag{cartCount > 0 ? ` (${cartCount})` : ''}</button> : <a href="#collection" style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }} className="px-4 py-2 rounded-xl border-2 border-black font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] hover:scale-103 active:translate-x-0.5 active:translate-y-0.5 transition-all">Get Started</a>}
+          {navContent.showCta !== false && (isBrandedStore && (navCtaLabel.toLowerCase().includes('bag') || navCtaTarget === '#cart') ? <button type="button" aria-label={`Open shopping bag, ${cartCount} items`} aria-haspopup="dialog" aria-expanded={cartOpen} onClick={() => setCartOpen(true)} style={navCtaStyle} className="rounded-full border-2 border-black px-4 py-2 font-display text-xs font-black shadow-[2px_2px_0px_#000] hover:scale-103">{navCtaLabel}{cartCount > 0 ? ` (${cartCount})` : ''}</button> : <a href={navigationHref({ id: 'nav-cta', label: navCtaLabel, target: navCtaTarget.startsWith('#') ? { type: 'anchor', value: navCtaTarget.slice(1) } : navCtaTarget.startsWith('/') ? { type: 'page', value: navCtaTarget.replace(/^\/+/, '') } : { type: 'url', value: navCtaTarget }, newTab: navContent.ctaNewTab === true })} target={navContent.ctaNewTab === true ? '_blank' : undefined} rel={navContent.ctaNewTab === true ? 'noreferrer' : undefined} style={navCtaStyle} className="rounded-xl border-2 border-black px-4 py-2 font-display text-xs font-black shadow-[2px_2px_0px_#000] transition-all hover:scale-103">{navCtaLabel}</a>)}
         </nav>
         {mobileNavigationOpen && <nav aria-label="Mobile navigation" className={`sticky top-12 z-40 border-b px-5 py-4 sm:hidden ${isVoltGear ? 'border-white/10 bg-[#0B0D12] text-white' : isFreshCrate ? 'border-[#1F2A1B]/10 bg-[#FFF8EC] text-[#1F2A1B]' : 'border-black/10 bg-white'}`}><div className="flex flex-col gap-4 font-mono text-sm font-bold">{liveNavigation.map((item) => <a key={item.id} href={navigationHref(item)} target={item.newTab ? '_blank' : undefined} rel={item.newTab ? 'noreferrer' : undefined} onClick={() => setMobileNavigationOpen(false)}>{item.label}</a>)}</div></nav>}
         {cartOpen && <div className="fixed inset-0 z-[70] flex justify-end bg-black/45" onMouseDown={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}><section role="dialog" aria-modal="true" aria-labelledby="bag-title" className="flex h-full w-full max-w-md flex-col p-5 shadow-2xl sm:p-7" style={{ backgroundColor: template.id === 'volt-gear' ? '#151923' : '#FFFFFF', color: template.id === 'volt-gear' ? '#F5F7FA' : '#111111' }}><div className="flex items-center justify-between border-b border-black/10 pb-4"><div><p className="font-mono text-[10px] font-bold uppercase tracking-widest text-neutral-500">{siteTitle}</p><h2 id="bag-title" className="mt-1 text-2xl font-black">Your bag <span className="text-sm font-semibold text-neutral-500">({cartCount})</span></h2></div><button type="button" autoFocus onClick={() => setCartOpen(false)} aria-label="Close shopping bag" className="rounded-full border-2 border-black p-2 hover:bg-neutral-100"><X size={18}/></button></div><div className="min-h-0 flex-1 overflow-y-auto py-4">{cartItems.length ? <ul className="space-y-4">{cartItems.map((item) => <li key={item.name} className="flex items-start justify-between gap-4 border-b border-black/10 pb-4"><div className="min-w-0"><p className="font-bold">{item.name}</p><p className="mt-1 text-xs text-neutral-500">{item.category} · ₹{item.price.toLocaleString('en-IN')}</p><div className="mt-3 inline-flex items-center rounded-lg border border-black/20"><button type="button" aria-label={`Remove one ${item.name}`} onClick={() => updateBagQuantity(item.name, -1)} className="px-3 py-1.5">−</button><span className="min-w-8 text-center text-sm font-bold">{item.quantity}</span><button type="button" aria-label={`Add one ${item.name}`} onClick={() => updateBagQuantity(item.name, 1)} className="px-3 py-1.5">+</button></div></div><strong className="whitespace-nowrap">₹{(item.price * item.quantity).toLocaleString('en-IN')}</strong></li>)}</ul> : <div className="flex h-full flex-col items-center justify-center text-center"><span aria-hidden="true" className="text-4xl">{template.id === 'fresh-crate' ? '🥬' : '✦'}</span><h3 className="mt-3 text-lg font-bold">Your bag is waiting</h3><p className="mt-1 max-w-xs text-sm text-neutral-600">Add a few favorites and they will show up here.</p><button type="button" onClick={() => { setCartOpen(false); setActivePage('home'); window.location.hash = 'collection'; }} className="mt-5 rounded-lg border-2 border-black px-4 py-2 font-bold">Browse the shop</button></div>}</div>{cartItems.length > 0 && <div className="border-t border-black/10 pt-4"><div className="flex justify-between text-sm"><span>Subtotal</span><strong>₹{bagSubtotal.toLocaleString('en-IN')}</strong></div><p className="mt-1 text-xs text-neutral-500">Delivery and taxes are calculated at checkout.</p>{checkoutPage ? <button type="button" onClick={() => { setCartOpen(false); setActivePage(checkoutPage.id); }} className="mt-4 w-full rounded-xl border-2 border-black px-4 py-3 font-bold text-black shadow-[3px_3px_0_#000]" style={{ backgroundColor: theme.primaryColor }}>Continue to checkout</button> : <p className="mt-4 rounded-lg border border-current/20 p-3 text-xs">Checkout is not on this starter page yet. Add a Checkout page in the editor to enable it.</p>}<button type="button" onClick={() => setCartOpen(false)} className="mt-3 w-full py-2 text-sm font-semibold underline underline-offset-4">Continue shopping</button></div>}</section></div>}
@@ -718,19 +820,21 @@ export default function LiveWebsitePage({
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-8"><p className="font-mono text-[10px] uppercase tracking-widest" style={{ color: theme.primaryColor }}>Curated for you</p><h2 className="font-display text-2xl sm:text-3xl font-black mt-1">{sectionName('product-grid', sectionName('gallery', 'Featured pieces'))}</h2></div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-              {productNames.map((name, index) => (
-                <article key={name} className={`overflow-hidden rounded-2xl border shadow-[0_12px_35px_rgba(0,0,0,.08)] transition-transform duration-300 hover:-translate-y-1 ${isVoltGear ? 'border-white/10 bg-[#171B25] shadow-[0_14px_36px_rgba(0,0,0,.3)]' : isFreshCrate ? 'border-[#1F2A1B]/10 bg-white' : 'border-black/20 bg-white shadow-[4px_4px_0px_#000]'}`}>
+              {productNames.map((name, index) => {
+                const product = storeProducts.find((entry) => entry.name === name);
+                const productIndex = product ? storeProducts.indexOf(product) : index;
+                return <article key={name} className={`overflow-hidden rounded-2xl border shadow-[0_12px_35px_rgba(0,0,0,.08)] transition-transform duration-300 hover:-translate-y-1 ${isVoltGear ? 'border-white/10 bg-[#171B25] shadow-[0_14px_36px_rgba(0,0,0,.3)]' : isFreshCrate ? 'border-[#1F2A1B]/10 bg-white' : 'border-black/20 bg-white shadow-[4px_4px_0px_#000]'}`}>
                   <div className={`relative flex h-48 items-center justify-center overflow-hidden ${isVoltGear ? 'bg-[#202532]' : isFreshCrate ? 'bg-[#E8F0DF]' : ''}`} style={{ background: isBrandedStore ? undefined : `linear-gradient(135deg, ${theme.primaryColor}55, ${theme.primaryColor}15)` }}>
                     <span aria-hidden="true" className={`absolute h-36 w-36 rounded-full blur-2xl ${isVoltGear ? 'bg-[#7C5CFF]/25' : isFreshCrate ? 'bg-[#F4A93B]/25' : 'bg-transparent'}`} />
                     {assetUrl ? <>
                       {/* User-supplied assets may be arbitrary URLs or local data URLs. */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={assetUrl} alt={name} className="h-full w-full object-cover" />
-                    </> : <StoreProductArtwork fresh={isFreshCrate} index={index} name={name} category={storeProducts[index]?.category || ''} />}
+                    </> : <StoreProductArtwork fresh={isFreshCrate} index={productIndex} name={name} category={product?.category || ''} />}
                   </div>
-                  <div className="p-5"><span className={`font-mono text-[9px] uppercase tracking-wider ${isVoltGear ? 'text-white/45' : 'text-neutral-500'}`}>{storeProducts[index]?.category}</span><a href={productHref(name)} className="mt-1 block rounded-sm font-display text-lg font-black outline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2" style={{ outlineColor: theme.primaryColor }}>{name}</a><p className={`mt-1 font-mono text-xs ${isVoltGear ? 'text-white/55' : 'text-neutral-500'}`}>{storeProducts[index]?.detail}</p><div className="mt-5 flex items-center justify-between"><span className="font-display font-black">₹{storeProducts[index]?.price.toLocaleString('en-IN')}</span><button type="button" onClick={() => { const product = storeProducts[index]; if (product) addToBag(product); }} className={`rounded-full px-4 py-2 font-mono text-[10px] font-black transition-transform hover:scale-105 ${isVoltGear ? 'border border-[#C6FF3D] text-[#C6FF3D]' : 'border border-[#3FA34D]/30 text-[#286A32]'}`} style={{ backgroundColor: isVoltGear ? 'transparent' : '#EDF6E8' }}>Add to {isFreshCrate ? 'crate' : 'bag'}</button></div></div>
-                </article>
-              ))}
+                  <div className="p-5"><span className={`font-mono text-[9px] uppercase tracking-wider ${isVoltGear ? 'text-white/45' : 'text-neutral-500'}`}>{product?.category || 'Featured'}</span><a href={productHref(name)} className="mt-1 block rounded-sm font-display text-lg font-black outline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2" style={{ outlineColor: theme.primaryColor }}>{name}</a><p className={`mt-1 font-mono text-xs ${isVoltGear ? 'text-white/55' : 'text-neutral-500'}`}>{product?.detail || 'A considered pick from this collection.'}</p><div className="mt-5 flex items-center justify-between"><span className="font-display font-black">{product ? `₹${product.price.toLocaleString('en-IN')}` : 'Explore'}</span><button type="button" disabled={!product} onClick={() => { if (product) addToBag(product); }} className={`rounded-full px-4 py-2 font-mono text-[10px] font-black transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 ${isVoltGear ? 'border border-[#C6FF3D] text-[#C6FF3D]' : 'border border-[#3FA34D]/30 text-[#286A32]'}`} style={{ backgroundColor: isVoltGear ? 'transparent' : '#EDF6E8' }}>Add to {isFreshCrate ? 'crate' : 'bag'}</button></div></div>
+                </article>;
+              })}
             </div>
             <p className="text-right mt-4 font-mono text-xs font-bold">Shopping bag: {cartCount} item{cartCount === 1 ? '' : 's'}</p>
           </div>
@@ -844,8 +948,8 @@ export default function LiveWebsitePage({
           <div className="flex gap-4">
             {configuredFooterLinks.map((item, index) => {
               const rawHref = typeof item.href === 'string' ? item.href : '#';
-              const targetPage = rawHref.startsWith('/') ? sitePages.find((page) => page.slug === rawHref || page.id === rawHref.replace(/^\//, '')) : undefined;
-              const href = targetPage ? navigationHref({ id: `footer-${index}`, label: String(item.label || ''), target: { type: 'page', value: targetPage.id } }) : rawHref.startsWith('/') ? `/live/${subdomain}${rawHref}` : rawHref.startsWith('#') || /^(https?:|mailto:|tel:)/i.test(rawHref) ? rawHref : '#';
+              const targetPage = rawHref.startsWith('/') ? sitePages.find((page) => normalizeLivePagePath(page.slug) === normalizeLivePagePath(rawHref) || page.id === rawHref.replace(/^\/+/, '')) : undefined;
+              const href = targetPage ? navigationHref({ id: `footer-${index}`, label: String(item.label || ''), target: { type: 'page', value: targetPage.id } }) : rawHref.startsWith('/') ? `/live/${subdomain}${normalizeLivePagePath(rawHref)}${previewSuffix}` : rawHref.startsWith('#') || /^(https?:|mailto:|tel:)/i.test(rawHref) ? rawHref : '#';
               return <a key={`live-footer-${index}`} href={href} target={'newTab' in item && item.newTab === true ? '_blank' : undefined} rel={'newTab' in item && item.newTab === true ? 'noopener noreferrer' : undefined} className="hover:text-black hover:underline">{String(item.label || `Link ${index + 1}`)}</a>;
             })}
           </div>

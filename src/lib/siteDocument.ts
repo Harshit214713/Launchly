@@ -142,6 +142,7 @@ export type ElementStyle = {
   backdropFilter?: string;
   opacity?: number;
   mixBlendMode?: string;
+  clipPath?: string;
   maxWidth?: number;
   minWidth?: number;
   width?: number;

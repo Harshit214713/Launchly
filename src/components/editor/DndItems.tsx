@@ -42,10 +42,10 @@ export function SortableSectionFrame({ id, index, source, children, className = 
   </div>;
 }
 
-export function SectionDropMarker({ index }: { index: number }) {
+export function SectionDropMarker({ index, onClick }: { index: number; onClick?: (index: number) => void }) {
   const drop = useDroppable({ id: `canvas-drop:${index}`, data: { kind: 'section-drop', index } });
   return <div ref={drop.setNodeRef} className={`group relative flex h-3 items-center justify-center transition-all ${drop.isOver ? 'h-12' : 'hover:h-8'}`}>
     <div className={`h-0.5 w-full rounded-full transition-colors ${drop.isOver ? 'bg-pink' : 'bg-transparent group-hover:bg-pink/70'}`} />
-    <span className={`absolute inline-flex items-center gap-1 rounded-full border border-pink bg-white px-3 py-1 font-mono text-[10px] font-bold text-black shadow-sm transition-opacity ${drop.isOver ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}><Plus size={11} /> Add section</span>
+    <button type="button" aria-label={`Add section at position ${index + 1}`} title="Add section" onClick={(event) => { event.stopPropagation(); onClick?.(index); }} className={`absolute inline-flex cursor-pointer items-center gap-1 rounded-full border border-pink bg-white px-3 py-1 font-mono text-[10px] font-bold text-black shadow-sm transition-opacity hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-black ${drop.isOver ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}><Plus size={11} /> Add section</button>
   </div>;
 }

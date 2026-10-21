@@ -25,7 +25,8 @@ export function resolveButtonHref(target: ButtonTarget, value: string, pages: Ar
   if (target === 'discord') return safeWebUrl(normalized);
   if (target === 'anchor') return `#${normalized.replace(/^#/, '')}`;
   if (target === 'page') {
-    const page = pages.find((entry) => entry.id === normalized);
+    const requestedSlug = normalized.replace(/^\/+|\/+$/g, '');
+    const page = pages.find((entry) => entry.id === normalized || entry.id === requestedSlug || (entry.slug || '').replace(/^\/+|\/+$/g, '') === requestedSlug);
     if (!page) return '#';
     if (page.isHome) return pagePrefix || '/';
     const slug = (page.slug || '').replace(/^\/+|\/+$/g, '');

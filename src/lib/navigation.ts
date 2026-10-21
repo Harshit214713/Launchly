@@ -11,7 +11,9 @@ const ANCHOR_ALIASES: Record<string, string[]> = {
 
 /** Keep user-entered anchors safe and consistent across editor and published pages. */
 export function normalizeAnchorId(value: string) {
-  return decodeURIComponent(String(value || ''))
+  let decoded = String(value || '');
+  try { decoded = decodeURIComponent(decoded); } catch { /* Keep malformed user input usable as plain text. */ }
+  return decoded
     .trim()
     .replace(/^#+/, '')
     .replace(/\s+/g, '-')
@@ -66,7 +68,7 @@ export function scrollToSection(
   const currentPath = pathname || window.location.pathname;
 
   if (currentPath === '/') {
-    const element = document.getElementById(targetId);
+    const element = findAnchorElement(targetId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }

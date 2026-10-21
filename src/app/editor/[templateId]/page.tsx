@@ -119,7 +119,7 @@ const paletteElementContent = (id: string, elementType: SiteElement['type']): Re
 };
 const paletteWidgetContent = (id: string, label: string, description: string): Record<string, unknown> => {
   const key = `${id} ${label}`.toLowerCase();
-  if (/sidebar menu|navbar|navigation menu|mega menu|dropdown menu|footer menu|mobile menu/.test(key)) return { blockType: id, title: label, description, items: [] };
+  if (/sidebar menu|navbar|navigation menu|mega menu|dropdown menu|flyout menu|footer menu|mobile menu/.test(key)) return { blockType: id, title: label, description, items: [] };
   if (/product|shop|store|catalog/.test(key)) return { blockType: id, title: label, description, items: [{ title: 'Everyday essential', description: 'A carefully chosen favorite, ready for everyday use.', category: 'Featured', price: '₹1,499', image: '', href: '#product-1' }, { title: 'New season pick', description: 'A fresh addition selected by our team.', category: 'New', price: '₹899', image: '', href: '#product-2' }, { title: 'Customer favorite', description: 'A dependable choice with thoughtful details.', category: 'Popular', price: '₹2,199', image: '', href: '#product-3' }] };
   if (/blog|article|news|post|resource|download/.test(key)) return { blockType: id, title: label, description, items: [{ title: 'A useful guide for getting started', description: 'Share a clear, practical idea your readers can use today.', category: 'Guide', image: '' }, { title: 'What we learned along the way', description: 'Tell a short story and give visitors a reason to explore.', category: 'Story', image: '' }] };
   if (key.includes('skill bar') || key.includes('progress bar')) return { blockType: id, title: label, description: description || 'Show strengths and progress at a glance.', items: [{ title: 'Design', value: 90 }, { title: 'Development', value: 78 }, { title: 'Strategy', value: 84 }] };
@@ -178,13 +178,11 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [showShareModal, setShowShareModal] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveNotice, setSaveNotice] = useState<{ tone: 'success' | 'warning' | 'error'; message: string } | null>(null);
   const [zoomScale, setZoomScale] = useState<number>(1);
   const [exportingZip, setExportingZip] = useState(false);
-  const [userPlan, setUserPlan] = useState<'loading' | 'free' | 'pro'>('loading');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
-  const [showUpgrade, setShowUpgrade] = useState(false);
-  const [upgradeFeature, setUpgradeFeature] = useState('Pro features');
   const [logoUrl, setLogoUrl] = useState('');
   const [faviconUrl, setFaviconUrl] = useState('');
   const [mediaAssets, setMediaAssets] = useState<SiteAsset[]>([]);
@@ -199,8 +197,6 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     if (element.type === 'block' && typeof element.content.title === 'string') return element.content.title;
     return element.type.split(/[-_]/g).map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
-  const requestUpgrade = (feature: string) => { setUpgradeFeature(feature); setShowUpgrade(true); };
-
   // AI Prompt State
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -261,8 +257,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   useEffect(() => {
     fetch('/api/auth/me').then((response) => response.json()).then((data) => {
       setIsAuthenticated(Boolean(data?.authenticated && data.user));
-      setUserPlan(data?.authenticated && data.user?.plan === 'pro' ? 'pro' : 'free');
-    }).catch(() => { setUserPlan('free'); setIsAuthenticated(false); }).finally(() => setAuthResolved(true));
+    }).catch(() => { setIsAuthenticated(false); }).finally(() => setAuthResolved(true));
   }, []);
 
   // Bespoke content state (can be updated via AI)
@@ -305,9 +300,27 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   })));
   const editorDocument = useStore(editorStore, (state) => state.document);
   const saveStatus = useStore(editorStore, (state) => state.saveStatus);
+  const lastSavedAt = useStore(editorStore, (state) => state.lastSavedAt);
   const undoCount = useStore(editorStore, (state) => state.past.length);
   const redoCount = useStore(editorStore, (state) => state.future.length);
   const versions = useStore(editorStore, (state) => state.versions);
+  const previousSaveStatus = useRef(saveStatus);
+  useEffect(() => {
+    if (previousSaveStatus.current === saveStatus) return;
+    previousSaveStatus.current = saveStatus;
+    if (saveStatus === 'saved') {
+      const timer = window.setTimeout(() => {
+        setSaveNotice({ tone: 'success', message: 'All changes saved' });
+        window.setTimeout(() => setSaveNotice(null), 2600);
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+    if (saveStatus === 'offline') {
+      const timer = window.setTimeout(() => setSaveNotice({ tone: 'warning', message: 'Saved locally · server unavailable' }), 0);
+      return () => window.clearTimeout(timer);
+    }
+    return undefined;
+  }, [saveStatus]);
   // Guard ref: prevents the sync useEffect from re-committing to the store during undo/redo restoration
   const isRestoringRef = useRef(false);
   const dragSensors = useSensors(
@@ -559,10 +572,6 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   // 1-Click ZIP Export
   const handleExportZip = async () => {
-    if (userPlan !== 'pro') {
-      requestUpgrade('Source code export');
-      return;
-    }
     setExportingZip(true);
     try {
       const blob = await exportTemplateAsZip({
@@ -928,17 +937,6 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             {sitePages.map((page) => <option key={page.id} value={page.id}>{page.title}</option>)}
           </select>
 
-          <details className="relative shrink-0">
-            <summary aria-label={`Save status: ${saveStatus}`} title="Save status" className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-full border border-black/20 bg-white hover:bg-neutral-100">
-              <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full ${saveStatus === 'saved' ? 'bg-green-500' : saveStatus === 'offline' ? 'bg-red-500' : saveStatus === 'saving' ? 'animate-pulse bg-yellow-500' : 'bg-pink'}`} />
-            </summary>
-            <div role="status" aria-live="polite" className="absolute left-0 top-full z-[80] mt-2 w-60 rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0_#000]">
-              <p className="font-mono text-[10px] font-black uppercase text-neutral-500">Save status</p>
-              <p className="mt-1 font-mono text-xs font-bold">{saveStatus === 'saved' ? 'All changes saved' : saveStatus === 'saving' ? 'Saving your changes…' : saveStatus === 'offline' ? 'Offline · local copy saved' : 'Unsaved changes'}</p>
-              <button type="button" onClick={() => { void handleSave(); }} disabled={saving} className="mt-3 w-full rounded-lg border-2 border-black bg-yellow px-3 py-2 font-mono text-[10px] font-bold disabled:opacity-50">{saving ? 'Saving…' : 'Save now'}</button>
-            </div>
-          </details>
-
           {/* Undo / Redo Buttons */}
           <div className="hidden sm:flex items-center gap-1 rounded-xl border-2 border-black bg-[#FAF9F6] p-0.5 shadow-[1.5px_1.5px_0px_#000]">
             <button
@@ -963,7 +961,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         </div>
 
         {/* Center: Device Switcher & Zoom Controls (Desktop only) */}
-        <div className="hidden md:flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-2 md:absolute md:left-1/2 md:-translate-x-1/2">
           <div className="flex items-center gap-1 rounded-2xl border-2 border-black bg-[#FFFDF8] p-1 shadow-[2px_2px_0px_#000]">
             {([
               { mode: 'desktop' as const, icon: Monitor, label: 'Desktop' },
@@ -987,36 +985,6 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             ))}
           </div>
 
-          {/* Zoom Controls */}
-          <div className="hidden xl:flex items-center gap-1 rounded-xl border-2 border-black bg-[#FFFDF8] px-2 py-1 shadow-[1.5px_1.5px_0px_#000] font-mono text-[11px] font-bold">
-            <button
-              type="button"
-              onClick={() => setZoomScale((prev) => Math.max(0.5, Number((prev - 0.1).toFixed(1))))}
-              className="p-0.5 hover:bg-neutral-200 rounded cursor-pointer text-black"
-              title="Zoom Out"
-            >
-              <ZoomOut size={12} />
-            </button>
-            <span className="min-w-[34px] text-center text-black">{Math.round(zoomScale * 100)}%</span>
-            <button
-              type="button"
-              onClick={() => setZoomScale((prev) => Math.min(1.5, Number((prev + 0.1).toFixed(1))))}
-              className="p-0.5 hover:bg-neutral-200 rounded cursor-pointer text-black"
-              title="Zoom In"
-            >
-              <ZoomIn size={12} />
-            </button>
-            {zoomScale !== 1 && (
-              <button
-                type="button"
-                onClick={() => setZoomScale(1)}
-                className="text-[9px] text-pink font-black uppercase cursor-pointer ml-1"
-                title="Reset zoom"
-              >
-                100%
-              </button>
-            )}
-          </div>
         </div>
 
         {/* Right: Preview and publish */}
@@ -1369,8 +1337,17 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             {(leftPanel === 'tools' || mobileTab === 'tools') && (
               <div className="space-y-2">
                 <p className="font-mono text-[10px] font-bold uppercase text-neutral-500">Build and manage</p>
+                <section className="rounded-xl border-2 border-black bg-white p-3 shadow-[2px_2px_0_#000]" aria-labelledby="save-status-heading">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 id="save-status-heading" className="font-mono text-[10px] font-black uppercase">Save status</h2>
+                    <span className={`h-2.5 w-2.5 rounded-full ${saveStatus === 'saved' ? 'bg-green-500' : saveStatus === 'offline' ? 'bg-red-500' : saveStatus === 'saving' ? 'animate-pulse bg-yellow-500' : 'bg-pink'}`} aria-hidden="true" />
+                  </div>
+                  <p className="mt-1 font-mono text-xs font-bold" role="status" aria-live="polite">{saveStatus === 'saved' ? 'All changes saved' : saveStatus === 'saving' ? 'Saving your changes…' : saveStatus === 'offline' ? 'Offline · local copy saved' : 'Unsaved changes'}</p>
+                  {lastSavedAt && <p className="mt-1 font-mono text-[9px] text-neutral-500">Last saved {new Date(lastSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>}
+                  <button type="button" onClick={() => { void handleSave(); }} disabled={saving} className="mt-3 w-full rounded-lg border-2 border-black bg-yellow px-3 py-2 font-mono text-[10px] font-bold disabled:opacity-50">{saving ? 'Saving…' : 'Save now'}</button>
+                </section>
                 <button type="button" onClick={() => setShowAiModal(true)} className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-yellow px-3 py-2.5 text-left font-mono text-xs font-bold shadow-[2px_2px_0_#000]"><Wand2 size={15}/> Open AI Designer</button>
-                <button type="button" onClick={() => { void handleExportZip(); }} disabled={exportingZip || userPlan === 'loading'} title={userPlan === 'pro' ? 'Download the website source as a ZIP archive' : 'Upgrade to Pro to export source code'} className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2.5 text-left font-mono text-xs font-bold hover:bg-yellow disabled:opacity-50"><Download size={15}/>{exportingZip ? 'Exporting…' : userPlan === 'loading' ? 'Checking availability…' : userPlan === 'pro' ? 'Export .zip' : 'Export .zip · Pro'}</button>
+                <button type="button" onClick={() => { void handleExportZip(); }} disabled={exportingZip} title="Download the website source as a ZIP archive" className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2.5 text-left font-mono text-xs font-bold hover:bg-yellow disabled:opacity-50"><Download size={15}/>{exportingZip ? 'Exporting…' : 'Export .zip'}</button>
                 <button type="button" onClick={() => setShowVersionHistory(true)} className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2.5 text-left font-mono text-xs font-bold hover:bg-yellow"><HistoryIcon size={15}/> Version history</button>
                 <button type="button" onClick={() => { const subdomain = siteTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || template.id; const previewWindow = window.open('about:blank', '_blank'); void handleSave().finally(() => { if (previewWindow) previewWindow.location.href = `/live/${subdomain}?preview=1`; }); }} className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2.5 text-left font-mono text-xs font-bold hover:bg-yellow"><Eye size={15}/> Open preview</button>
                 <p className="rounded-lg bg-white p-2 font-mono text-[10px] leading-relaxed text-neutral-500">Export, AI design, previews, and revision history are grouped here to keep the main toolbar focused.</p>
@@ -1417,19 +1394,25 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           >
             {editorDocument.settings.customCss && <style>{editorDocument.settings.customCss}</style>}
             {/* Top Browser Bar */}
-            <div className="h-9 sm:h-10 bg-[#FAF9F6] border-b-[2px] sm:border-b-[2.5px] border-black px-3 sm:px-4 flex items-center justify-between shrink-0">
+            <div className="h-9 sm:h-10 bg-[#FAF9F6] border-b-[2px] sm:border-b-[2.5px] border-black px-3 sm:px-4 flex items-center gap-2 shrink-0">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-black bg-[#FF5F56]" />
                 <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-black bg-[#FFBD2E]" />
                 <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-black bg-[#27C93F]" />
               </div>
-              <div className="flex items-center gap-1.5 rounded-lg border border-black/20 bg-white px-2.5 py-0.5 font-mono text-[10px] sm:text-[11px] text-neutral-600 truncate max-w-[200px] sm:max-w-xs">
+              <div className="min-w-0 flex-1 flex justify-center">
+                <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-black/20 bg-white px-2.5 py-0.5 font-mono text-[10px] sm:text-[11px] text-neutral-600">
                 <span className="text-mint font-bold">●</span>
                 <span className="truncate">https://{siteTitle.toLowerCase().replace(/\s+/g, '-')}.launchly.site{currentPage?.slug ? `/${currentPage.slug}` : ''}</span>
+                </div>
               </div>
-              <span className="hidden sm:inline font-mono text-[10px] font-black uppercase text-neutral-400">
-                {deviceMode}
-              </span>
+              <div className="flex shrink-0 items-center gap-1 rounded-lg border border-black/25 bg-white px-1.5 py-0.5 font-mono text-[10px] font-bold text-black shadow-[1px_1px_0_#000]" aria-label="Preview zoom controls">
+                <button type="button" onClick={() => setZoomScale((prev) => Math.max(0.5, Number((prev - 0.1).toFixed(1))))} className="rounded px-1 hover:bg-neutral-100" title="Zoom out"><ZoomOut size={11} /></button>
+                <span className="min-w-[30px] text-center">{Math.round(zoomScale * 100)}%</span>
+                <button type="button" onClick={() => setZoomScale((prev) => Math.min(1.5, Number((prev + 0.1).toFixed(1))))} className="rounded px-1 hover:bg-neutral-100" title="Zoom in"><ZoomIn size={11} /></button>
+                {zoomScale !== 1 && <button type="button" onClick={() => setZoomScale(1)} className="hidden sm:inline px-1 text-[9px] font-black text-pink" title="Reset zoom">Reset</button>}
+              </div>
+              <span className="hidden sm:inline min-w-[42px] text-right font-mono text-[10px] font-black uppercase text-neutral-400">{deviceMode}</span>
             </div>
 
             {/* Editable Content Frame */}
@@ -1453,6 +1436,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 testimonialsContent={testimonialsContent}
                 ctaContent={ctaContent}
                 onUpdateSectionContent={(sectionId, content) => setSections((items) => items.map((item) => item.id === sectionId ? { ...item, content } : item))}
+                onAddSection={(index) => addPaletteItem('hero', index)}
                 selectedTreeElementId={selectedTreeElement?.elementId || null}
                 onSelectTreeElement={(sectionId, columnId, elementId) => { setSelectedSection(sectionId); setSelectedElementId(null); setSelectedTreeElement({ sectionId, columnId, elementId }); setMobileTab('inspector'); }}
                 onUpdateTreeElement={(sectionId, columnId, elementId, update) => setSections((items) => items.map((item) => item.id !== sectionId ? item : ({ ...item, columns: (item.columns || []).map((column) => column.id !== columnId ? column : ({ ...column, elements: column.elements.map((element) => element.id === elementId ? update(element) : element) })) })))}
@@ -1505,8 +1489,6 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 sectionId={selectedSection}
                 sections={sections}
                 theme={theme}
-                isPro={true}
-                onUpgrade={(feature) => requestUpgrade(feature)}
                 setSectionStyle={(style) => setSections((items) => items.map((item) => item.id === selectedSection ? { ...item, style: { ...item.style, ...style } } : item))}
                 setSectionContent={(content) => setSections((items) => items.map((item) => item.id === selectedSection ? { ...item, content } : item))}
                 onUploadImage={(file, itemIndex) => readLocalImageFile(file, (src) => setSections((items) => items.map((item) => {
@@ -1530,6 +1512,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           </div>
         </div>
       </div>
+
+      {saveNotice && <div role="status" aria-live="polite" className={cn('fixed right-4 top-20 z-[90] flex items-center gap-2 rounded-xl border-2 border-black px-4 py-3 font-mono text-xs font-bold shadow-[3px_3px_0_#000]', saveNotice.tone === 'success' ? 'bg-[#D9F7DF] text-[#163A1D]' : saveNotice.tone === 'warning' ? 'bg-[#FFF2BF] text-[#4B3A00]' : 'bg-[#FFD7D7] text-[#5A1010]')}><span aria-hidden="true" className="h-2 w-2 rounded-full bg-current" />{saveNotice.message}</div>}
 
       {/* Mobile Bottom Navigation Bar (Hidden on desktop) */}
       <nav className="md:hidden h-14 bg-white border-t-[3px] border-black flex items-center justify-around px-1 z-50 shrink-0 shadow-[0_-2px_0_#000]">
@@ -1705,16 +1689,6 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         </div>
       </div>}
 
-      {showUpgrade && <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title">
-        <div className="w-full max-w-sm rounded-3xl border-[3px] border-black bg-white p-6 text-center shadow-[8px_8px_0_#000]">
-          <button type="button" onClick={() => setShowUpgrade(false)} aria-label="Close" className="float-right rounded-lg p-1 hover:bg-neutral-100"><X size={18} /></button>
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-black bg-yellow"><Download size={22} /></div>
-          <h2 id="upgrade-title" className="font-display text-xl font-black">{upgradeFeature} requires Pro</h2>
-          <p className="mt-2 font-mono text-xs text-neutral-600">All editor widgets and page features are free. Source ZIP export requires Pro.</p>
-          <a href="/checkout?plan=pro" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-black bg-pink px-4 py-3 font-display text-sm font-black shadow-[3px_3px_0_#000] hover:bg-yellow">Upgrade to Pro <ArrowUpRight size={15} /></a>
-        </div>
-      </div>}
-
       {/* One-Click GitHub & Vercel Deploy Modal */}
       {showDeployModal && (
         <DeployModal
@@ -1820,6 +1794,7 @@ function CanvasContent({
   testimonialsContent,
   ctaContent,
   onUpdateSectionContent,
+  onAddSection,
   selectedTreeElementId,
   onSelectTreeElement,
   onUpdateTreeElement,
@@ -1849,6 +1824,7 @@ function CanvasContent({
   testimonialsContent: Array<{ quote: string; name: string; role: string }>;
   ctaContent: { title: string; desc: string; buttonText: string };
   onUpdateSectionContent: (sectionId: string, content: Record<string, unknown>) => void;
+  onAddSection: (index: number) => void;
   selectedTreeElementId: string | null;
   onSelectTreeElement: (sectionId: string, columnId: string, elementId: string) => void;
   onUpdateTreeElement: (sectionId: string, columnId: string, elementId: string, update: (element: SiteElement) => SiteElement) => void;
@@ -1865,7 +1841,7 @@ function CanvasContent({
       <SortableContext items={sections.map((section) => `canvas-section:${section.id}`)} strategy={verticalListSortingStrategy}>
       {sections.map((section, index) => (
         <div key={section.id}>
-        <SectionDropMarker index={index} />
+         <SectionDropMarker index={index} onClick={onAddSection} />
         <SortableSectionFrame id={section.id} index={index} source="canvas" className="group/canvas-section">
         <SectionRenderer
           templateId={templateId}
@@ -1897,7 +1873,7 @@ function CanvasContent({
         </div>
       ))}
       </SortableContext>
-      <SectionDropMarker index={sections.length} />
+       <SectionDropMarker index={sections.length} onClick={onAddSection} />
       {canvasElements.map((item) => {
         const IconComponent = ({ Star, Heart, Sparkles, Camera, CheckCircle2, ArrowUpRight } as Record<string, typeof Star>)[item.icon || 'Star'] || Star;
         return <div key={item.id} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); onSelectElement(item.id); }} onPointerMove={(event) => { if (event.buttons !== 1) return; const rect = event.currentTarget.parentElement?.getBoundingClientRect(); if (rect) onMoveElement(item.id, Math.max(0, event.clientX - rect.left - item.width / 2), Math.max(0, event.clientY - rect.top - item.height / 2)); }} onClick={() => onSelectElement(item.id)} className={`absolute z-20 cursor-move touch-none ${selectedElementId === item.id ? 'outline outline-2 outline-pink outline-offset-2' : ''}`} style={{ left: item.x, top: item.y, width: item.width, height: item.height }}>
@@ -1986,7 +1962,9 @@ function WidgetSpecificProperties({ element, pages, changeContent }: { element: 
     {(normalized.includes('carousel') || normalized.includes('slider') || normalized.includes('gallery')) && <><label className="block font-mono text-[9px] font-bold uppercase">Images (one URL per line)<textarea rows={5} value={(Array.isArray(element.content.images) ? element.content.images : []).map(String).join('\n')} onChange={(event) => changeContent('images', event.target.value.split(/\r?\n/).map((url) => url.trim()).filter(Boolean))} className="mt-1 w-full rounded border border-black/25 p-2 font-mono text-[10px]" placeholder="https://example.com/photo.jpg" /></label><label className="flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-black/30 px-2 py-2 font-mono text-[9px] font-bold hover:bg-yellow/40"><ImageIcon size={12}/> Upload optimized images<input type="file" accept="image/*" multiple className="sr-only" onChange={(event) => { const files = Array.from(event.target.files || []).slice(0, 5); const input = event.currentTarget; input.value = ''; void Promise.all(files.map(optimizeEditorImage)).then((uploads) => { const current = (Array.isArray(element.content.images) ? element.content.images : []).map(String); const combined = [...current, ...uploads]; if (combined.reduce((total, image) => total + image.length, 0) > 1_400_000) { window.alert('This gallery is at its local storage limit. Use image URLs or remove some images.'); return; } changeContent('images', combined); }).catch((error: unknown) => window.alert(error instanceof Error ? error.message : 'Could not upload these images.')); }}/></label><p className="text-[9px] text-neutral-500">Images are resized and optimized to protect editor storage.</p><label className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase"><input type="checkbox" checked={Boolean(element.content.autoplay)} onChange={(event) => changeContent('autoplay', event.target.checked)}/>Auto-scroll</label><label className="block font-mono text-[9px] font-bold uppercase">Slide interval (seconds)<input type="number" min="2" max="30" value={Math.round((Number(element.content.intervalMs) || 4000) / 1000)} onChange={(event) => changeContent('intervalMs', Math.max(2, Math.min(30, Number(event.target.value) || 4) * 1000))} className="mt-1 w-full rounded border px-2 py-1.5 font-mono text-xs"/></label></>}
     {(normalized.includes('product') || normalized.includes('pricing') || normalized.includes('plan')) && <label className="block font-mono text-[9px] font-bold uppercase">Price or starting price<input value={String(element.content.price || '')} onChange={(event) => changeContent('price', event.target.value)} placeholder="$49" className="mt-1 w-full rounded border px-2 py-1.5 font-sans text-sm font-normal normal-case"/></label>}
     {(normalized.includes('team') || normalized.includes('testimonial') || normalized.includes('review') || normalized.includes('service') || normalized.includes('feature') || normalized.includes('logo cloud') || normalized.includes('skill bar') || normalized.includes('progress bar') || normalized.includes('stat') || normalized.includes('counter')) && <><p className="font-mono text-[9px] font-bold uppercase">Repeating items</p>{items.map((item, index) => <div key={index} className="space-y-1 rounded-lg border border-black/15 bg-white p-2"><input aria-label={`Item ${index + 1} title`} value={String(item.title || item.name || item.label || '')} onChange={(event) => changeItem(index, 'title', event.target.value)} placeholder="Title / name" className="w-full rounded border px-2 py-1.5 text-xs"/><textarea aria-label={`Item ${index + 1} description`} value={String(item.description || item.desc || item.quote || '')} onChange={(event) => changeItem(index, 'description', event.target.value)} placeholder="Description, quote, or role" rows={2} className="w-full rounded border px-2 py-1.5 text-xs"/>{(normalized.includes('skill bar') || normalized.includes('progress bar') || normalized.includes('counter') || normalized.includes('stat')) && <label className="block font-mono text-[9px] font-bold uppercase">Value<input type="number" min={0} max={100} value={Number(item.value ?? item.percent ?? 0)} onChange={(event) => changeItem(index, 'value', Math.max(0, Math.min(100, Number(event.target.value) || 0)))} className="mt-1 w-full rounded border px-2 py-1.5 font-sans text-xs normal-case"/></label>}{(normalized.includes('team') || normalized.includes('testimonial') || normalized.includes('review') || normalized.includes('service') || normalized.includes('feature') || normalized.includes('logo cloud')) && <><label className="block font-mono text-[9px] font-bold uppercase">Image URL<input value={String(item.image || item.src || '')} onChange={(event) => changeItem(index, 'image', event.target.value)} placeholder="https://example.com/image.jpg" className="mt-1 w-full rounded border px-2 py-1.5 font-sans text-xs font-normal normal-case"/></label><label className="flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-black/30 px-2 py-1.5 font-mono text-[9px] font-bold hover:bg-yellow/40"><ImageIcon size={12}/> Upload image<input type="file" accept="image/*" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { if (typeof reader.result === 'string') changeItem(index, 'image', reader.result); }; reader.readAsDataURL(file); event.currentTarget.value = ''; }}/></label></>}<div className="flex items-center justify-between"><div className="flex gap-1"><button type="button" disabled={index === 0} onClick={() => reorderItem(index, -1)} aria-label={`Move item ${index + 1} up`} className="rounded border px-2 py-1 text-[9px] disabled:opacity-40">↑</button><button type="button" disabled={index === items.length - 1} onClick={() => reorderItem(index, 1)} aria-label={`Move item ${index + 1} down`} className="rounded border px-2 py-1 text-[9px] disabled:opacity-40">↓</button></div><button type="button" onClick={() => changeContent('items', items.filter((_, itemIndex) => itemIndex !== index))} className="text-[9px] font-bold text-red-700">Remove item</button></div></div>)}<button type="button" onClick={() => changeContent('items', [...items, { title: `Item ${items.length + 1}`, description: '', ...(normalized.includes('skill bar') || normalized.includes('progress bar') ? { value: 50 } : {}) }])} className="w-full rounded-lg border border-black bg-white py-2 font-mono text-[10px] font-bold">＋ Add item</button></>}
-    {(normalized.includes('map') || normalized.includes('embed') || normalized.includes('iframe') || normalized.includes('calendar') || normalized.includes('instagram') || normalized.includes('twitter')) && <label className="block font-mono text-[9px] font-bold uppercase">Embed URL<input type="url" value={String(element.content.url || element.content.src || '')} onChange={(event) => changeContent('url', event.target.value)} placeholder="https://…" className="mt-1 w-full rounded border px-2 py-1.5 font-mono text-[10px] font-normal normal-case" /></label>}
+    {(normalized.includes('map') || normalized.includes('embed') || normalized.includes('iframe') || normalized.includes('calendar') || normalized.includes('instagram') || normalized.includes('twitter') || normalized.includes('audio') || normalized.includes('podcast') || normalized.includes('youtube') || normalized.includes('vimeo') || normalized.includes('video')) && <label className="block font-mono text-[9px] font-bold uppercase">Embed or media URL<input type="url" value={String(element.content.url || element.content.src || '')} onChange={(event) => changeContent('url', event.target.value)} placeholder="https://…" className="mt-1 w-full rounded border px-2 py-1.5 font-mono text-[10px] font-normal normal-case" /></label>}
+    {(normalized.includes('before') || normalized.includes('lottie') || normalized.includes('svg') || normalized.includes('stock photo') || normalized.includes('image crop') || normalized.includes('parallax')) && <><label className="block font-mono text-[9px] font-bold uppercase">Primary image / asset URL<input value={String(element.content.src || element.content.url || '')} onChange={(event) => changeContent('src', event.target.value)} placeholder="https://…" className="mt-1 w-full rounded border px-2 py-1.5 font-mono text-[10px] font-normal normal-case" /></label><label className="flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-black/30 px-2 py-2 font-mono text-[9px] font-bold hover:bg-yellow/40"><ImageIcon size={12}/> Upload asset<input type="file" accept="image/*,.svg,.json" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { if (typeof reader.result === 'string') changeContent('src', reader.result); }; reader.readAsDataURL(file); event.currentTarget.value = ''; }} /></label></>}
+    {normalized.includes('countdown') && <label className="block font-mono text-[9px] font-bold uppercase">Countdown seconds<input type="number" min={0} value={Number(element.content.seconds || 86400)} onChange={(event) => changeContent('seconds', Math.max(0, Number(event.target.value) || 0))} className="mt-1 w-full rounded border px-2 py-1.5 font-mono text-xs" /></label>}
     {!hasDedicatedRepeater && <div className="space-y-2 rounded-lg border border-black/15 bg-white p-2"><p className="font-mono text-[9px] font-bold uppercase">Content items</p><p className="text-[9px] text-neutral-500">Add, edit, reorder, or remove the repeated content shown by this widget.</p>{items.map((item, index) => <details key={index} open={index === 0} className="rounded border border-black/15 p-2"><summary className="cursor-pointer font-mono text-[9px] font-bold">{String(item.title || item.name || item.label || `Item ${index + 1}`)}</summary><div className="mt-2 space-y-2">{Object.entries(item).filter(([, value]) => value === null || ['string', 'number', 'boolean'].includes(typeof value)).map(([key, value]) => <label key={key} className="block font-mono text-[9px] font-bold uppercase">{key.replace(/([A-Z])/g, ' $1')} {typeof value === 'boolean' ? <input type="checkbox" checked={value} onChange={(event) => changeItem(index, key, event.target.checked)} className="ml-2"/> : key.toLowerCase().includes('description') || key.toLowerCase().includes('quote') || key.toLowerCase().includes('content') ? <textarea rows={2} value={String(value ?? '')} onChange={(event) => changeItem(index, key, event.target.value)} className="mt-1 w-full rounded border px-2 py-1.5 font-sans text-xs font-normal normal-case"/> : <input type={typeof value === 'number' ? 'number' : 'text'} value={String(value ?? '')} onChange={(event) => changeItem(index, key, typeof value === 'number' ? Number(event.target.value) || 0 : event.target.value)} className="mt-1 w-full rounded border px-2 py-1.5 font-sans text-xs font-normal normal-case"/>}</label>)}{(typeof item.image === 'string' || typeof item.src === 'string') && <label className="flex cursor-pointer items-center justify-center gap-2 rounded border border-dashed border-black/30 px-2 py-1.5 font-mono text-[9px] font-bold hover:bg-yellow/40"><ImageIcon size={12}/> Upload or replace image<input type="file" accept="image/*" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; if (file.size > 5 * 1024 * 1024) { window.alert('Choose an image smaller than 5 MB.'); event.currentTarget.value = ''; return; } const reader = new FileReader(); reader.onload = () => { if (typeof reader.result === 'string') changeItem(index, typeof item.image === 'string' ? 'image' : 'src', reader.result); }; reader.readAsDataURL(file); event.currentTarget.value = ''; }}/></label>}<div className="flex items-center justify-between"><div className="flex gap-1"><button type="button" disabled={index === 0} onClick={() => reorderItem(index, -1)} aria-label={`Move item ${index + 1} up`} className="rounded border px-2 py-1 text-[9px] disabled:opacity-40">↑</button><button type="button" disabled={index === items.length - 1} onClick={() => reorderItem(index, 1)} aria-label={`Move item ${index + 1} down`} className="rounded border px-2 py-1 text-[9px] disabled:opacity-40">↓</button></div><button type="button" onClick={() => changeContent('items', items.filter((_, itemIndex) => itemIndex !== index))} className="text-[9px] font-bold text-red-700">Remove item</button></div></div></details>)}<button type="button" onClick={() => changeContent('items', [...items, { title: `Item ${items.length + 1}`, description: '', href: '', image: '' }])} className="w-full rounded border border-black py-1.5 font-mono text-[9px] font-bold">＋ Add content item</button></div>}
     <label className="block font-mono text-[9px] font-bold uppercase">Button / action label<input value={String(element.content.buttonText || element.content.cta || '')} onChange={(event) => changeContent('buttonText', event.target.value)} placeholder="Optional" className="mt-1 w-full rounded border px-2 py-1.5 font-sans text-sm font-normal normal-case"/></label>
     <ButtonActionControls element={element} pages={pages} changeContent={changeContent} />
@@ -2023,6 +2001,10 @@ function TreeElementProperties({ element, pages, device, onChange, onUpload }: {
   const changeContent = (key: string, value: unknown) => onChange((current) => ({ ...current, content: { ...current.content, [key]: value } }));
   const effectiveStyle = { ...element.style, ...(device === 'desktop' ? {} : element.responsive?.[device]) };
   const changeStyle = (key: keyof SiteElement['style'], value: SiteElement['style'][keyof SiteElement['style']]) => onChange((current) => device === 'desktop' ? ({ ...current, style: { ...current.style, [key]: value } }) : ({ ...current, responsive: { ...current.responsive, [device]: { ...current.responsive?.[device], [key]: value } } }));
+  const gradientStops = effectiveStyle.gradientStops?.length ? effectiveStyle.gradientStops : [{ color: effectiveStyle.backgroundColor || '#ffffff', position: 0 }, { color: '#f9a8d4', position: 100 }];
+  const blurMatch = String(effectiveStyle.filter || '').match(/blur\((\d+(?:\.\d+)?)px\)/);
+  const blurAmount = blurMatch ? Number(blurMatch[1]) : 0;
+  const updateGradientStop = (index: number, update: Partial<{ color: string; position: number }>) => changeStyle('gradientStops', gradientStops.map((stop, stopIndex) => stopIndex === index ? { ...stop, ...update } : stop));
   const formFields = Array.isArray(element.content.fields) ? element.content.fields as FormField[] : getDefaultFormFields();
   const updateFormField = (fieldId: string, update: (field: FormField) => FormField) => changeContent('fields', formFields.map((field) => field.id === fieldId ? update(field) : field));
   const addFormField = () => changeContent('fields', [...formFields, { id: `field-${Date.now()}`, label: 'New field', name: `field_${formFields.length + 1}`, type: 'text', placeholder: '', required: false }]);
@@ -2036,7 +2018,7 @@ function TreeElementProperties({ element, pages, device, onChange, onUpload }: {
       {element.type === 'button' && <ButtonActionControls element={element} pages={pages} changeContent={changeContent} />}
 
       {element.type === 'form' && <div className="space-y-3 rounded-xl border border-black/15 bg-neutral-50 p-3"><label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Submit to<select value={String(element.content.endpoint || 'contact')} onChange={(event) => changeContent('endpoint', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs font-normal normal-case text-black"><option value="contact">Launchly contact inbox</option><option value="newsletter">Newsletter subscribers</option><option value="custom">Custom API endpoint</option></select></label>{element.content.endpoint === 'custom' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">API URL<input type="url" value={String(element.content.apiUrl || '')} onChange={(event) => changeContent('apiUrl', event.target.value)} placeholder="https://api.example.com/lead" className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal normal-case text-black"/><span className="mt-1 block font-normal normal-case">Submissions are sent from the visitor’s browser as JSON. Don’t put secret API keys here.</span></label>}<p className="font-mono text-[10px] font-black uppercase">Form fields</p>{formFields.map((field) => <div key={field.id} className="space-y-2 rounded-lg border border-black/15 bg-white p-2"><input aria-label="Field label" value={field.label} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, label: event.target.value }))} placeholder="Label" className="w-full rounded border px-2 py-1.5 text-xs"/><div className="grid grid-cols-2 gap-2"><input aria-label="Field key" value={field.name} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, name: event.target.value.replace(/[^a-zA-Z0-9_]/g, '_') }))} placeholder="API field key" className="min-w-0 rounded border px-2 py-1.5 font-mono text-[10px]"/><select aria-label="Field type" value={field.type} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, type: event.target.value as FormField['type'] }))} className="min-w-0 rounded border bg-white px-2 py-1.5 text-[10px]"><option value="text">Text</option><option value="email">Email</option><option value="tel">Phone</option><option value="textarea">Long text</option><option value="select">Select</option><option value="radio">Radio</option><option value="checkbox">Checkbox</option><option value="date">Date</option><option value="number">Number</option><option value="file">File</option><option value="rating">Rating</option><option value="hidden">Hidden</option></select></div><input aria-label="Placeholder" value={field.placeholder} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, placeholder: event.target.value }))} placeholder="Placeholder" className="w-full rounded border px-2 py-1.5 text-xs"/>{["select", "radio"].includes(field.type) && <textarea aria-label="Form field options" value={(field.options || []).join("\n")} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, options: event.target.value.split(/\r?\n/).filter((value) => value.trim()) }))} placeholder="One option per line" rows={3} className="w-full rounded border px-2 py-1.5 text-xs"/>}<div className="flex items-center justify-between"><label className="flex items-center gap-1 text-[10px]"><input type="checkbox" checked={field.required} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, required: event.target.checked }))}/>Required</label><button type="button" onClick={() => changeContent('fields', formFields.filter((entry) => entry.id !== field.id))} className="text-[10px] font-bold text-red-700">Remove</button></div></div>)}<button type="button" onClick={addFormField} className="w-full rounded-lg border-2 border-black bg-white px-3 py-2 font-mono text-xs font-bold">+ Add field</button><label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Success message<input value={String(element.content.successMessage || '')} onChange={(event) => changeContent('successMessage', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black"/></label></div>}
-      {element.type === 'image' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Alt text<input value={String(element.content.alt || '')} onChange={(event) => changeContent('alt', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
+       {['image', 'image-caption'].includes(element.type) && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Alt text<input value={String(element.content.alt || '')} onChange={(event) => changeContent('alt', event.target.value)} placeholder="Describe the image" className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
       {['card', 'block'].includes(element.type) && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Description<textarea rows={4} value={String(element.content.description || '')} onChange={(event) => changeContent('description', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
       {element.type === 'block' && <WidgetSpecificProperties element={element} pages={pages} changeContent={changeContent} />}
       {['list', 'numbered-list'].includes(element.type) && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">List items<textarea rows={6} value={(Array.isArray(element.content.items) ? element.content.items : []).map(String).join('\n')} onChange={(event) => changeContent('items', event.target.value.split(/\r?\n/).filter((item) => item.trim()))} placeholder="One item per line" className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
@@ -2052,6 +2034,14 @@ function TreeElementProperties({ element, pages, device, onChange, onUpload }: {
     {tab === 'style' && <div className="space-y-3">
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Text color<input type="color" value={effectiveStyle.color || '#111111'} onChange={(event) => changeStyle('color', event.target.value)} className="mt-1 h-9 w-full rounded border-2 border-black" /></label>
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Background<input type="color" value={effectiveStyle.backgroundColor || '#ffffff'} onChange={(event) => changeStyle('backgroundColor', event.target.value)} className="mt-1 h-9 w-full rounded border-2 border-black" /></label>
+       <div className="space-y-2 rounded-lg border-2 border-black/15 bg-neutral-50 p-2">
+         <p className="font-mono text-[9px] font-black uppercase text-neutral-500">Gradient and surface</p>
+         <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Background fill<select value={effectiveStyle.gradientType || 'solid'} onChange={(event) => { const value = event.target.value; if (value === 'solid') { changeStyle('gradientType', undefined); changeStyle('gradientStops', undefined); } else { changeStyle('gradientType', value as 'linear' | 'radial' | 'conic'); changeStyle('gradientAngle', effectiveStyle.gradientAngle || 135); changeStyle('gradientStops', gradientStops); } }} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs text-black"><option value="solid">Solid color</option><option value="linear">Linear gradient</option><option value="radial">Radial gradient</option><option value="conic">Conic gradient</option></select></label>
+         {effectiveStyle.gradientType && <><div className="grid grid-cols-2 gap-2">{[0, 1].map((index) => <label key={index} className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Stop {index + 1}<input type="color" value={gradientStops[index]?.color || '#ffffff'} onChange={(event) => updateGradientStop(index, { color: event.target.value })} className="mt-1 h-8 w-full rounded border border-black" /></label>)}</div><label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Angle ({Number(effectiveStyle.gradientAngle || 135)}°)<input type="range" min="0" max="360" value={Number(effectiveStyle.gradientAngle || 135)} onChange={(event) => changeStyle('gradientAngle', Number(event.target.value))} className="mt-1 w-full accent-pink" /></label></>}
+         <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Blur ({blurAmount}px)<input type="range" min="0" max="24" value={blurAmount} onChange={(event) => { const value = Number(event.target.value); changeStyle('filter', value ? `blur(${value}px)` : undefined); }} className="mt-1 w-full accent-pink" /></label>
+         <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Shadow<select value={effectiveStyle.boxShadow || ''} onChange={(event) => changeStyle('boxShadow', event.target.value || undefined)} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs text-black"><option value="">None</option><option value="0 8px 24px rgba(17,24,39,.14)">Soft</option><option value="4px 4px 0 #000000">Hard</option><option value="0 0 28px rgba(236,72,153,.45)">Glow</option></select></label>
+         <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Shape<select value={effectiveStyle.clipPath || ''} onChange={(event) => changeStyle('clipPath', event.target.value || undefined)} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs text-black"><option value="">Rectangle</option><option value="ellipse(48% 50% at 50% 50%)">Ellipse</option><option value="polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)">Blob</option><option value="polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)">Diamond</option><option value="polygon(0 0, 100% 0, 86% 100%, 14% 100%)">Arch</option></select></label>
+       </div>
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Font size (px)<input type="number" min="8" max="128" value={effectiveStyle.fontSize || 16} onChange={(event) => changeStyle('fontSize', Math.max(8, Math.min(128, Number(event.target.value) || 16)))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label>
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Font family<select value={effectiveStyle.fontFamily || ''} onChange={(event) => changeStyle('fontFamily', event.target.value || undefined)} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs text-black"><option value="">Theme default</option><option value="Inter, sans-serif">Inter</option><option value="Arial, sans-serif">Arial</option><option value="Georgia, serif">Georgia</option><option value="'Courier New', monospace">Monospace</option><option value="system-ui, sans-serif">System</option></select></label>
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Font weight<select value={effectiveStyle.fontWeight || 400} onChange={(event) => changeStyle('fontWeight', Number(event.target.value))} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs text-black">{[300,400,500,600,700,800,900].map((weight) => <option key={weight} value={weight}>{weight}</option>)}</select></label>
@@ -2162,6 +2152,13 @@ function SectionRenderer({
   const navBrand = textValue(sectionContent.brandLabel, siteTitle) || siteTitle;
   const navCtaLabel = textValue(sectionContent.ctaLabel, isStorefront ? 'Bag' : 'Get Started');
   const navCtaTarget = textValue(sectionContent.ctaTarget, isStorefront ? '#collection' : '#collection');
+  const navLogoUrl = textValue(sectionContent.logoUrl, logoUrl);
+  const navCtaVariant = textValue(sectionContent.ctaVariant, 'solid');
+  const navCtaStyle: React.CSSProperties = navCtaVariant === 'outline'
+    ? { backgroundColor: 'transparent', borderColor: theme.primaryColor, color: theme.primaryColor, borderRadius: theme.buttonStyle === 'pill' ? '9999px' : theme.borderRadius }
+    : navCtaVariant === 'ghost'
+      ? { backgroundColor: 'transparent', borderColor: 'transparent', color: isVoltGear ? '#F5F7FA' : theme.textColor, boxShadow: 'none' }
+      : themedButtonStyle;
   const updateBlockItem = (index: number, key: string, value: unknown) => onUpdateSectionContent(section.id, { ...sectionContent, items: blockItems.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) });
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -2246,14 +2243,14 @@ function SectionRenderer({
       )}
       onClick={() => { if (!section.locked) onSelect(); }}
     >
-      {section.type === 'custom' && <TreeSectionRenderer sectionId={section.id} columns={section.columns || []} pages={sitePages} device={deviceMode} selectedElementId={selectedTreeElementId} onSelectElement={onSelectTreeElement} onUpdateElement={onUpdateTreeElement} onResizeColumn={onResizeTreeColumn} onDuplicateElement={onDuplicateTreeElement} onDeleteElement={onDeleteTreeElement} />}
+      {section.type === 'custom' && <TreeSectionRenderer sectionId={section.id} columns={section.columns || []} pages={sitePages} device={deviceMode} selectedElementId={selectedTreeElementId} onSelectElement={onSelectTreeElement} onUpdateElement={onUpdateTreeElement} onResizeColumn={onResizeTreeColumn} onDuplicateElement={onDuplicateTreeElement} onDeleteElement={onDeleteTreeElement} onNavigatePage={onNavigatePage} />}
 
       {/* Navigation Block */}
       {section.type === 'nav' && (
         <>
         <nav style={{ backgroundColor: isFreshCrate ? '#FFF8EC' : isVoltGear ? '#0B0D12' : undefined }} className={cn('flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 backdrop-blur-sm', isVoltGear ? 'border-white/10' : 'border-black/10', sectionContent.sticky === true && 'sticky top-0 z-40')}>
           <div className="flex items-center gap-2">
-            {sectionContent.showLogo !== false && (logoUrl ? <NextImage src={logoUrl} alt={textValue(sectionContent.logoAlt, `${navBrand} logo`)} width={32} height={32} unoptimized className="h-8 w-8 rounded-lg object-contain" /> : <div
+            {sectionContent.showLogo !== false && (navLogoUrl ? <NextImage src={navLogoUrl} alt={textValue(sectionContent.logoAlt, `${navBrand} logo`)} width={32} height={32} unoptimized className="h-8 w-8 rounded-lg object-contain" /> : <div
               style={{ backgroundColor: theme.primaryColor }}
               className="w-7 h-7 rounded-lg border-2 border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-display font-black text-xs text-black"
             >
@@ -2273,17 +2270,20 @@ function SectionRenderer({
           </div>
           {sectionContent.showMenu !== false && <button type="button" aria-expanded={mobileMenuOpen} aria-label="Toggle site navigation" onClick={(event) => { event.stopPropagation(); setMobileMenuOpen((open) => !open); }} className="sm:hidden rounded-lg border border-black px-2 py-1 font-mono text-xs font-bold">{mobileMenuOpen ? textValue(sectionContent.mobileCloseLabel, 'Close') : textValue(sectionContent.mobileMenuLabel, 'Menu')}</button>}
 
-          <button
+          {sectionContent.showCta !== false && <button
             type="button"
+            contentEditable
+            suppressContentEditableWarning
             onClick={(event) => {
               event.stopPropagation();
               activateEditorLink(event, navCtaTarget, sectionContent.ctaNewTab === true);
             }}
-            style={themedButtonStyle}
+            onInput={(event) => onUpdateSectionContent(section.id, { ...sectionContent, ctaLabel: event.currentTarget.innerText })}
+            style={navCtaStyle}
             className="px-3 sm:px-4 py-1.5 rounded-xl border-2 border-black font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
             {navCtaLabel}
-          </button>
+          </button>}
         </nav>
         {mobileMenuOpen && <nav aria-label="Mobile navigation" className="sm:hidden max-h-[65vh] overflow-y-auto border-b-2 border-black bg-white px-4 py-3"><div className="flex flex-col gap-3 font-mono text-xs font-bold">{menuItems.map(renderMenuItem)}</div></nav>}
         </>
@@ -2564,8 +2564,6 @@ function SectionProperties({
   sectionId,
   sections,
   theme,
-  isPro,
-  onUpgrade,
   setSectionStyle,
   setSectionContent,
   onUploadImage,
@@ -2576,8 +2574,6 @@ function SectionProperties({
   sectionId: string;
   sections: Section[];
   theme: Theme;
-  isPro: boolean;
-  onUpgrade: (feature: string) => void;
   setSectionStyle: (style: Partial<SectionStyle>) => void;
   setSectionContent: (content: Record<string, unknown>) => void;
   onUploadImage: (file?: File, itemIndex?: number) => void;
@@ -2618,9 +2614,11 @@ function SectionProperties({
           <div className="mt-2 space-y-2">
             <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">Brand label<input value={typeof content.brandLabel === 'string' ? content.brandLabel : ''} onChange={(event) => updateContent('brandLabel', event.target.value)} placeholder="Uses website name" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label>
             <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">Brand tagline<input value={typeof content.brandTagline === 'string' ? content.brandTagline : ''} onChange={(event) => updateContent('brandTagline', event.target.value)} placeholder="Optional short tagline" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label>
+            <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">Logo image URL<input type="url" value={typeof content.logoUrl === 'string' ? content.logoUrl : ''} onChange={(event) => updateContent('logoUrl', event.target.value)} placeholder="Uses the site logo when empty" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label>
             <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">Logo alt text<input value={typeof content.logoAlt === 'string' ? content.logoAlt : ''} onChange={(event) => updateContent('logoAlt', event.target.value)} placeholder="Accessible logo description" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label>
             <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">CTA label<input value={typeof content.ctaLabel === 'string' ? content.ctaLabel : ''} onChange={(event) => updateContent('ctaLabel', event.target.value)} placeholder="Get started or Bag" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label>
             <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">CTA destination<input value={typeof content.ctaTarget === 'string' ? content.ctaTarget : ''} onChange={(event) => updateContent('ctaTarget', event.target.value)} placeholder="#collection, /contact, or https://…" className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-sans text-xs font-normal normal-case" /></label>
+            <div className="grid grid-cols-2 gap-2"><label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">CTA style<select value={typeof content.ctaVariant === 'string' ? content.ctaVariant : 'solid'} onChange={(event) => updateContent('ctaVariant', event.target.value)} className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-mono text-xs font-normal normal-case"><option value="solid">Solid</option><option value="outline">Outline</option><option value="ghost">Ghost</option></select></label><label className="flex items-end gap-2 pb-1 font-mono text-[9px] font-bold uppercase"><input type="checkbox" checked={content.showCta !== false} onChange={(event) => updateContent('showCta', event.target.checked)} />Show CTA</label></div>
             <label className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase"><input type="checkbox" checked={content.ctaNewTab === true} onChange={(event) => updateContent('ctaNewTab', event.target.checked)} />Open CTA in new tab</label>
             <label className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase"><input type="checkbox" checked={content.showLogo !== false} onChange={(event) => updateContent('showLogo', event.target.checked)} />Show logo</label>
             <label className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase"><input type="checkbox" checked={content.showMenu !== false} onChange={(event) => updateContent('showMenu', event.target.checked)} />Show navigation links</label>
@@ -2724,9 +2722,9 @@ function SectionProperties({
         <p className="font-mono text-[10px] font-black uppercase text-neutral-500">Advanced</p>
         <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Section animation<select value={section.style?.animation || ''} onChange={(event) => setSectionStyle({ animation: event.target.value || undefined })} className="mt-1 w-full rounded-lg border border-black/30 bg-white px-2 py-1.5 font-mono text-xs font-normal normal-case text-black"><option value="">None</option><option value="fade-in">Fade in</option><option value="slide-up">Slide up</option><option value="slide-left">Slide in from left</option><option value="zoom-in">Zoom in</option><option value="float">Float</option><option value="pulse">Pulse</option></select></label>
         <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Anchor ID<input value={section.anchorId || ''} onChange={(event) => setSectionSettings({ anchorId: event.target.value || undefined })} placeholder={section.id} className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-mono text-xs font-normal normal-case text-black" /></label>
-        {isPro ? <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Custom class<input value={section.customClass || ''} onChange={(event) => setSectionSettings({ customClass: event.target.value || undefined })} placeholder="my-section" className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-mono text-xs font-normal normal-case text-black" /></label> : <button type="button" onClick={() => onUpgrade('Custom CSS classes')} className="w-full rounded-lg border border-dashed border-black/40 bg-neutral-50 py-2 font-mono text-[10px] font-bold">Custom CSS class · Pro</button>}
+        <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Custom class<input value={section.customClass || ''} onChange={(event) => setSectionSettings({ customClass: event.target.value || undefined })} placeholder="my-section" className="mt-1 w-full rounded-lg border border-black/30 px-2 py-1.5 font-mono text-xs font-normal normal-case text-black" /></label>
         <p className="font-mono text-[9px] font-bold uppercase text-neutral-500">Hide on device</p>
-        {isPro ? <div className="flex flex-wrap gap-3 font-mono text-[10px]">{(['desktop', 'tablet', 'mobile'] as const).map((device) => <label key={device} className="flex items-center gap-1"><input type="checkbox" checked={section.hidden?.[device] || false} onChange={(event) => setSectionSettings({ hidden: { ...section.hidden, [device]: event.target.checked } })}/>{device}</label>)}</div> : <button type="button" onClick={() => onUpgrade('Per-device visibility')} className="w-full rounded-lg border border-dashed border-black/40 bg-neutral-50 py-2 font-mono text-[10px] font-bold">Desktop, tablet, and mobile visibility · Pro</button>}
+        <div className="flex flex-wrap gap-3 font-mono text-[10px]">{(['desktop', 'tablet', 'mobile'] as const).map((device) => <label key={device} className="flex items-center gap-1"><input type="checkbox" checked={section.hidden?.[device] || false} onChange={(event) => setSectionSettings({ hidden: { ...section.hidden, [device]: event.target.checked } })}/>{device}</label>)}</div>
         <button type="button" onClick={() => setSectionSettings({ locked: !section.locked })} className="w-full rounded-lg border border-black py-1.5 font-mono text-[10px] font-bold">{section.locked ? 'Unlock block' : 'Lock block'}</button>
       </div>
     </div>
