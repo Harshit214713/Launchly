@@ -374,6 +374,9 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and s
 ---
 
 <a id="license"></a>
+
 ## License
 
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for complete details.
+
+---
