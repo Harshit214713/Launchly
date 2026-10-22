@@ -15,7 +15,7 @@ import {
   SlidersHorizontal, Layout, Download, ZoomIn, ZoomOut,
   ArrowUp, ArrowDown, Heart, Sparkles, Camera, CheckCircle2, History as HistoryIcon
 } from 'lucide-react';
-import { getTemplateById, TEMPLATES } from '@/lib/templates';
+import { DEFAULT_TEMPLATE, getTemplateById } from '@/lib/templates';
 import { cn } from '@/lib/utils';
 import { exportTemplateAsZip } from '@/lib/zipExport';
 import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/contrast';
@@ -64,13 +64,11 @@ type CanvasElement = { id: string; type: 'image' | 'icon'; name: string; src?: s
 const DEFAULT_SPACING: SectionSpacing = { top: 0, bottom: 0, left: 0, right: 0 };
 
 const DEFAULT_SECTIONS: Section[] = [
-  { id: 'nav', name: 'Navigation', type: 'nav' },
-  { id: 'hero', name: 'Hero', type: 'hero' },
-  { id: 'gallery', name: 'Featured Products', type: 'gallery' },
-  { id: 'features', name: 'Features', type: 'features' },
-  { id: 'testimonials', name: 'Testimonials', type: 'testimonials' },
-  { id: 'cta', name: 'Call to Action', type: 'cta' },
-  { id: 'footer', name: 'Footer', type: 'footer' },
+  { id: 'nav', name: 'Navigation', type: 'nav', content: { brandLabel: 'My Website', showLogo: true } },
+  { id: 'hero', name: 'Hero', type: 'hero', content: { title: 'Build something remarkable.', desc: 'Start with a clear message and make this space your own.', buttonText: 'Get started', buttonHref: '#contact' } },
+  { id: 'features', name: 'Features', type: 'features', content: { title: 'Why choose us', items: [{ title: 'Thoughtful design', desc: 'Share what makes your work different.' }, { title: 'Made for your audience', desc: 'Explain the value visitors can expect.' }, { title: 'Ready to grow', desc: 'Give people a clear next step.' }] } },
+  { id: 'cta', name: 'Call to Action', type: 'cta', content: { title: 'Ready to get started?', desc: 'Tell visitors what to do next.', buttonText: 'Contact us', buttonHref: '#contact' } },
+  { id: 'footer', name: 'Footer', type: 'footer', content: { brandLabel: 'My Website' } },
 ];
 const PALETTE_ELEMENT_TYPES: Record<string, SiteElement['type']> = {
   'free:quote': 'quote', 'free:numbered-list': 'numbered-list', 'free:badge': 'badge', 'free:text-link': 'button',
@@ -196,7 +194,11 @@ const removeDuplicateTemplateParts = <T extends { type: string }>(items: T[]): T
 
 export default function EditorPage({ params }: { params: Promise<{ templateId: string }> }) {
   const { templateId } = use(params);
-  const template = getTemplateById(templateId) || TEMPLATES[0];
+  const template = getTemplateById(templateId) || {
+    ...DEFAULT_TEMPLATE,
+    id: templateId,
+    name: templateId.startsWith('blank-') ? `My Website ${templateId.slice(-4)}` : DEFAULT_TEMPLATE.name,
+  };
   const isFreshCrate = template.id === 'fresh-crate';
   const isVoltGear = template.id === 'volt-gear';
   const storefrontPages = useMemo(() => isFreshCrate || isVoltGear ? createStorefrontPages(template.id, template.pages, template.products || []) : null, [isFreshCrate, isVoltGear, template.id, template.pages, template.products]);
@@ -257,7 +259,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     primaryColor: template.accent || '#FF5588',
     secondaryColor: '#111111',
     bgColor: template.bgColor || '#0F0F11',
-    surfaceColor: '#FFFFFF',
+    surfaceColor: isVoltGear ? '#151923' : '#FFFFFF',
     textColor: template.textColor || '#FFFFFF',
     mutedColor: '#737373',
     fontFamily: isFreshCrate ? 'DM Sans, sans-serif' : 'Inter, sans-serif',
@@ -266,9 +268,20 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     borderRadius: '16px',
     buttonStyle: 'solid',
     spacingScale: 1,
-    darkMode: false,
+    darkMode: isVoltGear,
   });
-  const setThemeMode = (darkMode: boolean) => setTheme((current) => ({ ...current, darkMode, bgColor: darkMode ? '#111111' : '#FFFFFF', textColor: darkMode ? '#FFFFFF' : '#111111', surfaceColor: darkMode ? '#1F1F1F' : '#FFFFFF' }));
+  const setThemeMode = (darkMode: boolean) => setTheme((current) => ({
+    ...current,
+    darkMode,
+    bgColor: darkMode
+      ? isFreshCrate ? '#172018' : '#0B0D12'
+      : isFreshCrate ? '#FFF8EC' : '#F5F7FA',
+    textColor: darkMode ? '#F5F7FA' : '#1F2937',
+    surfaceColor: darkMode
+      ? isFreshCrate ? '#202B21' : '#151923'
+      : '#FFFFFF',
+    mutedColor: darkMode ? '#A1A1AA' : '#64748B',
+  }));
   const [siteTitle, setSiteTitle] = useState(template.name || 'My Website');
   const [assetUrl, setAssetUrl] = useState('');
 
@@ -375,6 +388,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       const timer = window.setTimeout(() => setSaveNotice({ tone: 'warning', message: 'Saved locally · server unavailable' }), 0);
       return () => window.clearTimeout(timer);
     }
+    if (saveStatus === 'error') {
+      const timer = window.setTimeout(() => setSaveNotice({ tone: 'error', message: 'Could not save your changes. Check storage and try again.' }), 0);
+      return () => window.clearTimeout(timer);
+    }
     return undefined;
   }, [saveStatus]);
   // Guard ref: prevents the sync useEffect from re-committing to the store during undo/redo restoration
@@ -400,6 +417,41 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [isHistoryReady, setHistoryReady] = useState(false);
   const [serverDraftReady, setServerDraftReady] = useState(false);
   // Draft restoration is an external-storage synchronization on mount.
+  const persistDocument = useCallback(async (document: SiteDocument) => {
+    let localSaved = false;
+    let serverSaved = false;
+    try {
+      await saveEditorDraft(template.id, document);
+      localSaved = true;
+    } catch (error) {
+      console.error('Local editor draft save failed:', error);
+    }
+    if (isAuthenticated) {
+      try {
+        const response = await fetch('/api/sites/draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ document }),
+        });
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({})) as { message?: string };
+          throw new Error(result.message || `Draft server returned ${response.status}.`);
+        }
+        serverSaved = true;
+      } catch (error) {
+        console.error('Server editor draft save failed:', error);
+      }
+    }
+    const status = serverSaved ? 'saved' : localSaved ? 'offline' : 'error';
+    if (JSON.stringify(editorStore.getState().document) === JSON.stringify(document)) {
+      editorStore.getState().setSaveStatus(status, status === 'error' ? undefined : new Date().toISOString());
+    }
+    if (status === 'error') {
+      setSaveNotice({ tone: 'error', message: 'Could not save your changes. Check storage and try again.' });
+    }
+    return status !== 'error';
+  }, [editorStore, isAuthenticated, template.id]);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -466,22 +518,16 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       const currentDocument = editorStore.getState().document;
       const latestVersion = editorStore.getState().versions.at(-1);
       if (!latestVersion || (Date.now() - Date.parse(latestVersion.createdAt) > 5 * 60 * 1000 && JSON.stringify(latestVersion.document) !== JSON.stringify(currentDocument))) {
-        editorStore.getState().captureVersion('Autosave');
-        void saveEditorVersions(template.id, editorStore.getState().versions);
+        editorStore.getState().captureVersion('Autosave', currentDocument);
+        void saveEditorVersions(template.id, editorStore.getState().versions).then((saved) => {
+          if (!saved) console.error('Could not persist editor version history locally.');
+        });
       }
       editorStore.getState().setSaveStatus('saving');
-      await saveEditorDraft(template.id, currentDocument);
-      if (!isAuthenticated) {
-        editorStore.getState().setSaveStatus('saved', new Date().toISOString());
-        return;
-      }
-      try {
-        const response = await fetch('/api/sites/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document: currentDocument }) });
-        editorStore.getState().setSaveStatus(response.ok ? 'saved' : 'offline', new Date().toISOString());
-      } catch { editorStore.getState().setSaveStatus('offline'); }
+      void persistDocument(currentDocument);
     }, 1500);
     return () => window.clearTimeout(timer);
-  }, [editorDocument, isHistoryReady, serverDraftReady, editorStore, template.id, isAuthenticated]);
+  }, [editorDocument, isHistoryReady, serverDraftReady, editorStore, template.id, persistDocument]);
   const applyDocumentToEditor = useCallback((document: SiteDocument, requestedPageId = activePageId) => {
     const page = document.pages.find((entry) => entry.id === requestedPageId) || document.pages.find((entry) => entry.isHome) || document.pages[0];
     if (!page) return;
@@ -718,14 +764,16 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     setSaving(true);
     editorStore.getState().setSaveStatus('saving');
     try {
-      await saveEditorDraft(template.id, editorStore.getState().document);
-      const response = isAuthenticated ? await fetch('/api/sites/draft', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ document: editorStore.getState().document }) }) : null;
-      editorStore.getState().setSaveStatus(!response || response.ok ? 'saved' : 'offline', new Date().toISOString());
-      editorStore.getState().captureVersion('Manual save');
-      await saveEditorVersions(template.id, editorStore.getState().versions);
-    } catch { editorStore.getState().setSaveStatus('offline'); }
-    await new Promise(r => setTimeout(r, 600));
-    setSaving(false);
+      const document = editorStore.getState().document;
+      const saved = await persistDocument(document);
+      if (saved) {
+        editorStore.getState().captureVersion('Manual save', document);
+        const versionsSaved = await saveEditorVersions(template.id, editorStore.getState().versions);
+        if (!versionsSaved) console.error('Draft saved, but version history could not be persisted locally.');
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleAiGenerate = async (promptToUse?: string) => {
@@ -1400,9 +1448,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 <section className="rounded-xl border-2 border-black bg-white p-3 shadow-[2px_2px_0_#000]" aria-labelledby="save-status-heading">
                   <div className="flex items-center justify-between gap-2">
                     <h2 id="save-status-heading" className="font-mono text-[10px] font-black uppercase">Save status</h2>
-                    <span className={`h-2.5 w-2.5 rounded-full ${saveStatus === 'saved' ? 'bg-green-500' : saveStatus === 'offline' ? 'bg-red-500' : saveStatus === 'saving' ? 'animate-pulse bg-yellow-500' : 'bg-pink'}`} aria-hidden="true" />
+                    <span className={`h-2.5 w-2.5 rounded-full ${saveStatus === 'saved' ? 'bg-green-500' : saveStatus === 'offline' || saveStatus === 'error' ? 'bg-red-500' : saveStatus === 'saving' ? 'animate-pulse bg-yellow-500' : 'bg-pink'}`} aria-hidden="true" />
                   </div>
-                  <p className="mt-1 font-mono text-xs font-bold" role="status" aria-live="polite">{saveStatus === 'saved' ? 'All changes saved' : saveStatus === 'saving' ? 'Saving your changes…' : saveStatus === 'offline' ? 'Offline · local copy saved' : 'Unsaved changes'}</p>
+                  <p className="mt-1 font-mono text-xs font-bold" role="status" aria-live="polite">{saveStatus === 'saved' ? 'All changes saved' : saveStatus === 'saving' ? 'Saving your changes…' : saveStatus === 'offline' ? 'Offline · local copy saved' : saveStatus === 'error' ? 'Save failed · no copy confirmed' : 'Unsaved changes'}</p>
                   {lastSavedAt && <p className="mt-1 font-mono text-[9px] text-neutral-500">Last saved {new Date(lastSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>}
                   <button type="button" onClick={() => { void handleSave(); }} disabled={saving} className="mt-3 w-full rounded-lg border-2 border-black bg-yellow px-3 py-2 font-mono text-[10px] font-bold disabled:opacity-50">{saving ? 'Saving…' : 'Save now'}</button>
                 </section>
@@ -2117,6 +2165,7 @@ function ElementContentFields({ value, onChange }: { value: Record<string, unkno
 function TreeElementProperties({ element, pages, device, onChange, onUpload }: { element: SiteElement; pages: SiteDocument['pages']; device: DeviceMode; onChange: (update: (element: SiteElement) => SiteElement) => void; onUpload: (file?: File) => void }) {
   const [tab, setTab] = useState<'content' | 'style' | 'interactions' | 'advanced'>('content');
   const changeContent = (key: string, value: unknown) => onChange((current) => ({ ...current, content: { ...current.content, [key]: value } }));
+  const changeA11y = (key: keyof NonNullable<SiteElement['a11y']>, value: NonNullable<SiteElement['a11y']>[keyof NonNullable<SiteElement['a11y']>]) => onChange((current) => ({ ...current, a11y: { ...current.a11y, [key]: value } }));
   const effectiveStyle = { ...element.style, ...(device === 'desktop' ? {} : element.responsive?.[device]) };
   const changeStyle = (key: keyof SiteElement['style'], value: SiteElement['style'][keyof SiteElement['style']]) => onChange((current) => device === 'desktop' ? ({ ...current, style: { ...current.style, [key]: value } }) : ({ ...current, responsive: { ...current.responsive, [device]: { ...current.responsive?.[device], [key]: value } } }));
   const gradientStops = effectiveStyle.gradientStops?.length ? effectiveStyle.gradientStops : [{ color: effectiveStyle.backgroundColor || '#ffffff', position: 0 }, { color: '#f9a8d4', position: 100 }];
@@ -2188,6 +2237,19 @@ function TreeElementProperties({ element, pages, device, onChange, onUpload }: {
     {tab === 'advanced' && <div className="space-y-3">
       <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Anchor ID<input value={element.anchorId || ''} onChange={(event) => onChange((current) => ({ ...current, anchorId: event.target.value || undefined }))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal normal-case text-black" /></label>
       {<label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Custom class<input value={element.customClass || ''} onChange={(event) => onChange((current) => ({ ...current, customClass: event.target.value || undefined }))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal normal-case text-black" /></label>}
+      <details open className="space-y-2 rounded-xl border-2 border-black/20 bg-white p-3">
+        <summary className="cursor-pointer font-mono text-[10px] font-black uppercase">Accessibility and semantics</summary>
+        {['image', 'icon', 'image-caption'].includes(element.type) && <label className="mt-2 block font-mono text-[9px] font-bold uppercase text-neutral-500">Alternative text<input value={element.a11y?.alt || String(element.content.alt || '')} onChange={(event) => { changeA11y('alt', event.target.value); changeContent('alt', event.target.value); }} placeholder="Describe this media" className="mt-1 w-full rounded border border-black/25 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /></label>}
+        <label className="mt-2 block font-mono text-[9px] font-bold uppercase text-neutral-500">Accessible label<input value={element.a11y?.ariaLabel || ''} onChange={(event) => changeA11y('ariaLabel', event.target.value || undefined)} placeholder="What should assistive technology announce?" className="mt-1 w-full rounded border border-black/25 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /></label>
+        <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Accessible title<input value={element.a11y?.title || ''} onChange={(event) => changeA11y('title', event.target.value || undefined)} className="mt-1 w-full rounded border border-black/25 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /></label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Semantic role<input value={element.a11y?.role || ''} onChange={(event) => changeA11y('role', event.target.value || undefined)} placeholder="region" className="mt-1 w-full rounded border border-black/25 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /></label>
+          <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Language<input value={element.a11y?.lang || ''} onChange={(event) => changeA11y('lang', event.target.value || undefined)} placeholder="en" className="mt-1 w-full rounded border border-black/25 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" /></label>
+          <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Tab order<input type="number" min="-1" max="32767" value={element.a11y?.tabIndex ?? ''} onChange={(event) => changeA11y('tabIndex', event.target.value === '' ? undefined : Number(event.target.value))} className="mt-1 w-full rounded border border-black/25 px-2 py-1.5 font-mono text-xs font-normal text-black" /></label>
+          <label className="block font-mono text-[9px] font-bold uppercase text-neutral-500">Live announcements<select value={element.a11y?.ariaLive || 'off'} onChange={(event) => changeA11y('ariaLive', event.target.value as NonNullable<SiteElement['a11y']>['ariaLive'])} className="mt-1 w-full rounded border border-black/25 bg-white px-2 py-1.5 font-mono text-xs"><option value="off">Off</option><option value="polite">Polite</option><option value="assertive">Assertive</option></select></label>
+        </div>
+        <label className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase text-neutral-600"><input type="checkbox" checked={Boolean(element.a11y?.ariaHidden)} onChange={(event) => changeA11y('ariaHidden', event.target.checked || undefined)} />Hide from assistive technology</label>
+      </details>
       {<div className="space-y-2 rounded-lg border border-black/15 p-2"><p className="font-mono text-[9px] font-bold uppercase text-neutral-500">Position and stacking</p><label className="block text-[10px] font-bold">Position<select value={effectiveStyle.position || 'static'} onChange={(event) => changeStyle('position', event.target.value as NonNullable<SiteElement['style']['position']>)} className="mt-1 w-full rounded border bg-white px-2 py-1.5"><option value="static">In flow</option><option value="relative">Relative</option><option value="absolute">Absolute</option><option value="sticky">Sticky</option></select></label>{effectiveStyle.position && effectiveStyle.position !== 'static' && <div className="grid grid-cols-2 gap-2">{(['top', 'right', 'bottom', 'left', 'zIndex'] as const).map((key) => <label key={key} className="text-[9px] font-bold uppercase">{key}<input type="number" value={effectiveStyle[key] || 0} onChange={(event) => changeStyle(key, Number(event.target.value))} className="mt-1 w-full rounded border px-2 py-1.5 font-mono text-xs"/></label>)}</div>}</div>}
       {(['desktop', 'tablet', 'mobile'] as const).map((targetDevice) => <button key={targetDevice} type="button" onClick={() => onChange((current) => ({ ...current, hidden: { ...current.hidden, [targetDevice]: !current.hidden?.[targetDevice] } }))} className={`rounded-lg border-2 border-black px-3 py-2 font-mono text-[10px] font-bold ${element.hidden?.[targetDevice] ? 'bg-pink' : 'bg-white'}`}>{element.hidden?.[targetDevice] ? 'Show' : 'Hide'} {targetDevice}</button>)}
     </div>}
@@ -2274,8 +2336,8 @@ function SectionRenderer({
   const blockItems = Array.isArray(sectionContent.items) ? sectionContent.items as Array<Record<string, unknown>> : [];
   const textValue = (value: unknown, fallback = '') => typeof value === 'string' ? value : fallback;
   const navBrand = textValue(sectionContent.brandLabel, siteTitle) || siteTitle;
-  const navCtaLabel = textValue(sectionContent.ctaLabel, isStorefront ? 'Bag' : 'Get Started');
-  const navCtaTarget = textValue(sectionContent.ctaTarget, isStorefront ? '#collection' : '#collection');
+  const navCtaLabel = textValue(sectionContent.ctaLabel).trim() || (isStorefront ? 'Bag' : 'Get Started');
+  const navCtaTarget = textValue(sectionContent.ctaTarget).trim() || '#collection';
   const navLogoUrl = textValue(sectionContent.logoUrl, logoUrl);
   const navCtaVariant = textValue(sectionContent.ctaVariant, 'solid');
   const navCtaStyle: React.CSSProperties = navCtaVariant === 'outline'
@@ -2372,8 +2434,8 @@ function SectionRenderer({
       {/* Navigation Block */}
       {section.type === 'nav' && (
         <>
-        <nav style={{ backgroundColor: isFreshCrate ? '#FFF8EC' : isVoltGear ? '#0B0D12' : undefined }} className={cn('flex items-center justify-between px-4 sm:px-10 py-3 sm:py-4 border-b-2 backdrop-blur-sm', isVoltGear ? 'border-white/10' : 'border-black/10', sectionContent.sticky === true && 'sticky top-0 z-40')}>
-          <div className="flex items-center gap-2">
+        <nav style={{ backgroundColor: isFreshCrate ? '#FFF8EC' : isVoltGear ? '#0B0D12' : undefined }} className={cn('flex items-center justify-between gap-3 px-4 sm:px-10 py-3 sm:py-4 border-b-2 backdrop-blur-sm', isVoltGear ? 'border-white/10' : 'border-black/10', sectionContent.sticky === true && 'sticky top-0 z-40')}>
+          <div className="flex shrink-0 items-center gap-2">
             {sectionContent.showLogo !== false && (navLogoUrl ? <NextImage src={navLogoUrl} alt={textValue(sectionContent.logoAlt, `${navBrand} logo`)} width={32} height={32} unoptimized className="h-8 w-8 rounded-lg object-contain" /> : <div
               style={{ backgroundColor: theme.primaryColor }}
               className="w-7 h-7 rounded-lg border-2 border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-display font-black text-xs text-black"
@@ -2389,7 +2451,7 @@ function SectionRenderer({
 
           </div>
 
-          <div aria-label="Site pages" className={cn('hidden sm:flex min-w-0 max-w-[62%] items-center gap-4 overflow-x-auto whitespace-nowrap px-1 font-mono text-xs font-bold [scrollbar-width:thin]', isVoltGear ? 'text-white/70' : 'text-neutral-700', (deviceMode === 'mobile' || sectionContent.showMenu === false) && 'hidden')}>
+          <div aria-label="Site pages" className={cn('hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-x-4 gap-y-1 overflow-hidden px-1 font-mono text-xs font-bold sm:flex', isVoltGear ? 'text-white/70' : 'text-neutral-700', (deviceMode === 'mobile' || sectionContent.showMenu === false) && 'hidden')}>
             {menuItems.map(renderMenuItem)}
           </div>
           {sectionContent.showMenu !== false && <button type="button" aria-expanded={mobileMenuOpen} aria-label="Toggle site navigation" onClick={(event) => { event.stopPropagation(); setMobileMenuOpen((open) => !open); }} className="sm:hidden rounded-lg border border-black px-2 py-1 font-mono text-xs font-bold">{mobileMenuOpen ? textValue(sectionContent.mobileCloseLabel, 'Close') : textValue(sectionContent.mobileMenuLabel, 'Menu')}</button>}
@@ -2404,7 +2466,7 @@ function SectionRenderer({
             }}
             onInput={(event) => onUpdateSectionContent(section.id, { ...sectionContent, ctaLabel: event.currentTarget.innerText })}
             style={navCtaStyle}
-            className="px-3 sm:px-4 py-1.5 rounded-xl border-2 border-black font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            className="shrink-0 whitespace-nowrap px-3 sm:px-4 py-1.5 rounded-xl border-2 border-black font-display text-xs font-black text-black shadow-[2px_2px_0px_#000] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
             {navCtaLabel}
           </button>}

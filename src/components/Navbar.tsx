@@ -175,7 +175,7 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="lg:hidden border-t-2 border-black dark:border-[#26283d] bg-[#FAF8F5] dark:bg-[#0c0d16] p-3.5 sm:p-5 animate-in slide-in-from-top-2 fade-in duration-200 transition-colors shadow-2xl">
           <div className="max-w-md mx-auto space-y-2">
-            {/* Nav Card 1: Templates */}
+            {/* Nav Card 1: Start building */}
             <Link
               href="/templates"
               onClick={() => setMobileOpen(false)}

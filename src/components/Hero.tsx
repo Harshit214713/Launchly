@@ -27,7 +27,7 @@ export default function Hero() {
 
         {/* Supporting description - Crisp solid readable text */}
         <p className="mx-auto mt-4 sm:mt-5 max-w-2xl text-sm sm:text-lg md:text-xl font-medium leading-relaxed text-neutral-700 dark:text-[#a0a4be]">
-          Discover world-class templates, customize every pixel visually, and{' '}
+          Start with a complete storefront, customize every detail visually, and{' '}
           <span className="font-bold text-black dark:text-white underline decoration-yellow decoration-4 underline-offset-4">
             publish live to your custom domain
           </span>{' '}
@@ -40,7 +40,7 @@ export default function Hero() {
             href="/templates"
             className="brutal-press group inline-flex min-h-12 sm:min-h-13 items-center justify-center gap-2.5 rounded-2xl border-[3px] border-black dark:border-[#26283d] bg-pink px-7 sm:px-8 font-display text-sm sm:text-base font-black text-black shadow-brutal hover:bg-pink/90"
           >
-            <span>Start building free</span>
+            <span>Explore templates</span>
             <ArrowUpRight className="h-4 w-4 sm:h-4.5 sm:w-4.5 stroke-[3] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </Link>
 

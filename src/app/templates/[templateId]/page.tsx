@@ -20,7 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import { getTemplateById } from '@/lib/templates';
-import { notFound } from 'next/navigation';
+import { redirect } from 'next/navigation';
 
 const COLOR_PALETTES = [
   { name: 'Original', color: '' },
@@ -48,7 +48,7 @@ export default function TemplatePreviewPage({
   const template = getTemplateById(templateId);
 
   if (!template) {
-    notFound();
+    redirect('/editor');
   }
 
   const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');

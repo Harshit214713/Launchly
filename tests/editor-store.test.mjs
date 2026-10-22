@@ -82,6 +82,53 @@ test('page CRUD enforces unique slugs and keeps a home page', () => {
   assert.equal(store.getState().removePage(firstId), true);
 });
 
+test('storefront templates use concise anchor navigation and preserve custom labels', () => {
+  const defaults = createSiteDocument({
+    id: 'fresh-crate',
+    name: 'Fresh Crate',
+    templateId: 'fresh-crate',
+    theme: { primaryColor: '#3FA34D', bgColor: '#fff', textColor: '#111', fontFamily: 'Inter, sans-serif', borderRadius: '16px' },
+    sections: [makeSection('hero', 'hero', 'Hero')],
+    hero: { title: 'Welcome', description: 'Fresh food' },
+    features: [],
+    testimonials: [],
+    cta: { title: 'Shop', desc: '', buttonText: 'Shop' },
+    pages: [
+      { id: 'home', title: 'Fresh Crate', description: '', isHome: true },
+      { id: 'offers', title: 'Good things, gathered together', description: '', showInMenu: true },
+      { id: 'recipes', title: 'Recipes for what is in season', description: '', showInMenu: true },
+    ],
+  });
+  assert.deepEqual(defaults.menu.map((item) => item.label), ['Shop', 'How it works', 'Recipes', 'Our story']);
+
+  const customMenu = defaults.menu.map((item, index) => index === 0
+    ? { ...item, label: 'Browse our harvest' }
+    : item);
+  const current = { ...defaults, menu: customMenu };
+  const projection = { ...defaults, name: 'Fresh Crate Market' };
+  const merged = mergeEditorProjection(current, projection);
+  assert.equal(merged.menu[0].label, 'Browse our harvest');
+});
+
+test('old generated storefront page-title menus migrate to the concise defaults', () => {
+  const defaults = fixture();
+  const oldDocument = {
+    ...defaults,
+    templateId: 'fresh-crate',
+    pages: [
+      { ...defaults.pages[0], title: 'Fresh Crate' },
+      { ...defaults.pages[0], id: 'offers', isHome: false, title: 'Good things, gathered together', showInMenu: true, slug: '/offers' },
+      { ...defaults.pages[0], id: 'recipes', isHome: false, title: 'Recipes for what is in season', showInMenu: true, slug: '/recipes' },
+    ],
+    menu: [
+      { id: 'menu-offers', label: 'Good things, gathered together', target: { type: 'page', value: 'offers' }, newTab: false },
+      { id: 'menu-recipes', label: 'Recipes for what is in season', target: { type: 'page', value: 'recipes' }, newTab: false },
+    ],
+  };
+  const migrated = migrateSiteDocument(oldDocument, defaults);
+  assert.deepEqual(migrated.menu.map((item) => item.label), ['Shop', 'How it works', 'Recipes', 'Our story']);
+});
+
 test('changing the home page preserves both pages and updates navigation targets', () => {
   const store = createEditorStore(fixture());
   const aboutId = store.getState().addPage('About', [makeSection('hero', 'about-hero')]);

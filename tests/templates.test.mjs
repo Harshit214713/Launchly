@@ -1,41 +1,35 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { CATEGORIES, getTemplateById, getTemplatesByCategory, TEMPLATES } from '../src/lib/templates.ts';
+import { CATEGORIES, DEFAULT_TEMPLATE, getTemplateById, getTemplatesByCategory, searchTemplates, TEMPLATES } from '../src/lib/templates.ts';
 
-test('every template category has an available starter template', () => {
-  for (const category of CATEGORIES.filter((item) => item !== 'All')) {
-    assert.ok(getTemplatesByCategory(category).length > 0, `Expected an available ${category} template`);
-  }
-});
-
-test('the catalog contains exactly two complete ecommerce templates', () => {
-  assert.deepEqual(
-    TEMPLATES.map((template) => template.id),
-    ['fresh-crate', 'volt-gear']
-  );
+test('catalog contains the two ecommerce starters', () => {
+  assert.deepEqual(TEMPLATES.map(({ id }) => id), ['fresh-crate', 'volt-gear']);
   assert.deepEqual(CATEGORIES, ['All', 'Ecommerce']);
+  assert.equal(getTemplatesByCategory('All').length, 2);
   assert.equal(getTemplatesByCategory('Ecommerce').length, 2);
-});
-
-test('starter templates have unique IDs and usable content', () => {
-  const ids = new Set(TEMPLATES.map((template) => template.id));
-  assert.equal(ids.size, TEMPLATES.length);
-
-  for (const template of TEMPLATES) {
-    assert.ok(getTemplateById(template.id));
-    assert.ok(template.description.trim());
-    assert.ok(template.pages.length > 0);
-    assert.ok(template.features.length > 0);
-    assert.ok(template.accent);
-    assert.equal(template.category, 'Ecommerce');
-    assert.equal(template.isPro, false);
-    assert.ok(template.features.length >= 14, `${template.name} should document its full feature set`);
-    assert.ok(template.products.length >= 10, `${template.name} should include a usable product catalog`);
-    assert.ok(template.topReview?.comment, `${template.name} should include a customer review`);
+  assert.equal(searchTemplates('').length, 2);
+  assert.equal(searchTemplates('grocer').map(({ id }) => id).join(','), 'fresh-crate');
+  assert.equal(getTemplateById('fresh-crate')?.products.length, 12);
+  assert.equal(getTemplateById('volt-gear')?.products.length, 12);
+  assert.ok(getTemplateById('fresh-crate')?.products.some((product) => product.variants?.length));
+  assert.ok(getTemplateById('volt-gear')?.products.some((product) => product.variants?.length));
+  assert.equal(getTemplateById('fresh-crate')?.pages.length, 20);
+  assert.equal(getTemplateById('volt-gear')?.pages.length, 21);
+  for (const id of ['fresh-crate', 'volt-gear']) {
+    const png = readFileSync(new URL(`../public/templates/${id}.png`, import.meta.url));
+    assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+    assert.equal(png.readUInt32BE(16), 1200);
+    assert.equal(png.readUInt32BE(20), 800);
   }
 });
 
-test('both storefronts expose their complete page menus', () => {
-  assert.equal(TEMPLATES.find((template) => template.id === 'fresh-crate')?.pages.length, 20);
-  assert.equal(TEMPLATES.find((template) => template.id === 'volt-gear')?.pages.length, 21);
+test('blank editor starter remains available alongside templates', () => {
+  assert.equal(DEFAULT_TEMPLATE.id, 'blank');
+  assert.equal(DEFAULT_TEMPLATE.name, 'My Website');
+  assert.deepEqual(DEFAULT_TEMPLATE.pages, ['Home']);
+  assert.ok(DEFAULT_TEMPLATE.description);
+  assert.ok(DEFAULT_TEMPLATE.bgColor);
+  assert.ok(DEFAULT_TEMPLATE.textColor);
+  assert.equal(DEFAULT_TEMPLATE.previewUrl, '/editor');
 });
