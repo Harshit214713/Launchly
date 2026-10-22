@@ -10,126 +10,6 @@ export const CATEGORIES: TemplateCategory[] = [
   'Web3',
   'Media'
 ];
-
-const starterTemplate = ({
-  id,
-  name,
-  category,
-  description,
-  accent,
-  bgColor,
-  textColor,
-  pages,
-  features,
-  tags,
-}: {
-  id: string;
-  name: string;
-  category: Exclude<TemplateCategory, 'All' | 'Ecommerce'>;
-  description: string;
-  accent: string;
-  bgColor: string;
-  textColor: string;
-  pages: string[];
-  features: string[];
-  tags: string[];
-}): Template => ({
-  id,
-  name,
-  category,
-  description,
-  tags: [category.toLowerCase(), ...tags],
-  badge: 'New',
-  isPro: false,
-  previewUrl: `/templates/${id}`,
-  thumbnail: `/templates/${id}.svg`,
-  accent,
-  bgColor,
-  textColor,
-  pages,
-  features,
-  rating: 4.8,
-  reviewsCount: 0,
-  sourceCodeAvailable: true,
-  sourceCodeUrl: `/api/templates/${id}/source`,
-  techStack: ['Next.js 16', 'Tailwind v4', 'TypeScript', 'Zustand'],
-});
-
-const STARTER_TEMPLATES: Template[] = [
-  starterTemplate({
-    id: 'orbit-workspace',
-    name: 'Orbit Workspace',
-    category: 'SaaS',
-    description: 'A polished product site for a team workspace, with clear feature storytelling, plan comparisons, and a focused signup path.',
-    accent: '#7C5CFC',
-    bgColor: '#F7F5FF',
-    textColor: '#211A3C',
-    pages: ['Home', 'Features', 'Pricing', 'Contact'],
-    features: ['Product-led hero and signup call to action', 'Feature overview and customer proof', 'Plan comparison and FAQ starter content', 'Responsive navigation and footer'],
-    tags: ['software', 'product', 'startup'],
-  }),
-  starterTemplate({
-    id: 'promptforge',
-    name: 'PromptForge',
-    category: 'AI',
-    description: 'A confident launch page for an AI product, with space for demos, model capabilities, trust signals, and conversion-focused calls to action.',
-    accent: '#00C9A7',
-    bgColor: '#071A1B',
-    textColor: '#F1FFFC',
-    pages: ['Home', 'Product', 'Pricing', 'Contact'],
-    features: ['AI product introduction and demo call to action', 'Capability cards and workflow steps', 'Trust, privacy, and testimonial sections', 'Pricing and contact page starters'],
-    tags: ['artificial intelligence', 'machine learning', 'product'],
-  }),
-  starterTemplate({
-    id: 'goodside-studio',
-    name: 'Goodside Studio',
-    category: 'Agency',
-    description: 'A welcoming agency site to present services, selected work, a practical process, and a straightforward way to start a project.',
-    accent: '#FF6B4A',
-    bgColor: '#FFF7F1',
-    textColor: '#291B16',
-    pages: ['Home', 'Services', 'Work', 'Contact'],
-    features: ['Agency positioning and inquiry call to action', 'Service and process highlights', 'Selected-work and testimonial sections', 'Contact page starter with clear next steps'],
-    tags: ['creative', 'studio', 'services'],
-  }),
-  starterTemplate({
-    id: 'mira-chen',
-    name: 'Mira Chen',
-    category: 'Portfolio',
-    description: 'A clean personal portfolio for presenting a short biography, selected projects, services, and contact details.',
-    accent: '#F4C542',
-    bgColor: '#FAF9F4',
-    textColor: '#22231F',
-    pages: ['Home', 'Projects', 'About', 'Contact'],
-    features: ['Personal introduction and portfolio hero', 'Project and case-study content areas', 'About and services sections', 'Contact page starter'],
-    tags: ['personal', 'designer', 'creative'],
-  }),
-  starterTemplate({
-    id: 'openledger',
-    name: 'OpenLedger',
-    category: 'Web3',
-    description: 'A transparent landing page for a Web3 product or community, with room for product principles, ecosystem highlights, and updates.',
-    accent: '#8DF0C8',
-    bgColor: '#101A19',
-    textColor: '#F2FFF9',
-    pages: ['Home', 'Protocol', 'Community', 'Contact'],
-    features: ['Protocol introduction and community call to action', 'Ecosystem and product principle cards', 'Roadmap and community proof sections', 'Contact and update signup starters'],
-    tags: ['blockchain', 'crypto', 'community'],
-  }),
-  starterTemplate({
-    id: 'signal-daily',
-    name: 'Signal Daily',
-    category: 'Media',
-    description: 'An editorial-style publication site for introducing a publication, featuring stories, building readership, and collecting newsletter signups.',
-    accent: '#E6483D',
-    bgColor: '#FFF8F2',
-    textColor: '#241C19',
-    pages: ['Home', 'Stories', 'About', 'Subscribe'],
-    features: ['Editorial introduction and featured-story area', 'Topic and publication highlights', 'Reader testimonials and newsletter signup', 'About and subscription page starters'],
-    tags: ['publication', 'newsletter', 'editorial'],
-  }),
-];
-
 // The ecommerce catalog is intentionally focused on these two complete starter stores.
 export const TEMPLATES: Template[] = [
   {
@@ -202,7 +82,6 @@ export const TEMPLATES: Template[] = [
     sourceCodeUrl: '/api/templates/volt-gear/source',
     techStack: ['Next.js 16', 'Tailwind v4', 'TypeScript', 'Zustand'],
   },
-  ...STARTER_TEMPLATES,
 ];
 
 export const ALL_TEMPLATES: Template[] = [...TEMPLATES];

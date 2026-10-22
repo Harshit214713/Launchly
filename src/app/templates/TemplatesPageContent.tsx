@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Grid3X3, LayoutList, Loader2, Globe, X } from 'lucide-react';
+import { Search, Grid3X3, LayoutList, X } from 'lucide-react';
 import TemplateCard from '@/components/TemplateCard';
 import { CATEGORIES, getTemplatesByCategory, searchTemplates } from '@/lib/templates';
 import { Template } from '@/types';
@@ -18,7 +18,6 @@ export default function TemplatesPageContent() {
   const [activeCategory, setActiveCategory] = useState(urlCategory || 'All');
   const [searchQuery, setSearchQuery] = useState(urlQuery || '');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showPro, setShowPro] = useState<boolean | null>(null);
 
   // URL search parameters are external state; sync them after navigation.
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -48,70 +47,9 @@ export default function TemplatesPageContent() {
     }
   }, [activeCategory, searchQuery, router, searchParams]);
 
-  // External Creative API state
-  const [activeTab, setActiveTab] = useState<'curated' | 'external'>('curated');
-  const [externalTemplates, setExternalTemplates] = useState<Template[]>([]);
-  const [loadingExternal, setLoadingExternal] = useState(false);
-  const [savedKey, setSavedKey] = useState('');
-
-  // Load API key from localStorage if present
-  useEffect(() => {
-    const stored = localStorage.getItem('launchly_unsplash_key');
-    if (stored) {
-      requestAnimationFrame(() => {
-        setSavedKey(stored);
-      });
-    }
-  }, []);
-
-  // Fetch external aesthetic templates when tab is active or query changes
-  useEffect(() => {
-    if (activeTab !== 'external') return;
-
-    let mounted = true;
-    requestAnimationFrame(() => setLoadingExternal(true));
-
-    const queryParam = searchQuery || (activeCategory !== 'All' ? `${activeCategory} modern website design` : 'minimalist website design');
-    const url = `/api/templates/external?query=${encodeURIComponent(queryParam)}${savedKey ? `&apiKey=${encodeURIComponent(savedKey)}` : ''}`;
-
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => {
-        if (mounted && data.success && Array.isArray(data.templates)) {
-          setExternalTemplates(data.templates);
-        }
-      })
-      .catch((err) => {
-        console.error('[Templates] Error fetching external templates:', err);
-      })
-      .finally(() => {
-        if (mounted) setLoadingExternal(false);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [activeTab, searchQuery, activeCategory, savedKey]);
-
-  const displayedTemplates = (() => {
-    if (activeTab === 'external') {
-      let temps = [...externalTemplates];
-      if (showPro !== null) {
-        temps = temps.filter(t => t.isPro === showPro);
-      }
-      return temps;
-    }
-
-    let templates = searchQuery
+  const displayedTemplates = searchQuery
       ? searchTemplates(searchQuery)
       : getTemplatesByCategory(activeCategory);
-
-    if (showPro !== null) {
-      templates = templates.filter((t: Template) => t.isPro === showPro);
-    }
-
-    return templates;
-  })();
 
   const handleCustomize = (template: Template) => {
     router.push(`/editor/${template.id}`);
@@ -124,38 +62,11 @@ export default function TemplatesPageContent() {
         <div className="max-w-7xl mx-auto">
           <div className="max-w-3xl">
             <h1 className="text-4xl sm:text-6xl font-black font-display tracking-tight text-ink mb-4">
-              Aesthetic Full-Stack Themes.
+              Two storefronts. Every detail ready to customize.
             </h1>
             <p className="text-base sm:text-lg font-mono text-muted-foreground">
-              Production-ready Next.js 15 full-stack architectures. Supabase database, Stripe billing, and award-winning aesthetic designs.
+              Choose a complete ecommerce starting point for fresh local groceries or modern technology. Customize the products, pages, and brand in Launchly Studio.
             </p>
-
-            {/* Stream Selector Tab Bar */}
-            <div className="mt-8 inline-flex items-center p-1.5 rounded-2xl border-[2.5px] border-ink bg-card shadow-brutal-sm gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveTab('curated')}
-                className={`brutal-press px-4 py-2 rounded-xl font-display text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'curated'
-                    ? 'bg-pink text-black border-2 border-ink shadow-brutal-xs'
-                    : 'text-muted-foreground hover:text-ink'
-                }`}
-              >
-                Curated Full-Stack Designs
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('external')}
-                className={`brutal-press px-4 py-2 rounded-xl font-display text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'external'
-                    ? 'bg-yellow text-black border-2 border-ink shadow-brutal-xs'
-                    : 'text-muted-foreground hover:text-ink'
-                }`}
-              >
-                <Globe size={14} />
-                <span>Live Creative Feed (API)</span>
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -168,7 +79,7 @@ export default function TemplatesPageContent() {
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink" />
             <input
               type="text"
-              placeholder={activeTab === 'external' ? "Search creative design themes via API…" : "Search templates by niche or keyword…"}
+              placeholder="Search ecommerce templates…"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -187,18 +98,8 @@ export default function TemplatesPageContent() {
             )}
           </div>
 
-          {/* Right Controls */}
+          {/* View controls */}
           <div className="flex items-center gap-2.5 shrink-0 justify-end">
-            <select
-              value={showPro === null ? 'all' : showPro ? 'pro' : 'free'}
-              className="h-10 px-3 bg-background border-[2.5px] border-ink rounded-xl font-mono text-xs font-bold text-ink focus:outline-none cursor-pointer shadow-brutal-xs"
-              onChange={(e) => setShowPro(e.target.value === 'all' ? null : e.target.value === 'pro')}
-            >
-              <option value="all">All tiers</option>
-              <option value="free">Free only</option>
-              <option value="pro">Pro only</option>
-            </select>
-
             <div className="flex items-center border-[2.5px] border-ink rounded-xl p-1 bg-background shadow-brutal-xs">
               {[
                 { icon: Grid3X3, mode: 'grid' as const },
@@ -248,16 +149,11 @@ export default function TemplatesPageContent() {
           <div className="flex items-center justify-between mb-8 pb-4 border-b-[2px] border-ink/20">
             <div className="font-mono text-xs font-bold text-muted-foreground flex items-center gap-2">
               <span>
-                Showing <span className="text-ink font-black">{displayedTemplates.length}</span> {activeTab === 'external' ? 'creative API' : 'curated'} templates
+                Showing <span className="text-ink font-black">{displayedTemplates.length}</span> ecommerce templates
               </span>
-              {activeTab === 'external' && (
-                <span className="px-2 py-0.5 rounded-full border border-black bg-mint text-black font-mono text-[9px] font-black uppercase">
-                  {savedKey ? 'LIVE API KEY CONNECTED' : 'CURATED CREATIVE FEED'}
-                </span>
-              )}
-              {(searchQuery || activeCategory !== 'All' || showPro !== null) && (
+              {(searchQuery || activeCategory !== 'All') && (
                 <button
-                  onClick={() => { setSearchQuery(''); setActiveCategory('All'); setShowPro(null); }}
+                  onClick={() => { setSearchQuery(''); setActiveCategory('All'); }}
                   className="ml-3 text-pink underline cursor-pointer hover:text-pink/80 font-bold"
                 >
                   Clear filters
@@ -266,15 +162,7 @@ export default function TemplatesPageContent() {
             </div>
           </div>
 
-          {loadingExternal ? (
-            <div className="flex flex-col items-center justify-center py-28 text-center bg-card rounded-3xl border-[3px] border-ink p-8 shadow-brutal max-w-md mx-auto">
-              <Loader2 className="h-10 w-10 text-pink animate-spin mb-4" />
-              <h3 className="font-display font-black text-xl text-ink mb-1">Fetching Creative Design Feed...</h3>
-              <p className="font-mono text-xs text-muted-foreground">
-                Streaming high-aesthetic design themes from Creative API.
-              </p>
-            </div>
-          ) : displayedTemplates.length > 0 ? (
+          {displayedTemplates.length > 0 ? (
             <div className={
               viewMode === 'grid'
                 ? 'grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8'
@@ -300,7 +188,7 @@ export default function TemplatesPageContent() {
                 Try adjusting your search query or reset the filters.
               </p>
               <button
-                onClick={() => { setSearchQuery(''); setActiveCategory('All'); setShowPro(null); }}
+                onClick={() => { setSearchQuery(''); setActiveCategory('All'); }}
                 className="brutal-press px-6 py-2.5 rounded-xl border-[2.5px] border-ink bg-pink font-display text-xs font-black text-black shadow-brutal cursor-pointer"
               >
                 Clear all filters
