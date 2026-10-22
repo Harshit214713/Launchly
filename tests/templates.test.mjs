@@ -28,6 +28,14 @@ test('starter templates have unique IDs and usable content', () => {
     assert.ok(template.features.length > 0);
     assert.ok(template.accent);
     assert.equal(template.category, 'Ecommerce');
+    assert.equal(template.isPro, false);
+    assert.ok(template.features.length >= 14, `${template.name} should document its full feature set`);
     assert.ok(template.products.length >= 10, `${template.name} should include a usable product catalog`);
+    assert.ok(template.topReview?.comment, `${template.name} should include a customer review`);
   }
+});
+
+test('both storefronts expose their complete page menus', () => {
+  assert.equal(TEMPLATES.find((template) => template.id === 'fresh-crate')?.pages.length, 20);
+  assert.equal(TEMPLATES.find((template) => template.id === 'volt-gear')?.pages.length, 21);
 });

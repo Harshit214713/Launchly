@@ -18,15 +18,85 @@ export type EditorWidgetKind =
   | 'actions'
   | 'interactive'
   | 'layout'
+  | 'text'
+  | 'media'
   | 'cards';
 
 export type EditorWidgetDefinition = EditorCatalogItem & {
   kind: EditorWidgetKind;
+  renderer: 'catalog-widget';
+  propertySchema: EditorWidgetProperty[];
+  thumbnail: { category: EditorCatalogItem['category']; label: string };
+  exportCode: (content: Record<string, unknown>) => string;
+};
+
+export type EditorWidgetProperty = {
+  key: string;
+  label: string;
+  type: 'text' | 'url' | 'number' | 'boolean' | 'items';
+  required?: boolean;
+};
+
+const commonProperties: EditorWidgetProperty[] = [
+  { key: 'title', label: 'Heading', type: 'text', required: true },
+  { key: 'description', label: 'Description', type: 'text' },
+  { key: 'items', label: 'Content items', type: 'items' },
+];
+
+const widgetProperties = (kind: EditorWidgetKind): EditorWidgetProperty[] => {
+  const properties = [...commonProperties];
+  if (kind === 'hero' || kind === 'actions') {
+    properties.push(
+      { key: 'buttonText', label: 'Button label', type: 'text' },
+      { key: 'href', label: 'Button destination', type: 'url' },
+    );
+  }
+  if (kind === 'form') {
+    properties.push(
+      { key: 'endpoint', label: 'Submission endpoint', type: 'url' },
+      { key: 'submitLabel', label: 'Submit label', type: 'text' },
+      { key: 'successMessage', label: 'Success message', type: 'text' },
+    );
+  }
+  if (kind === 'gallery') {
+    properties.push(
+      { key: 'columns', label: 'Columns', type: 'number' },
+      { key: 'autoplay', label: 'Autoplay', type: 'boolean' },
+      { key: 'intervalMs', label: 'Autoplay interval (ms)', type: 'number' },
+    );
+  }
+  if (kind === 'interactive') {
+    properties.push({ key: 'seconds', label: 'Duration in seconds', type: 'number' });
+  }
+  if (kind === 'embed') {
+    properties.push({ key: 'url', label: 'Secure embed URL', type: 'url' });
+  }
+  if (kind === 'media') {
+    properties.push(
+      { key: 'url', label: 'Media URL', type: 'url' },
+      { key: 'alt', label: 'Alternative text', type: 'text' },
+    );
+  }
+  return properties;
+};
+
+const escapeExportText = (value: string) => value
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/\{/g, '&#123;')
+  .replace(/\}/g, '&#125;');
+
+const createExportCode = (widget: EditorCatalogItem) => (content: Record<string, unknown>) => {
+  const title = typeof content.title === 'string' ? content.title : widget.label;
+  const description = typeof content.description === 'string' ? content.description : '';
+  return `<section aria-label="${escapeExportText(title)}"><h2>${escapeExportText(title)}</h2>${description ? `<p>${escapeExportText(description)}</p>` : ''}</section>`;
 };
 
 const classifyWidget = (item: EditorCatalogItem): EditorWidgetKind => {
   const label = `${item.id} ${item.label}`.toLowerCase().replace(/[-_]/g, ' ');
   if (item.category === 'layout') return 'layout';
+  if (item.category === 'text') return 'text';
   if (item.category === 'navigation' || /navigation|navbar|menu|breadcrumbs|sitemap|table of contents/.test(label)) return 'navigation';
   if (item.category === 'forms' || /form|booking|appointment|survey|quiz|signup|login|newsletter|contact|demo request/.test(label)) return 'form';
   if (/pricing|plan comparison|subscription/.test(label)) return 'pricing';
@@ -40,6 +110,7 @@ const classifyWidget = (item: EditorCatalogItem): EditorWidgetKind => {
   if (/blog|article|news|post|resource|story|portfolio|project|case study|author|press|comments|rss/.test(label)) return 'editorial';
   if (/team|people|staff|member|advisor|speaker|founder|ceo/.test(label)) return 'people';
   if (/map|embed|iframe|video|audio|podcast|lottie|calendar|social feed|calendly|typeform/.test(label)) return 'embed';
+  if (item.category === 'media') return 'media';
   if (/table|comparison/.test(label)) return 'table';
   if (item.category === 'buttons' || /button|action|download|share|back to top/.test(label)) return 'actions';
   if (item.category === 'interactive' || /modal|popup|cookie|consent|countdown|toggle|tab|tooltip|parallax|scroll|sticky|hover|animation|confetti|fireworks|starfield/.test(label)) return 'interactive';
@@ -131,6 +202,12 @@ const defaultItems = (kind: EditorWidgetKind, label: string): Array<Record<strin
       ];
     case 'layout':
       return [];
+    case 'text':
+      if (/quote|pull quote|testimonial/.test(label.toLowerCase())) return [{ title: 'A thoughtful perspective', quote: 'Add a clear, memorable thought for your visitors.', attribution: 'Your name' }];
+      if (/list/.test(label.toLowerCase())) return [{ title: 'First point', description: 'Add a useful detail.' }, { title: 'Second point', description: 'Add another detail.' }];
+      return [{ title: 'A clear point', description: 'Add supporting context for this text element.' }];
+    case 'media':
+      return [{ title: 'Media item', description: 'Add a media URL and an accessible description.', image: '', alt: 'Describe this media' }];
     case 'hero':
     case 'cards':
       return [
@@ -143,6 +220,14 @@ const defaultItems = (kind: EditorWidgetKind, label: string): Array<Record<strin
 
 export function getEditorWidgetDefinition(id: string): EditorWidgetDefinition | undefined {
   return widgetsById.get(id);
+}
+
+export function getEditorWidgetDefinitions(): EditorWidgetDefinition[] {
+  return [...widgetsById.values()];
+}
+
+export function getEditorWidgetExportCode(id: string, content: Record<string, unknown>): string | undefined {
+  return getEditorWidgetDefinition(id)?.exportCode(content);
 }
 
 export function createEditorWidgetContent(id: string): Record<string, unknown> | undefined {
@@ -183,8 +268,11 @@ export function createEditorWidgetContent(id: string): Record<string, unknown> |
   return content;
 }
 
-export function getEditorWidgetDefinitions(): EditorWidgetDefinition[] {
-  return [...widgetsById.values()];
-}
-
-const widgetsById = new Map(editorCatalog.map((item) => [item.id, { ...item, kind: classifyWidget(item) }]));
+const widgetsById = new Map(editorCatalog.map((item) => [item.id, {
+  ...item,
+  kind: classifyWidget(item),
+  renderer: 'catalog-widget' as const,
+  propertySchema: widgetProperties(classifyWidget(item)),
+  thumbnail: { category: item.category, label: item.label },
+  exportCode: createExportCode(item),
+}]));

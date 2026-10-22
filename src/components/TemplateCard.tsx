@@ -219,15 +219,6 @@ export default function TemplateCard({ template, onCustomize }: TemplateCardProp
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-mint text-black border-2 border-ink">
                 {template.category}
               </span>
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border-2 border-ink ${
-                  template.isPro
-                    ? 'bg-yellow text-black'
-                    : 'bg-pink text-black'
-                }`}
-              >
-                {template.isPro ? 'Pro' : 'Free'}
-              </span>
             </div>
           </div>
 

@@ -1,4 +1,7 @@
-import { makeSection, type Section } from '@/lib/siteDocument';
+import { createSiteDocument, makeSection, type Section, type SiteDocument } from './siteDocument.ts';
+import { editorCatalog } from './editorCatalog.ts';
+import { createEditorWidgetContent } from './editorWidgetRegistry.ts';
+import type { Template } from '@/types';
 
 type StoreProduct = { name: string; category: string; price: number; detail: string };
 export type StorefrontPageSeed = { id: string; slug: string; title: string; description: string; isHome: boolean; showInMenu: boolean; seoTitle: string; noindex: boolean; sections: Section[] };
@@ -65,6 +68,41 @@ function section(id: string, type: string, name: string, content: Record<string,
   return makeSection(type, id, name, {}, content);
 }
 
+function elementLibrarySections(): Section[] {
+  const categories = new Map<string, typeof editorCatalog>();
+  for (const item of editorCatalog) {
+    const entries = categories.get(item.category) || [];
+    entries.push(item);
+    categories.set(item.category, entries);
+  }
+
+  return [...categories.entries()].map(([category, items]) => {
+    const sectionId = `library-${category}`;
+    const result = section(sectionId, 'custom', `${category} elements`, {
+      heading: `${category.charAt(0).toUpperCase()}${category.slice(1)} elements`,
+      description: `Working, editable ${category} widgets from the Launchly Element Library.`,
+    });
+    result.columns = [{
+      id: `${sectionId}-column`,
+      width: { desktop: 12, tablet: 12, mobile: 12 },
+      style: {},
+      elements: items.map((item, index) => ({
+        id: `${sectionId}-widget-${index + 1}`,
+        type: 'block',
+        name: item.label,
+        content: createEditorWidgetContent(item.id) || {
+          blockType: item.id,
+          title: item.label,
+          description: item.description,
+          items: [],
+        },
+        style: {},
+      })),
+    }];
+    return result;
+  });
+}
+
 function pageSections(id: string, title: string, description: string, detail: string, products: StoreProduct[], isFresh: boolean): Section[] {
   const items = isFresh ? freshRecipes : voltArticles;
   const collection = products.slice(0, 6).map((product) => ({ title: product.name, name: product.name, description: product.detail, category: product.category, price: `₹${product.price.toLocaleString('en-IN')}`, src: '', alt: product.name }));
@@ -93,6 +131,7 @@ function pageSections(id: string, title: string, description: string, detail: st
     contentSections.push(section(`${id}-locations`, 'rich-text', isFresh ? 'Check your delivery route' : 'Demo and pickup partners', { heading: isFresh ? 'Growing our local routes' : 'Find a local demo', body: isFresh ? 'Enter your postal code at checkout to see available delivery windows. We currently serve neighborhoods within our farm partners’ daily routes and add new areas as capacity grows.' : 'Visit a demo partner to try products in person. Contact our team before traveling to confirm stock and opening hours.' }));
   } else if (id === 'components') {
     contentSections.push(section(`${id}-patterns`, 'features', 'Reusable shop patterns', { heading: 'A consistent system', items: [{ title: 'Product cards', desc: 'Price, availability, and a direct action in one scan.' }, { title: 'Spec chips', desc: 'Compact facts that help shoppers compare.' }, { title: 'Deal badges', desc: 'Use clear labels for limited stock and promotions.' }] }));
+    contentSections.push(...elementLibrarySections());
   } else if (id === '404') {
     contentSections.push(section(`${id}-home`, 'not-found', 'Back to the shop', { heading: 'Nothing on this route', description: 'The page might have moved, but the current collection is ready to explore.', buttonText: 'Back home' }));
   } else if (id === 'privacy-terms') {
@@ -137,4 +176,55 @@ export function createStorefrontPages(templateId: string, pageNames: string[], p
     };
   });
   return pages;
+}
+
+export function createTemplateDocument(template: Template): SiteDocument {
+  const pages = createStorefrontPages(template.id, template.pages, template.products || []);
+  const home = pages.find((page) => page.isHome) || pages[0];
+  const hero = home.sections.find((entry) => entry.type === 'hero')?.content || {};
+  const features = template.features.map((feature) => ({ title: feature, desc: '' }));
+  const testimonials = template.topReview ? [{
+    quote: template.topReview.comment,
+    name: template.topReview.author,
+    role: template.topReview.role,
+  }] : [];
+  return createSiteDocument({
+    id: template.id,
+    name: template.name,
+    templateId: template.id,
+    theme: {
+      primaryColor: template.accent,
+      bgColor: template.bgColor,
+      surfaceColor: template.id === 'fresh-crate' ? '#FFFFFF' : '#151923',
+      textColor: template.textColor,
+      mutedColor: template.id === 'fresh-crate' ? '#6B7566' : '#8A93A6',
+      fontFamily: template.id === 'fresh-crate' ? 'DM Sans, sans-serif' : 'Inter, sans-serif',
+      headingFont: template.id === 'fresh-crate' ? 'Fraunces, Georgia, serif' : 'Space Grotesk, Inter, sans-serif',
+      monoFont: template.id === 'volt-gear' ? 'JetBrains Mono, monospace' : undefined,
+      secondaryColor: template.id === 'fresh-crate' ? '#F4A93B' : '#7C5CFF',
+      borderRadius: template.id === 'fresh-crate' ? '18px' : '10px',
+      radius: template.id === 'fresh-crate' ? '18px' : '10px',
+    },
+    sections: home.sections,
+    hero: Object.fromEntries(Object.entries(hero).filter(([, value]) => typeof value === 'string')) as Record<string, string>,
+    features,
+    testimonials,
+    cta: {
+      title: template.id === 'fresh-crate' ? 'Bring the market closer.' : 'Build a setup that fits.',
+      desc: template.description,
+      buttonText: template.id === 'fresh-crate' ? 'Shop this week' : 'Explore the drop',
+    },
+    pages: pages.map((page) => ({
+      id: page.id,
+      title: page.title,
+      description: page.description,
+      slug: page.slug,
+      isHome: page.isHome,
+      showInMenu: page.showInMenu,
+      noindex: page.noindex,
+      seoTitle: page.seoTitle,
+      sections: page.sections,
+    })),
+    assets: [],
+  });
 }

@@ -26,9 +26,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run check:element-coverage && next build",
     "start": "next start",
     "lint": "eslint",
+    "check:element-coverage": "node --disable-warning=ExperimentalWarning --experimental-strip-types scripts/element-coverage.mjs",
     "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test tests/*.test.mjs",
     "db:setup": "node scripts/setup-db.mjs"
   },

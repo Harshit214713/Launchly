@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ElementType, type FormEvent, type ReactNode } from 'react';
 import Image from 'next/image';
 import type { EditorWidgetKind } from '@/lib/editorWidgetRegistry';
 
@@ -28,6 +28,11 @@ const safeHref = (value: unknown) => {
   return /^(https?:\/\/|mailto:|tel:|\/|#)/i.test(href) ? href : '#';
 };
 
+const safeMediaSrc = (value: unknown) => {
+  const src = text(value).trim();
+  return /^(https?:\/\/|\/|data:image\/)/i.test(src) ? src : '';
+};
+
 export default function CatalogWidgetPreview({ kind, widgetId, content, style, isEditor = false, onChange }: Props) {
   const items = records(content.items);
   const title = text(content.title, widgetId);
@@ -40,8 +45,16 @@ export default function CatalogWidgetPreview({ kind, widgetId, content, style, i
   const [seconds, setSeconds] = useState(Math.max(0, Number(content.seconds) || 0));
   const [popupOpen, setPopupOpen] = useState(false);
   const [cookieVisible, setCookieVisible] = useState(true);
+  useEffect(() => {
+    if (kind !== 'interactive' || !/countdown/i.test(widgetId) || seconds <= 0 || isEditor) return;
+    const timeout = window.setTimeout(() => setSeconds((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timeout);
+  }, [isEditor, kind, seconds, widgetId]);
   const editable = (key: string, value: string, className?: string): ReactNode => isEditor && onChange
     ? <span contentEditable suppressContentEditableWarning onInput={(event) => onChange(key, event.currentTarget.textContent || '', `typing:widget:${widgetId}:${key}`)} className={className}>{value}</span>
+    : value;
+  const editableItem = (index: number, key: string, value: string): ReactNode => isEditor && onChange
+    ? <span contentEditable suppressContentEditableWarning onInput={(event) => onChange('items', items.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: event.currentTarget.textContent || '' } : item), `typing:widget:${widgetId}:items:${index}:${key}`)}>{value}</span>
     : value;
   const heading = <h2 className="text-2xl font-black tracking-tight">{editable('title', title)}</h2>;
   const intro = description ? <p className="mt-2 max-w-3xl text-sm leading-relaxed opacity-75">{editable('description', description)}</p> : null;
@@ -82,9 +95,6 @@ export default function CatalogWidgetPreview({ kind, widgetId, content, style, i
   };
 
   if (kind === 'interactive' && /countdown/i.test(widgetId)) {
-    if (seconds > 0) {
-      window.setTimeout(() => setSeconds((value) => Math.max(0, value - 1)), 1000);
-    }
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor(seconds % 86400 / 3600);
     const minutes = Math.floor(seconds % 3600 / 60);
@@ -108,6 +118,45 @@ export default function CatalogWidgetPreview({ kind, widgetId, content, style, i
   if (kind === 'interactive' && /cookie|consent/i.test(widgetId)) return cookieVisible
     ? <aside style={style} role="dialog" aria-label={title} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-black bg-white p-4 text-black shadow-[3px_3px_0_#000]"><div><h2 className="font-bold">{title}</h2><p className="mt-1 text-sm">{description}</p></div><div className="flex gap-2"><button type="button" onClick={() => setCookieVisible(false)} className="rounded-lg border border-black px-3 py-2 text-xs font-bold">Decline</button><button type="button" onClick={() => setCookieVisible(false)} className="rounded-lg border-2 border-black bg-yellow px-3 py-2 text-xs font-bold">Accept</button></div></aside>
     : null;
+
+  if (kind === 'text') {
+    const normalizedId = widgetId.toLowerCase();
+    if (/quote|pull-quote/.test(normalizedId)) {
+      const item = items[0] || {};
+      return section(<><blockquote className="border-l-4 border-current/30 py-2 pl-5 text-xl italic">{editableItem(0, 'quote', text(item.quote, title))}</blockquote><p className="mt-2 text-sm font-bold">{text(item.attribution, text(content.attribution))}</p></>);
+    }
+    if (/list/.test(normalizedId)) {
+      const List = /numbered|ordered/.test(normalizedId) ? 'ol' : 'ul';
+      return section(<>{heading}<List className={`mt-3 space-y-2 ${List === 'ol' ? 'list-decimal' : 'list-disc'} list-inside`}>{items.map((item, index) => <li key={index}>{editableItem(index, 'title', text(item.title, `Item ${index + 1}`))}{text(item.description) && <span className="ml-2 opacity-70">{text(item.description)}</span>}</li>)}</List></>);
+    }
+    if (/code/.test(normalizedId)) {
+      return section(<><h3 className="mb-2 font-bold">{editable('title', title)}</h3><pre className="overflow-x-auto rounded-lg bg-neutral-950 p-4 font-mono text-sm text-white"><code>{editable('code', text(content.code, '// Add your code here'))}</code></pre></>);
+    }
+    const levelMatch = normalizedId.match(/(?:heading|h)([1-6])(?:\\b|$)/);
+    const level = levelMatch ? Number(levelMatch[1]) : 2;
+    const TextHeading = `h${level}` as ElementType;
+    if (/heading/.test(normalizedId)) {
+      return <TextHeading style={style} className={`font-black tracking-tight ${level < 3 ? 'text-3xl sm:text-4xl' : 'text-xl'}`}>{editable('title', title)}</TextHeading>;
+    }
+    if (/paragraph|body text|rich text/.test(normalizedId)) {
+      return <p style={style} className="whitespace-pre-wrap leading-relaxed">{editable('description', description || title)}</p>;
+    }
+    return section(<>{heading}<p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed opacity-75">{editable('description', description || text(items[0]?.description, 'Add supporting copy in the inspector.'))}</p></>);
+  }
+
+  if (kind === 'media') {
+    const src = safeMediaSrc(content.url || content.src || items[0]?.image || items[0]?.src);
+    const alt = text(content.alt || items[0]?.alt, title);
+    if (/audio|podcast/i.test(widgetId)) {
+      return section(<>{heading}{intro}{src ? <audio controls preload="metadata" className="mt-4 w-full" src={src}>Audio playback is not supported by this browser.</audio> : <p className="mt-4 rounded-lg border border-dashed border-current/25 p-4 text-sm">Add an audio URL in the inspector.</p>}</>);
+    }
+    if (/video|youtube|vimeo/i.test(widgetId)) {
+      return section(<>{heading}{intro}{src && /^https:\/\//i.test(src) ? <iframe title={title} src={src} loading="lazy" sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="no-referrer" className="mt-4 aspect-video w-full rounded-xl border border-current/15" /> : <p className="mt-4 rounded-lg border border-dashed border-current/25 p-4 text-sm">Add a secure HTTPS video URL in the inspector.</p>}</>);
+    }
+    return section(<>{heading}{intro}{src
+      ? <Image src={src} alt={alt} width={1200} height={800} unoptimized className="mt-4 max-h-[32rem] w-full rounded-xl object-cover" />
+      : <div role="img" aria-label={alt || 'Media placeholder'} className="mt-4 grid min-h-48 place-items-center rounded-xl bg-gradient-to-br from-yellow/35 via-pink/20 to-emerald-100 text-4xl font-black text-black/25">Add media</div>}</>);
+  }
 
   if (kind === 'hero') {
     return <section style={style} className="overflow-hidden rounded-2xl border border-current/15 bg-gradient-to-br from-yellow/20 via-pink/10 to-transparent px-6 py-12 sm:px-10">

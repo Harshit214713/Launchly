@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import { getTemplateById } from '@/lib/templates';
 import { notFound } from 'next/navigation';
-import PaymentModal from '@/components/PaymentModal';
 
 const COLOR_PALETTES = [
   { name: 'Original', color: '' },
@@ -57,7 +56,6 @@ export default function TemplatePreviewPage({
   const [activePalette, setActivePalette] = useState(0);
   const [activeSection, setActiveSection] = useState(template.pages[0]?.toLowerCase() || 'overview');
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [cartCount, setCartCount] = useState(0);
   const [wishlist, setWishlist] = useState<string[]>([]);
@@ -119,15 +117,6 @@ export default function TemplatePreviewPage({
               <span className="font-mono text-[9px] font-black uppercase text-black bg-mint border border-ink px-1.5 py-0.5 rounded shadow-2xs shrink-0">
                 {template.category}
               </span>
-              {template.isPro ? (
-                <span className="font-mono text-[9px] font-black uppercase text-black bg-yellow border border-ink px-1.5 py-0.5 rounded flex items-center gap-0.5 shadow-2xs shrink-0">
-                  <Sparkles size={9} /> PRO
-                </span>
-              ) : (
-                <span className="font-mono text-[9px] font-black uppercase text-black bg-pink border border-ink px-1.5 py-0.5 rounded shadow-2xs shrink-0">
-                  FREE
-                </span>
-              )}
             </div>
           </div>
 
@@ -566,17 +555,13 @@ export default function TemplatePreviewPage({
             </div>
 
             <div className="flex flex-col gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowExportModal(false);
-                  setShowPaymentModal(true);
-                }}
+              <a
+                href={`${template.sourceCodeUrl || `/api/templates/${template.id}/source`}?format=download`}
                 className="brutal-press w-full py-2.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-pink border-2 border-ink shadow-brutal-xs hover:bg-yellow transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
                 <Download size={14} className="stroke-[2.5]" />
-                <span>Pay & Download Source Code ($49)</span>
-              </button>
+                <span>Download source code</span>
+              </a>
               <div className="flex items-center gap-2">
                 <Link
                   href={`/editor/${template.id}`}
@@ -597,14 +582,6 @@ export default function TemplatePreviewPage({
         </div>
       )}
 
-      {/* Official QR Payment Modal */}
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        itemName={`${template.name} Source Code`}
-        price="$49"
-        planId={`template-${template.id}`}
-      />
     </div>
   );
 }

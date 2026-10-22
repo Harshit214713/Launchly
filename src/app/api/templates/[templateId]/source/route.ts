@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { getTemplateById } from '@/lib/templates';
-import { verifySessionToken } from '@/lib/auth';
-import { findUserByEmail } from '@/lib/db';
 import { exportTemplateAsZip } from '@/lib/zipExport';
+import { createTemplateDocument } from '@/lib/templateContent';
 
 export async function GET(
   request: Request,
@@ -19,25 +17,8 @@ export async function GET(
     );
   }
 
-  // Source archive downloads are a Pro feature for every template.
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('launchly_session');
-  const session = sessionCookie?.value ? verifySessionToken(sessionCookie.value) : null;
-
-  const currentUser = session?.email ? await findUserByEmail(session.email).catch(() => null) : null;
-  if (!session || (currentUser?.plan ?? session.plan) !== 'pro') {
-    return NextResponse.json(
-      {
-        success: false,
-        isPro: true,
-        message: 'Source code export is a Launchly Pro feature. Upgrade to download this project.',
-        upgradeUrl: `/checkout?plan=pro&templateId=${template.id}`
-      },
-      { status: 403 }
-    );
-  }
-
   const isStorefront = Boolean(template.products?.length);
+  const document = createTemplateDocument(template);
   const features = template.features.map((title) => ({
     title,
     desc: isStorefront
@@ -75,6 +56,7 @@ export async function GET(
       },
       sectionOrder: ['nav', 'hero', 'gallery', 'features', 'testimonials', 'cta', 'footer'],
       pages: template.pages,
+      document,
     });
     return new NextResponse(archive, {
       headers: {

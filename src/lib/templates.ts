@@ -2,15 +2,9 @@ import type { Template, TemplateCategory } from '@/types';
 
 export const CATEGORIES: TemplateCategory[] = [
   'All',
-  'SaaS',
-  'AI',
-  'Agency',
-  'Portfolio',
   'Ecommerce',
-  'Web3',
-  'Media'
 ];
-// The ecommerce catalog is intentionally focused on these two complete starter stores.
+// Two complete ecommerce starter stores are maintained in this catalog.
 export const TEMPLATES: Template[] = [
   {
     id: 'fresh-crate',
@@ -25,10 +19,15 @@ export const TEMPLATES: Template[] = [
     accent: '#3FA34D',
     bgColor: '#FFF8EC',
     textColor: '#1F2A1B',
-    pages: ['Home'],
-    features: ['Single-page farm-to-door storefront starter', 'Twelve sample grocery products', 'Seasonal product grid with add-to-bag actions', 'Freshness and origin storytelling', 'Combo baskets and weekly offers', 'Delivery area and ordering information', 'Customer testimonials and common questions', 'Newsletter and contact sections', 'Responsive shared navigation and footer', 'Add and customize more pages in the editor'],
+    pages: ['Home', 'Shop', 'Product Details', 'Offers', 'Recipes', 'Recipe Detail', 'Blog', 'Blog Post', 'Cart', 'Checkout', 'Order Confirmation', 'Order Tracking', 'Account', 'Wishlist', 'About', 'Contact', 'FAQ', 'Delivery Areas', 'Privacy & Terms', '404'],
+    features: ['Twenty purpose-built storefront pages', 'Twelve sample grocery products', 'Seasonal shop and category browsing', 'Product details and market-fresh storytelling', 'One-off combo baskets and weekly offers', 'Recipe index and recipe detail page', 'Editorial blog and article detail page', 'Cart, checkout, order confirmation, and tracking flows', 'Account dashboard, order history, and saved addresses', 'Wishlist and saved market list', 'Delivery area checker and slot information', 'Customer reviews and common questions', 'Contact form and newsletter signup', 'Shared responsive navigation and footer', 'Per-page SEO titles and descriptions', 'Customizable warm market theme'],
     rating: 4.9,
     reviewsCount: 126,
+    topReview: {
+      author: 'Maya R.',
+      role: 'Neighborhood customer',
+      comment: 'The greens arrive crisp, and choosing a delivery slot is refreshingly easy.',
+    },
     products: [
       { name: 'Market Morning Crate', category: 'Seasonal crate', price: 1499, detail: 'A bright mix of farm-picked vegetables for the week.' },
       { name: 'Heirloom Tomato Box', category: 'Vegetables', price: 349, detail: 'Sun-ripened tomatoes from small partner farms.' },
@@ -60,10 +59,15 @@ export const TEMPLATES: Template[] = [
     accent: '#C6FF3D',
     bgColor: '#0B0D12',
     textColor: '#F5F7FA',
-    pages: ['Home'],
-    features: ['Single-page drop-style ecommerce starter', 'Twelve sample technology products', 'High-contrast product grid with add-to-bag actions', 'Clear product specifications and categories', 'Limited-drop campaign storytelling', 'Setup bundle and comparison highlights', 'Customer reviews and support information', 'Newsletter and contact sections', 'Responsive shared navigation and footer', 'Add and customize more pages in the editor'],
+    pages: ['Home', 'Shop', 'Product Details', 'Compare', 'Deals', 'Bundles', 'Cart', 'Checkout', 'Order Confirmation', 'Order Tracking', 'Account', 'Wishlist', 'Support', 'Blog', 'Blog Post', 'About', 'Contact', 'Store Locator', 'Privacy & Terms', '404', 'Components'],
+    features: ['Twenty-one purpose-built storefront pages', 'Twelve sample technology products', 'Shop, product detail, and product comparison pages', 'Clear specifications, categories, and availability details', 'Limited-drop deals and promotional highlights', 'Build-your-setup bundle showcase', 'Cart, checkout, order confirmation, and tracking flows', 'Account dashboard, order history, and saved addresses', 'Wishlist and saved gear collection', 'Support ticket, FAQ, and warranty information', 'Editorial blog and article detail page', 'Store locator and demo partner information', 'Customer reviews and rating breakdown', 'Newsletter signup and contact form', 'Shared responsive navigation and footer', 'Per-page SEO titles and descriptions', 'Components style guide for the complete element library'],
     rating: 4.9,
     reviewsCount: 98,
+    topReview: {
+      author: 'Nico P.',
+      role: 'Creator',
+      comment: 'The comparison details helped me choose a dock that works with my displays.',
+    },
     products: [
       { name: 'Pulse ANC Headphones', category: 'Audio', price: 12999, detail: 'Adaptive noise cancellation with 40-hour battery life.' },
       { name: 'Volt Mechanical Keyboard', category: 'Desk setup', price: 7499, detail: 'Hot-swappable switches in a compact aluminum frame.' },
