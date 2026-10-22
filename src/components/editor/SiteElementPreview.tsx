@@ -43,7 +43,7 @@ export default function SiteElementPreview({ element, style, isEditor = false, o
   const title = textValue(content.title, element.name || element.type);
   const description = textValue(content.description || content.text);
   const editable = (key: string, value: string, className?: string) => isEditor && onChange
-    ? <span contentEditable suppressContentEditableWarning onInput={(event) => onChange(key, event.currentTarget.textContent || '', `typing:${element.id}:${key}`)} className={className}>{value}</span>
+    ? <span dir="auto" contentEditable suppressContentEditableWarning onInput={(event) => onChange(key, event.currentTarget.textContent || '', `typing:${element.id}:${key}`)} className={className}>{value}</span>
     : value;
 
   useEffect(() => {

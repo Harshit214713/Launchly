@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { DEFAULT_TEMPLATE, getTemplateById } from '@/lib/templates';
 import { cn } from '@/lib/utils';
-import { exportTemplateAsZip } from '@/lib/zipExport';
 import { getContrastRatio, getWcagLevel, suggestAccessibleColor } from '@/lib/contrast';
 import { createSiteDocument, makeSection, mergeEditorProjection, migrateSiteDocument, type Column, type Device, type MenuItem, type SectionStyle, type SiteAsset, type SiteDocument, type SiteElement, type Theme } from '@/lib/siteDocument';
 import { blockRegistry } from '@/lib/blockRegistry';
@@ -233,7 +232,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   const [saveNotice, setSaveNotice] = useState<{ tone: 'success' | 'warning' | 'error'; message: string } | null>(null);
   const [zoomScale, setZoomScale] = useState<number>(1);
   const [exportingZip, setExportingZip] = useState(false);
+  const [exportError, setExportError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isPro, setIsPro] = useState(false);
   const [authResolved, setAuthResolved] = useState(false);
   const [logoUrl, setLogoUrl] = useState('');
   const [faviconUrl, setFaviconUrl] = useState('');
@@ -320,7 +321,8 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   useEffect(() => {
     fetch('/api/auth/me').then((response) => response.json()).then((data) => {
       setIsAuthenticated(Boolean(data?.authenticated && data.user));
-    }).catch(() => { setIsAuthenticated(false); }).finally(() => setAuthResolved(true));
+      setIsPro(Boolean(data?.authenticated && data.user?.plan === 'pro'));
+    }).catch(() => { setIsAuthenticated(false); setIsPro(false); }).finally(() => setAuthResolved(true));
   }, []);
 
   // Bespoke content state (can be updated via AI)
@@ -678,27 +680,23 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   // 1-Click ZIP Export
   const handleExportZip = async () => {
+    if (!authResolved || !isAuthenticated || !isPro) {
+      setExportError(isAuthenticated ? 'ZIP export requires a Pro plan.' : 'Sign in with a Pro account to export a ZIP.');
+      return;
+    }
     setExportingZip(true);
+    setExportError('');
     try {
-      const blob = await exportTemplateAsZip({
-        siteTitle,
-        templateId: template.id,
-        theme,
-        heroContent,
-        featuresContent,
-        testimonialsContent,
-        ctaContent,
-        sectionOrder: sections.map((s) => s.id),
-        assetUrl,
-        logoUrl,
-        faviconUrl,
-        pages: sitePages.map((page) => page.title),
-        sitePages,
-        sectionSpacing,
-        canvasElements,
-        document: editorDocument,
-        sectionNames: Object.fromEntries(sections.map((section) => [section.type, section.name])),
+      const response = await fetch('/api/sites/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ document: editorDocument }),
       });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({})) as { message?: string };
+        throw new Error(result.message || 'Could not export this website.');
+      }
+      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -707,6 +705,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('ZIP Export Error:', err);
+      setExportError(err instanceof Error ? err.message : 'Could not export this website.');
     } finally {
       setExportingZip(false);
     }
@@ -1455,7 +1454,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                   <button type="button" onClick={() => { void handleSave(); }} disabled={saving} className="mt-3 w-full rounded-lg border-2 border-black bg-yellow px-3 py-2 font-mono text-[10px] font-bold disabled:opacity-50">{saving ? 'Saving…' : 'Save now'}</button>
                 </section>
                 <button type="button" onClick={() => setShowAiModal(true)} className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-yellow px-3 py-2.5 text-left font-mono text-xs font-bold shadow-[2px_2px_0_#000]"><Wand2 size={15}/> Open AI Designer</button>
-                <button type="button" onClick={() => { void handleExportZip(); }} disabled={exportingZip} title="Download the website source as a ZIP archive" className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2.5 text-left font-mono text-xs font-bold hover:bg-yellow disabled:opacity-50"><Download size={15}/>{exportingZip ? 'Exporting…' : 'Export .zip'}</button>
+                <button type="button" onClick={() => { void handleExportZip(); }} disabled={exportingZip || !authResolved || !isPro} title={isPro ? 'Download the website source as a ZIP archive' : 'ZIP export is available on the Pro plan'} className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2.5 text-left font-mono text-xs font-bold hover:bg-yellow disabled:cursor-not-allowed disabled:opacity-60">{isPro ? <Download size={15} /> : <Lock size={15} />}{exportingZip ? 'Exporting…' : 'Export .zip'}{!isPro && <span className="ml-auto rounded border border-black bg-yellow px-1.5 py-0.5 text-[8px] font-black uppercase">Pro</span>}</button>
+                {exportError && <p className="rounded-lg border border-red-300 bg-red-50 p-2 font-mono text-[10px] text-red-800" role="alert">{exportError}</p>}
+                {authResolved && !isPro && <Link href={isAuthenticated ? '/dashboard' : '/login'} className="block text-center font-mono text-[10px] font-bold underline underline-offset-2">{isAuthenticated ? 'Upgrade to Pro to export' : 'Sign in with Pro to export'}</Link>}
                 <button type="button" onClick={() => setShowVersionHistory(true)} className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2.5 text-left font-mono text-xs font-bold hover:bg-yellow"><HistoryIcon size={15}/> Version history</button>
                 <button type="button" onClick={() => { const subdomain = siteTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || template.id; const previewWindow = window.open('about:blank', '_blank'); void handleSave().finally(() => { if (previewWindow) previewWindow.location.href = `/live/${subdomain}?preview=1`; }); }} className="flex w-full items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2.5 text-left font-mono text-xs font-bold hover:bg-yellow"><Eye size={15}/> Open preview</button>
                 <p className="rounded-lg bg-white p-2 font-mono text-[10px] leading-relaxed text-neutral-500">Export, AI design, previews, and revision history are grouped here to keep the main toolbar focused.</p>
@@ -1524,7 +1525,17 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
             </div>
 
             {/* Editable Content Frame */}
-            <div data-canvas-frame className="flex-1 overflow-y-auto">
+            <div
+              data-canvas-frame
+              className="flex-1 overflow-y-auto"
+              onFocusCapture={(event) => {
+                const target = event.target;
+                if (target instanceof HTMLElement && target.isContentEditable) {
+                  target.dir = 'auto';
+                  target.style.unicodeBidi = 'plaintext';
+                }
+              }}
+            >
               <CanvasContent
                 templateId={template.id}
                 sections={sections}
@@ -2377,10 +2388,8 @@ function SectionRenderer({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const scrollToAnchor = (value: string) => {
     const anchorId = normalizeAnchorId(value);
-    if (!scrollToResolvedAnchor(anchorId)) {
-      // Keep custom anchors shareable even when a section was renamed or removed.
-      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${anchorId}`);
-    }
+    const canvas = document.querySelector('[data-canvas-frame]');
+    scrollToResolvedAnchor(anchorId, canvas || document);
   };
   const activateEditorLink = (event: MouseEvent<HTMLElement>, href: string, newTab = false) => {
     if (href.startsWith('#')) {

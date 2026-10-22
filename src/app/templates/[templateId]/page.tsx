@@ -56,10 +56,27 @@ export default function TemplatePreviewPage({
   const [activePalette, setActivePalette] = useState(0);
   const [activeSection, setActiveSection] = useState(template.pages[0]?.toLowerCase() || 'overview');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isPro, setIsPro] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [cartCount, setCartCount] = useState(0);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [orderPlaced, setOrderPlaced] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((response) => response.json())
+      .then((data) => {
+        setIsAuthenticated(Boolean(data?.authenticated && data.user));
+        setIsPro(Boolean(data?.authenticated && data.user?.plan === 'pro'));
+      })
+      .catch(() => {
+        setIsAuthenticated(false);
+        setIsPro(false);
+      })
+      .finally(() => setAuthResolved(true));
+  }, []);
 
   useEffect(() => {
     const requestedPage = new URLSearchParams(window.location.search).get('page')?.toLowerCase();
@@ -179,8 +196,9 @@ export default function TemplatePreviewPage({
               onClick={() => setShowExportModal(true)}
               className="hidden xl:flex brutal-press items-center gap-1 px-2.5 py-1.5 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-mint border-2 border-ink shadow-brutal-xs cursor-pointer"
             >
-              <Download size={12} />
+              {isPro ? <Download size={12} /> : <Lock size={12} />}
               <span>Source Code</span>
+              {!isPro && <span className="rounded border border-ink bg-yellow px-1 py-0.5 text-[8px]">PRO</span>}
             </button>
 
             {/* Share Link */}
@@ -555,13 +573,27 @@ export default function TemplatePreviewPage({
             </div>
 
             <div className="flex flex-col gap-2.5 pt-1">
-              <a
-                href={`${template.sourceCodeUrl || `/api/templates/${template.id}/source`}?format=download`}
-                className="brutal-press w-full py-2.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-pink border-2 border-ink shadow-brutal-xs hover:bg-yellow transition-colors cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Download size={14} className="stroke-[2.5]" />
-                <span>Download source code</span>
-              </a>
+              {!authResolved ? (
+                <button type="button" disabled className="w-full py-2.5 px-4 rounded-xl border-2 border-ink bg-background font-display text-xs font-black uppercase text-muted-foreground disabled:opacity-60">
+                  Checking plan…
+                </button>
+              ) : isPro ? (
+                <a
+                  href={`${template.sourceCodeUrl || `/api/templates/${template.id}/source`}?format=download`}
+                  className="brutal-press w-full py-2.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-pink border-2 border-ink shadow-brutal-xs hover:bg-yellow transition-colors cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Download size={14} className="stroke-[2.5]" />
+                  <span>Download source code</span>
+                </a>
+              ) : (
+                <Link
+                  href={isAuthenticated ? '/dashboard' : '/login'}
+                  className="brutal-press w-full py-2.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-yellow border-2 border-ink shadow-brutal-xs hover:bg-pink transition-colors flex items-center justify-center gap-2"
+                >
+                  <Lock size={14} />
+                  <span>{isAuthenticated ? 'Upgrade to Pro for source code' : 'Sign in for Pro source code'}</span>
+                </Link>
+              )}
               <div className="flex items-center gap-2">
                 <Link
                   href={`/editor/${template.id}`}

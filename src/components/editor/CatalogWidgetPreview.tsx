@@ -51,10 +51,10 @@ export default function CatalogWidgetPreview({ kind, widgetId, content, style, i
     return () => window.clearTimeout(timeout);
   }, [isEditor, kind, seconds, widgetId]);
   const editable = (key: string, value: string, className?: string): ReactNode => isEditor && onChange
-    ? <span contentEditable suppressContentEditableWarning onInput={(event) => onChange(key, event.currentTarget.textContent || '', `typing:widget:${widgetId}:${key}`)} className={className}>{value}</span>
+    ? <span dir="auto" contentEditable suppressContentEditableWarning onInput={(event) => onChange(key, event.currentTarget.textContent || '', `typing:widget:${widgetId}:${key}`)} className={className}>{value}</span>
     : value;
   const editableItem = (index: number, key: string, value: string): ReactNode => isEditor && onChange
-    ? <span contentEditable suppressContentEditableWarning onInput={(event) => onChange('items', items.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: event.currentTarget.textContent || '' } : item), `typing:widget:${widgetId}:items:${index}:${key}`)}>{value}</span>
+    ? <span dir="auto" contentEditable suppressContentEditableWarning onInput={(event) => onChange('items', items.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: event.currentTarget.textContent || '' } : item), `typing:widget:${widgetId}:items:${index}:${key}`)}>{value}</span>
     : value;
   const heading = <h2 className="text-2xl font-black tracking-tight">{editable('title', title)}</h2>;
   const intro = description ? <p className="mt-2 max-w-3xl text-sm leading-relaxed opacity-75">{editable('description', description)}</p> : null;

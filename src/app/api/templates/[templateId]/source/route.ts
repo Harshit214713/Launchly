@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getTemplateById } from '@/lib/templates';
 import { exportTemplateAsZip } from '@/lib/zipExport';
 import { createTemplateDocument } from '@/lib/templateContent';
+import { getProAccess } from '@/lib/proAccess';
 
 export async function GET(
   request: Request,
@@ -15,6 +16,14 @@ export async function GET(
       { success: false, message: 'Template not found' },
       { status: 404 }
     );
+  }
+
+  const access = await getProAccess();
+  if (!access.authenticated) {
+    return NextResponse.json({ success: false, message: 'Sign in to access template source code.' }, { status: 401 });
+  }
+  if (!access.isPro) {
+    return NextResponse.json({ success: false, message: 'Template source code requires a Pro plan.' }, { status: 403 });
   }
 
   const isStorefront = Boolean(template.products?.length);

@@ -2,14 +2,7 @@ import type { Template, TemplateCategory } from '@/types';
 
 export const CATEGORIES: TemplateCategory[] = [
   'All',
-  'SaaS',
-  'AI',
-  'Agency',
-  'Portfolio',
   'Ecommerce',
-  'Web3',
-  'Media'
-
 ];
 
 export const TEMPLATES: Template[] = [

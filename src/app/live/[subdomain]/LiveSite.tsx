@@ -26,7 +26,8 @@ import ImageCarousel from '@/components/ImageCarousel';
 import StoreHeroArtwork from '@/components/storefront/StoreHeroArtwork';
 import { getAnimationClass, resolveButtonHref, type ButtonTarget } from '@/lib/elementActions';
 import { createStorefrontPages } from '@/lib/templateContent';
-import { normalizeAnchorId, scrollToAnchor as scrollToResolvedAnchor } from '@/lib/navigation';
+import { scrollToAnchor as scrollToResolvedAnchor } from '@/lib/navigation';
+import { resolveLiveNavigationHref } from '@/lib/liveNavigation';
 import { elementVisualStyle } from '@/lib/elementVisualStyle';
 import SiteElementPreview, { supportsAdditionalElement } from '@/components/editor/SiteElementPreview';
 import CatalogWidgetPreview from '@/components/editor/CatalogWidgetPreview';
@@ -493,21 +494,7 @@ export default function LiveWebsitePage({
       ? defaultStoreMenu
       : pageNavigation.length ? pageNavigation : templateNavigation;
   const previewSuffix = isPreview ? '?preview=1' : '';
-  const navigationHref = (item: LiveMenuItem) => {
-    if (item.target.type === 'url') return item.target.value;
-    if (item.target.type === 'anchor') {
-      const anchor = normalizeAnchorId(item.target.value);
-      // Anchors from another page always return to the home page first. The
-      // hash is preserved so the browser can scroll after the page renders.
-      return activePage === 'home' && !routeSlug
-        ? `#${anchor}`
-        : `/live/${subdomain}${previewSuffix}#${anchor}`;
-    }
-    const requested = item.target.value.replace(/^\/+/, '').replace(/\/+$/, '');
-    const page = sitePages.find((entry) => entry.id === item.target.value || entry.id === requested || normalizeLivePagePath(entry.slug) === normalizeLivePagePath(requested) || entry.title.toLowerCase() === requested.toLowerCase());
-    const pagePath = page?.isHome ? '' : normalizeLivePagePath(page?.slug || requested);
-    return `/live/${subdomain}${pagePath}${previewSuffix}`;
-  };
+  const navigationHref = (item: LiveMenuItem) => resolveLiveNavigationHref(item, sitePages, subdomain, isPreview);
   const productHref = (name: string) => {
     return `/live/${subdomain}/product-details?product=${encodeURIComponent(name)}${isPreview ? '&preview=1' : ''}`;
   };
