@@ -37,9 +37,12 @@ export async function GET(
     );
   }
 
+  const isStorefront = Boolean(template.products?.length);
   const features = template.features.map((title) => ({
     title,
-    desc: `${title} is thoughtfully integrated into the ${template.name} shopping experience.`,
+    desc: isStorefront
+      ? `${title} is thoughtfully integrated into the ${template.name} shopping experience.`
+      : `${title} helps tell the ${template.name} story and gives visitors a clear next step.`,
   }));
   if (new URL(request.url).searchParams.get('format') === 'download') {
     const archive = await exportTemplateAsZip({
@@ -56,8 +59,8 @@ export async function GET(
         badge: `${template.category} // ${template.badge || 'FEATURED'}`,
         title: template.name,
         description: template.description,
-        ctaPrimary: 'Shop the collection',
-        ctaSecondary: 'Discover the details',
+        ctaPrimary: isStorefront ? 'Shop the collection' : 'Get started',
+        ctaSecondary: isStorefront ? 'Discover the details' : 'Explore features',
       },
       featuresContent: features,
       testimonialsContent: template.topReview
@@ -65,8 +68,10 @@ export async function GET(
         : [],
       ctaContent: {
         title: `Discover ${template.name}.`,
-        desc: `Explore the ${template.name} collection and find your next favorite.`,
-        buttonText: 'Shop the collection',
+        desc: isStorefront
+          ? `Explore the ${template.name} collection and find your next favorite.`
+          : `Explore ${template.name} and invite visitors to take the next step.`,
+        buttonText: isStorefront ? 'Shop the collection' : 'Get started',
       },
       sectionOrder: ['nav', 'hero', 'gallery', 'features', 'testimonials', 'cta', 'footer'],
       pages: template.pages,
@@ -74,7 +79,7 @@ export async function GET(
     return new NextResponse(archive, {
       headers: {
         'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="${template.id}-launchly-store.zip"`,
+          'Content-Disposition': `attachment; filename="${template.id}-launchly-${isStorefront ? 'store' : 'project'}.zip"`,
         'Cache-Control': 'private, no-store',
       },
     });

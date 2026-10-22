@@ -5,9 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, ArrowRight, X } from 'lucide-react';
 import TemplateCard from './TemplateCard';
-import ComingSoonCard from './ComingSoonCard';
-import { TEMPLATES, CATEGORIES, COMING_SOON_CATEGORIES } from '@/lib/templates';
-import { Template, TemplateCategory } from '@/types';
+import { TEMPLATES, CATEGORIES } from '@/lib/templates';
+import { Template } from '@/types';
 
 export default function TemplatesSection() {
   const router = useRouter();
@@ -134,18 +133,6 @@ export default function TemplatesSection() {
               </div>
             )}
           </>
-        ) : COMING_SOON_CATEGORIES.includes(activeCategory as TemplateCategory) && !searchQuery ? (
-          <ComingSoonCard
-            category={activeCategory}
-            onBrowseAll={() => {
-              setActiveCategory('All');
-              setSearchQuery('');
-            }}
-            onExploreEcommerce={() => {
-              setActiveCategory('Ecommerce');
-              setSearchQuery('');
-            }}
-          />
         ) : (
           <div className="text-center py-20 bg-card rounded-3xl border-[3px] border-ink p-8 shadow-brutal max-w-md mx-auto">
             <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />

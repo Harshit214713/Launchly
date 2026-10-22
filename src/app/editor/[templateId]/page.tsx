@@ -31,6 +31,7 @@ import BrandWordmark from '@/components/BrandWordmark';
 import { getDefaultFormFields, type FormField } from '@/components/SiteForm';
 import { getAnimationClass, type ButtonTarget } from '@/lib/elementActions';
 import { editorCatalog, getEditorCatalogItem, paletteCategories, type EditorPaletteCategory } from '@/lib/editorCatalog';
+import { createEditorWidgetContent, getEditorWidgetDefinition } from '@/lib/editorWidgetRegistry';
 import { createStorefrontPages } from '@/lib/templateContent';
 import StoreHeroArtwork from '@/components/storefront/StoreHeroArtwork';
 import { normalizeAnchorId, scrollToAnchor as scrollToResolvedAnchor } from '@/lib/navigation';
@@ -90,11 +91,34 @@ const paletteElementType = (id: string): SiteElement['type'] | null => {
   if (!item) return null;
   const label = item.label.toLowerCase();
   if (item.category === 'text') return label.includes('quote') ? 'quote' : label.includes('list') ? (label.includes('number') ? 'numbered-list' : 'list') : label.includes('badge') || label.includes('tag') ? 'badge' : 'text';
-  if (item.category === 'layout') return label.includes('spacer') ? 'spacer' : label.includes('divider') ? 'divider' : label.includes('anchor') ? 'anchor' : 'block';
+  if (item.category === 'layout') return label.includes('spacer') ? 'spacer' : label.includes('divider') ? 'divider' : label.includes('anchor') ? 'anchor' : id.startsWith('layout:') ? null : 'block';
   if (item.category === 'forms') return 'form';
   if (item.category === 'buttons') return label.includes('social') ? 'social-links' : 'button';
-  if (item.category === 'media') return label.includes('gallery') || label.includes('carousel') ? 'gallery' : label.includes('video') || label.includes('youtube') ? 'video' : label.includes('image') || label.includes('photo') || label.includes('logo') ? 'image' : 'block';
-  if (item.category === 'interactive') return label.includes('accordion') ? 'accordion' : label.includes('tab') ? 'tabs' : 'block';
+  if (item.category === 'media') {
+    if (label.includes('audio') || label.includes('podcast')) return 'audio';
+    if (label.includes('map')) return 'map';
+    if (label.includes('chart')) return 'chart';
+    if (label.includes('lottie')) return 'lottie';
+    if (label.includes('before') && label.includes('after')) return 'before-after';
+    if (label.includes('gallery') || label.includes('carousel') || label.includes('slider')) return 'gallery';
+    if (label.includes('video') || label.includes('youtube') || label.includes('vimeo')) return 'video';
+    if (label.includes('avatar') && !label.includes('group')) return 'avatar';
+    if (label.includes('logo')) return 'logo';
+    return label.includes('image') || label.includes('photo') ? 'image' : 'block';
+  }
+  if (item.category === 'interactive') {
+    if (label.includes('accordion')) return 'accordion';
+    if (label.includes('tab')) return 'tabs';
+    if (label.includes('countdown')) return 'countdown';
+    if (label.includes('progress')) return 'progress';
+    if (label.includes('rating')) return 'rating';
+    if (label.includes('table')) return 'table';
+    if (label.includes('marquee') || label.includes('ticker')) return 'marquee';
+    if (label.includes('typewriter')) return 'typewriter';
+    if (label.includes('cookie')) return 'cookie-banner';
+    if (label.includes('popup') || label.includes('modal')) return 'popup';
+    return 'block';
+  }
   return null;
 };
 const paletteBlockType = (id: string): string => PALETTE_BLOCK_ALIASES[id] || (id.startsWith('pro:') ? id.slice('pro:'.length) : id);
@@ -104,6 +128,20 @@ const paletteElementContent = (id: string, elementType: SiteElement['type']): Re
   if (elementType === 'button') return { text: id === 'free:text-link' ? 'Learn more' : 'Button label', href: '', linkTarget: 'url', linkValue: '', newTab: false };
   if (elementType === 'image' || elementType === 'image-caption') return { src: '', alt: '', caption: elementType === 'image-caption' ? 'Add an image caption.' : '' };
   if (elementType === 'icon') return { icon: 'Star', size: 36 };
+  if (elementType === 'video') return { title: 'Video', src: '', poster: '', controls: true };
+  if (elementType === 'audio') return { title: 'Audio player', src: '', controls: true };
+  if (elementType === 'map') return { title: 'Map', url: '', address: '' };
+  if (elementType === 'chart') return { title: 'Chart', items: [{ title: 'Visitors', value: 64 }, { title: 'Signups', value: 82 }, { title: 'Sales', value: 47 }] };
+  if (elementType === 'lottie') return { title: 'Animation', url: '', alt: 'Decorative animation' };
+  if (elementType === 'before-after') return { title: 'Before and after', before: '', after: '', position: 50 };
+  if (elementType === 'avatar') return { title: 'Profile', src: '', alt: 'Profile image' };
+  if (elementType === 'logo') return { title: 'Logo', src: '', alt: 'Organization logo' };
+  if (elementType === 'countdown') return { title: 'Countdown', seconds: 3600 };
+  if (elementType === 'progress') return { title: 'Progress', value: 65, max: 100 };
+  if (elementType === 'rating') return { title: 'Rating', value: 4.5 };
+  if (elementType === 'table') return { title: 'Table', columns: ['Option', 'Details'], items: [{ title: 'First option', description: 'Add details.' }, { title: 'Second option', description: 'Add details.' }] };
+  if (elementType === 'marquee' || elementType === 'typewriter') return { text: 'Share an important message with your visitors.' };
+  if (elementType === 'popup' || elementType === 'cookie-banner' || elementType === 'sticky-bar') return { title: 'A helpful message', description: 'Add the details visitors need to know.', buttonText: 'Learn more', href: '#contact' };
   if (elementType === 'spacer') return { height: 48 };
   if (elementType === 'list' || elementType === 'numbered-list') return { items: ['First item', 'Second item'] };
   if (elementType === 'card') return { title: 'Card title', description: 'Add a short description.' };
@@ -117,7 +155,15 @@ const paletteElementContent = (id: string, elementType: SiteElement['type']): Re
   if (elementType === 'form') { const label = getEditorCatalogItem(id)?.label.toLowerCase() || ''; return { endpoint: label.includes('newsletter') ? 'newsletter' : 'contact', submitLabel: label.includes('newsletter') ? 'Subscribe' : 'Send message', fields: label.includes('newsletter') ? [{ id: 'email', name: 'email', label: 'Email', type: 'email', placeholder: 'Email address', required: true }] : getDefaultFormFields() }; }
   return {};
 };
+const paletteCatalogElementContent = (id: string, elementType: SiteElement['type']) => {
+  if (elementType === 'block') return createEditorWidgetContent(id) || paletteElementContent(id, elementType);
+  const content = paletteElementContent(id, elementType);
+  const widget = getEditorWidgetDefinition(id);
+  return widget ? { ...content, blockType: widget.id, widgetKind: widget.kind } : content;
+};
 const paletteWidgetContent = (id: string, label: string, description: string): Record<string, unknown> => {
+  const registeredContent = createEditorWidgetContent(id);
+  if (registeredContent) return registeredContent;
   const key = `${id} ${label}`.toLowerCase();
   if (/sidebar menu|navbar|navigation menu|mega menu|dropdown menu|flyout menu|footer menu|mobile menu/.test(key)) return { blockType: id, title: label, description, items: [] };
   if (/product|shop|store|catalog/.test(key)) return { blockType: id, title: label, description, items: [{ title: 'Everyday essential', description: 'A carefully chosen favorite, ready for everyday use.', category: 'Featured', price: '₹1,499', image: '', href: '#product-1' }, { title: 'New season pick', description: 'A fresh addition selected by our team.', category: 'New', price: '₹899', image: '', href: '#product-2' }, { title: 'Customer favorite', description: 'A dependable choice with thoughtful details.', category: 'Popular', price: '₹2,199', image: '', href: '#product-3' }] };
@@ -275,21 +321,27 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
 
   const initialFeatures = template.features.map((title) => ({
     title,
-    desc: `${title} is thoughtfully integrated into the ${template.name} shopping experience.`,
+    desc: isFreshCrate || isVoltGear
+      ? `${title} is thoughtfully integrated into the ${template.name} shopping experience.`
+      : `${title} helps tell the ${template.name} story and gives visitors a clear next step.`,
   }));
   const [featuresContent, setFeaturesContent] = useState(initialFeatures);
 
   const [testimonialsContent, setTestimonialsContent] = useState([
     template.topReview
       ? { quote: template.topReview.comment, name: template.topReview.author, role: template.topReview.role }
-      : { quote: `${template.name} gave our store the premium experience we wanted.`, name: 'Alex Morgan', role: 'Store owner' },
-    { quote: `${template.name} made it easy to present our products beautifully and serve customers on every screen.`, name: 'Jamie Lee', role: 'Brand director' },
+      : isFreshCrate || isVoltGear
+        ? { quote: `${template.name} gave our store the premium experience we wanted.`, name: 'Alex Morgan', role: 'Store owner' }
+        : { quote: 'Add a customer quote that shows the value of your work.', name: 'Customer name', role: 'Customer or client' },
+    isFreshCrate || isVoltGear
+      ? { quote: `${template.name} made it easy to present our products beautifully and serve customers on every screen.`, name: 'Jamie Lee', role: 'Brand director' }
+      : { quote: 'Share a second perspective, result, or short success story here.', name: 'Client name', role: 'Client role' },
   ]);
 
   const [ctaContent, setCtaContent] = useState({
     title: isFreshCrate ? 'Make this week a little fresher.' : isVoltGear ? 'Find the setup that fits you.' : `Discover ${template.name}.`,
-    desc: isFreshCrate ? 'Choose your favorites, pick a delivery window, and we will bring your crate to the door.' : isVoltGear ? 'Compare the details, build a bundle, and get your next essential ready for the drop.' : `Explore the ${template.name} collection and find your next favorite.`,
-    buttonText: isFreshCrate ? 'Shop this week’s harvest →' : isVoltGear ? 'Build your setup →' : 'Shop the collection →',
+    desc: isFreshCrate ? 'Choose your favorites, pick a delivery window, and we will bring your crate to the door.' : isVoltGear ? 'Compare the details, build a bundle, and get your next essential ready for the drop.' : `Explore ${template.name} and invite visitors to take the next step.`,
+    buttonText: isFreshCrate ? 'Shop this week’s harvest →' : isVoltGear ? 'Build your setup →' : 'Get started →',
   });
 
   const [editorStore] = useState(() => createEditorStore(createSiteDocument({
@@ -323,6 +375,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
   }, [saveStatus]);
   // Guard ref: prevents the sync useEffect from re-committing to the store during undo/redo restoration
   const isRestoringRef = useRef(false);
+  const pendingHistoryGroupRef = useRef('');
   const dragSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -390,13 +443,16 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     // undo → applyDocumentToEditor → setSections → this effect → updateDocument → new undo entry
     if (isRestoringRef.current) {
       isRestoringRef.current = false;
+      pendingHistoryGroupRef.current = '';
       return;
     }
     const nextDocument = documentFromState({ theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, sectionSpacing, canvasElements, sitePages, assetUrl, logoUrl, faviconUrl, mediaAssets });
+    const historyGroup = pendingHistoryGroupRef.current;
+    pendingHistoryGroupRef.current = '';
     editorStore.getState().updateDocument((current) => {
       const merged = mergeEditorProjection(current, nextDocument, activePageId);
       return JSON.stringify(current) === JSON.stringify(merged) ? current : merged;
-    }, 'editor-sync');
+    }, historyGroup);
   }, [isHistoryReady, serverDraftReady, editorStore, documentFromState, theme, siteTitle, heroContent, featuresContent, testimonialsContent, ctaContent, sections, sectionSpacing, canvasElements, sitePages, assetUrl, logoUrl, faviconUrl, mediaAssets, activePageId]);
 
   useEffect(() => {
@@ -726,7 +782,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           id: `${id}-${elementType || 'content'}`,
           type: elementType || 'block',
           name: catalogItem?.label || (elementType ? elementType.split(/[-_]/g).map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : 'Content'),
-          content: elementType ? paletteElementContent(type, elementType) : paletteWidgetContent(type, catalogItem?.label || 'Content block', catalogItem?.description || ''),
+          content: elementType ? paletteCatalogElementContent(type, elementType) : paletteWidgetContent(type, catalogItem?.label || 'Content block', catalogItem?.description || ''),
           style: {},
         }] : [],
       }));
@@ -863,7 +919,7 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
         const basicType = paletteElementType(activeData.type);
         const block = blockRegistry[paletteBlockType(activeData.type)];
         const catalogItem = getEditorCatalogItem(activeData.type);
-        const element: SiteElement = { id: nextEditorId('element'), type: basicType || 'block', name: catalogItem?.label || (basicType || block?.type || 'Element'), content: basicType ? paletteElementContent(activeData.type, basicType) : catalogItem ? paletteWidgetContent(activeData.type, catalogItem.label, catalogItem.description) : { blockType: block?.type || activeData.type, ...(block?.defaultContent || {}) }, style: {} };
+        const element: SiteElement = { id: nextEditorId('element'), type: basicType || 'block', name: catalogItem?.label || (basicType || block?.type || 'Element'), content: basicType ? paletteCatalogElementContent(activeData.type, basicType) : catalogItem ? paletteWidgetContent(activeData.type, catalogItem.label, catalogItem.description) : { blockType: block?.type || activeData.type, ...(block?.defaultContent || {}) }, style: {} };
         editorStore.getState().insertElement(activePageId, overData.sectionId, overData.columnId, element, Number(overData.index) || 0);
         applyDocumentToEditor(editorStore.getState().document, activePageId);
         setSelectedTreeElement({ sectionId: overData.sectionId, columnId: overData.columnId, elementId: element.id });
@@ -1439,7 +1495,10 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
                 onAddSection={(index) => addPaletteItem('hero', index)}
                 selectedTreeElementId={selectedTreeElement?.elementId || null}
                 onSelectTreeElement={(sectionId, columnId, elementId) => { setSelectedSection(sectionId); setSelectedElementId(null); setSelectedTreeElement({ sectionId, columnId, elementId }); setMobileTab('inspector'); }}
-                onUpdateTreeElement={(sectionId, columnId, elementId, update) => setSections((items) => items.map((item) => item.id !== sectionId ? item : ({ ...item, columns: (item.columns || []).map((column) => column.id !== columnId ? column : ({ ...column, elements: column.elements.map((element) => element.id === elementId ? update(element) : element) })) })))}
+                onUpdateTreeElement={(sectionId, columnId, elementId, update, historyGroup) => {
+                  if (historyGroup) pendingHistoryGroupRef.current = historyGroup;
+                  setSections((items) => items.map((item) => item.id !== sectionId ? item : ({ ...item, columns: (item.columns || []).map((column) => column.id !== columnId ? column : ({ ...column, elements: column.elements.map((element) => element.id === elementId ? update(element) : element) })) })));
+                }}
                 onResizeTreeColumn={(sectionId, columnId, width) => setSections((items) => items.map((item) => item.id !== sectionId ? item : ({ ...item, columns: (item.columns || []).map((column) => column.id !== columnId ? column : ({ ...column, width: { ...column.width, [deviceMode]: Math.max(1, Math.min(12, Math.round(width))) } })) })))}
                 onDuplicateTreeElement={(sectionId, columnId, elementId) => setSections((items) => items.map((item) => item.id !== sectionId ? item : ({ ...item, columns: (item.columns || []).map((column) => {
                   if (column.id !== columnId) return column;
@@ -1484,8 +1543,9 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
-            {selectedTreeElementRecord && selectedTreeElement ? <TreeElementProperties element={selectedTreeElementRecord} pages={editorDocument.pages} device={deviceMode} onUpload={(file) => readLocalImageFile(file, (src) => setSections((items) => items.map((section) => section.id !== selectedTreeElement.sectionId ? section : ({ ...section, columns: (section.columns || []).map((column) => column.id !== selectedTreeElement.columnId ? column : ({ ...column, elements: column.elements.map((element) => element.id === selectedTreeElement.elementId ? { ...element, content: { ...element.content, src, image: src } } : element) })) }))))} onChange={(update) => setSections((items) => items.map((section) => section.id !== selectedTreeElement.sectionId ? section : ({ ...section, columns: (section.columns || []).map((column) => column.id !== selectedTreeElement.columnId ? column : ({ ...column, elements: column.elements.map((element) => element.id === selectedTreeElement.elementId ? update(element) : element) })) })))} /> : selectedElementId ? (() => { const item = canvasElements.find((element) => element.id === selectedElementId); return item ? <ElementProperties item={item} onChange={(patch) => updateCanvasElement(item.id, patch)} onUpload={(file) => { if (file) readLocalImageFile(file, (src) => updateCanvasElement(item.id, { src, name: file.name })); }} /> : null; })() : selectedSection ? (
+            {selectedTreeElementRecord && selectedTreeElement ? <TreeElementProperties key={selectedTreeElementRecord.id} element={selectedTreeElementRecord} pages={editorDocument.pages} device={deviceMode} onUpload={(file) => readLocalImageFile(file, (src) => setSections((items) => items.map((section) => section.id !== selectedTreeElement.sectionId ? section : ({ ...section, columns: (section.columns || []).map((column) => column.id !== selectedTreeElement.columnId ? column : ({ ...column, elements: column.elements.map((element) => element.id === selectedTreeElement.elementId ? { ...element, content: { ...element.content, src, image: src } } : element) })) }))))} onChange={(update) => setSections((items) => items.map((section) => section.id !== selectedTreeElement.sectionId ? section : ({ ...section, columns: (section.columns || []).map((column) => column.id !== selectedTreeElement.columnId ? column : ({ ...column, elements: column.elements.map((element) => element.id === selectedTreeElement.elementId ? update(element) : element) })) })))} /> : selectedElementId ? (() => { const item = canvasElements.find((element) => element.id === selectedElementId); return item ? <ElementProperties item={item} onChange={(patch) => updateCanvasElement(item.id, patch)} onUpload={(file) => { if (file) readLocalImageFile(file, (src) => updateCanvasElement(item.id, { src, name: file.name })); }} /> : null; })() : selectedSection ? (
               <SectionProperties
+                key={selectedSection}
                 sectionId={selectedSection}
                 sections={sections}
                 theme={theme}
@@ -1827,7 +1887,7 @@ function CanvasContent({
   onAddSection: (index: number) => void;
   selectedTreeElementId: string | null;
   onSelectTreeElement: (sectionId: string, columnId: string, elementId: string) => void;
-  onUpdateTreeElement: (sectionId: string, columnId: string, elementId: string, update: (element: SiteElement) => SiteElement) => void;
+  onUpdateTreeElement: (sectionId: string, columnId: string, elementId: string, update: (element: SiteElement) => SiteElement, historyGroup?: string) => void;
   onResizeTreeColumn: (sectionId: string, columnId: string, width: number) => void;
   onDuplicateTreeElement: (sectionId: string, columnId: string, elementId: string) => void;
   onDeleteTreeElement: (sectionId: string, columnId: string, elementId: string) => void;
@@ -1996,6 +2056,60 @@ function ButtonActionControls({ element, pages, changeContent }: { element: Site
   </div>;
 }
 
+function ElementContentFields({ value, onChange }: { value: Record<string, unknown>; onChange: (value: Record<string, unknown>) => void }) {
+  const humanize = (key: string) => key.replace(/([A-Z])/g, ' $1').replace(/[-_]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+  const renderValue = (key: string, currentValue: unknown, update: (nextValue: unknown) => void): React.ReactNode => {
+    if (Array.isArray(currentValue)) {
+      const newItem = () => {
+        const sample = currentValue[0];
+        if (sample && typeof sample === 'object' && !Array.isArray(sample)) {
+          return Object.fromEntries(Object.entries(sample).map(([property, propertyValue]) => [
+            property,
+            typeof propertyValue === 'string' ? '' : typeof propertyValue === 'number' ? 0 : typeof propertyValue === 'boolean' ? false : Array.isArray(propertyValue) ? [] : {},
+          ]));
+        }
+        return key === 'items' ? { title: 'New item', description: '' } : '';
+      };
+      return <div className="space-y-2 rounded-lg border border-black/15 bg-neutral-50 p-2">
+        <p className="font-mono text-[9px] font-bold uppercase text-neutral-500">{humanize(key)}</p>
+        {currentValue.map((item, index) => <div key={typeof item === 'object' && item !== null && 'id' in item ? String(item.id) : index} className="rounded-lg border border-black/10 bg-white p-2">
+          {item && typeof item === 'object' && !Array.isArray(item)
+            ? <ElementContentFields value={item as Record<string, unknown>} onChange={(nextItem) => update(currentValue.map((entry, entryIndex) => entryIndex === index ? nextItem : entry))} />
+            : <div className="flex gap-2">
+              <input aria-label={`${humanize(key)} item ${index + 1}`} value={String(item ?? '')} onChange={(event) => update(currentValue.map((entry, entryIndex) => entryIndex === index ? event.target.value : entry))} className="min-w-0 flex-1 rounded border border-black/20 px-2 py-1.5 text-xs" />
+              <button type="button" aria-label={`Remove ${humanize(key)} item ${index + 1}`} onClick={() => update(currentValue.filter((_, entryIndex) => entryIndex !== index))} className="px-1 text-[10px] font-bold text-red-700">Remove</button>
+            </div>}
+          {item && typeof item === 'object' && !Array.isArray(item) && <button type="button" onClick={() => update(currentValue.filter((_, entryIndex) => entryIndex !== index))} className="mt-1 text-[10px] font-bold text-red-700">Remove item</button>}
+        </div>)}
+        <button type="button" onClick={() => update([...currentValue, newItem()])} className="w-full rounded-lg border border-black bg-white py-1.5 font-mono text-[9px] font-bold">+ Add {humanize(key).toLowerCase().replace(/s$/, '')}</button>
+      </div>;
+    }
+    if (currentValue && typeof currentValue === 'object') {
+      return <div className="space-y-2 rounded-lg border border-black/15 bg-neutral-50 p-2">
+        <p className="font-mono text-[9px] font-bold uppercase text-neutral-500">{humanize(key)}</p>
+        <ElementContentFields value={currentValue as Record<string, unknown>} onChange={update as (nextValue: Record<string, unknown>) => void} />
+      </div>;
+    }
+    if (typeof currentValue === 'boolean') {
+      return <label className="flex items-center justify-between gap-2 rounded-lg border border-black/15 px-2 py-2 font-mono text-[9px] font-bold uppercase">
+        {humanize(key)}<input type="checkbox" checked={currentValue} onChange={(event) => update(event.target.checked)} />
+      </label>;
+    }
+    if (typeof currentValue === 'number') {
+      return <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">{humanize(key)}<input type="number" value={currentValue} onChange={(event) => update(event.target.value === '' ? 0 : Number(event.target.value))} className="mt-1 w-full rounded border border-black/20 px-2 py-1.5 font-mono text-xs font-normal normal-case text-black" /></label>;
+    }
+    const textValue = typeof currentValue === 'string' ? currentValue : currentValue == null ? '' : String(currentValue);
+    const multiline = /description|caption|message|body|text|content/i.test(key) || textValue.length > 100;
+    return <label className="block font-mono text-[9px] font-bold uppercase text-neutral-600">{humanize(key)}{multiline
+      ? <textarea rows={3} value={textValue} onChange={(event) => update(event.target.value)} className="mt-1 w-full rounded border border-black/20 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" />
+      : <input value={textValue} onChange={(event) => update(event.target.value)} className="mt-1 w-full rounded border border-black/20 px-2 py-1.5 font-sans text-xs font-normal normal-case text-black" />}</label>;
+  };
+
+  const fields = Object.entries(value).filter(([key]) => key !== 'blockType' && key !== 'fields');
+  if (!fields.length) return <p className="mt-2 text-[10px] text-neutral-500">No additional content values are available for this element yet.</p>;
+  return <div className="mt-3 space-y-2">{fields.map(([key, currentValue]) => <div key={key}>{renderValue(key, currentValue, (nextValue) => onChange({ ...value, [key]: nextValue }))}</div>)}</div>;
+}
+
 function TreeElementProperties({ element, pages, device, onChange, onUpload }: { element: SiteElement; pages: SiteDocument['pages']; device: DeviceMode; onChange: (update: (element: SiteElement) => SiteElement) => void; onUpload: (file?: File) => void }) {
   const [tab, setTab] = useState<'content' | 'style' | 'interactions' | 'advanced'>('content');
   const changeContent = (key: string, value: unknown) => onChange((current) => ({ ...current, content: { ...current.content, [key]: value } }));
@@ -2020,7 +2134,8 @@ function TreeElementProperties({ element, pages, device, onChange, onUpload }: {
       {element.type === 'form' && <div className="space-y-3 rounded-xl border border-black/15 bg-neutral-50 p-3"><label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Submit to<select value={String(element.content.endpoint || 'contact')} onChange={(event) => changeContent('endpoint', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black bg-white px-2 py-2 font-mono text-xs font-normal normal-case text-black"><option value="contact">Launchly contact inbox</option><option value="newsletter">Newsletter subscribers</option><option value="custom">Custom API endpoint</option></select></label>{element.content.endpoint === 'custom' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">API URL<input type="url" value={String(element.content.apiUrl || '')} onChange={(event) => changeContent('apiUrl', event.target.value)} placeholder="https://api.example.com/lead" className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal normal-case text-black"/><span className="mt-1 block font-normal normal-case">Submissions are sent from the visitor’s browser as JSON. Don’t put secret API keys here.</span></label>}<p className="font-mono text-[10px] font-black uppercase">Form fields</p>{formFields.map((field) => <div key={field.id} className="space-y-2 rounded-lg border border-black/15 bg-white p-2"><input aria-label="Field label" value={field.label} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, label: event.target.value }))} placeholder="Label" className="w-full rounded border px-2 py-1.5 text-xs"/><div className="grid grid-cols-2 gap-2"><input aria-label="Field key" value={field.name} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, name: event.target.value.replace(/[^a-zA-Z0-9_]/g, '_') }))} placeholder="API field key" className="min-w-0 rounded border px-2 py-1.5 font-mono text-[10px]"/><select aria-label="Field type" value={field.type} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, type: event.target.value as FormField['type'] }))} className="min-w-0 rounded border bg-white px-2 py-1.5 text-[10px]"><option value="text">Text</option><option value="email">Email</option><option value="tel">Phone</option><option value="textarea">Long text</option><option value="select">Select</option><option value="radio">Radio</option><option value="checkbox">Checkbox</option><option value="date">Date</option><option value="number">Number</option><option value="file">File</option><option value="rating">Rating</option><option value="hidden">Hidden</option></select></div><input aria-label="Placeholder" value={field.placeholder} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, placeholder: event.target.value }))} placeholder="Placeholder" className="w-full rounded border px-2 py-1.5 text-xs"/>{["select", "radio"].includes(field.type) && <textarea aria-label="Form field options" value={(field.options || []).join("\n")} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, options: event.target.value.split(/\r?\n/).filter((value) => value.trim()) }))} placeholder="One option per line" rows={3} className="w-full rounded border px-2 py-1.5 text-xs"/>}<div className="flex items-center justify-between"><label className="flex items-center gap-1 text-[10px]"><input type="checkbox" checked={field.required} onChange={(event) => updateFormField(field.id, (current) => ({ ...current, required: event.target.checked }))}/>Required</label><button type="button" onClick={() => changeContent('fields', formFields.filter((entry) => entry.id !== field.id))} className="text-[10px] font-bold text-red-700">Remove</button></div></div>)}<button type="button" onClick={addFormField} className="w-full rounded-lg border-2 border-black bg-white px-3 py-2 font-mono text-xs font-bold">+ Add field</button><label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Success message<input value={String(element.content.successMessage || '')} onChange={(event) => changeContent('successMessage', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black"/></label></div>}
        {['image', 'image-caption'].includes(element.type) && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Alt text<input value={String(element.content.alt || '')} onChange={(event) => changeContent('alt', event.target.value)} placeholder="Describe the image" className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
       {['card', 'block'].includes(element.type) && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Description<textarea rows={4} value={String(element.content.description || '')} onChange={(event) => changeContent('description', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
-      {element.type === 'block' && <WidgetSpecificProperties element={element} pages={pages} changeContent={changeContent} />}
+      {typeof element.content.blockType === 'string' && <WidgetSpecificProperties element={element} pages={pages} changeContent={changeContent} />}
+      {typeof element.content.blockType === 'string' && <div className="rounded-xl border-2 border-black/15 bg-white p-2.5"><p className="font-mono text-[9px] font-black uppercase">Widget content controls</p><ElementContentFields value={element.content} onChange={(content) => onChange((current) => ({ ...current, content }))} /></div>}
       {['list', 'numbered-list'].includes(element.type) && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">List items<textarea rows={6} value={(Array.isArray(element.content.items) ? element.content.items : []).map(String).join('\n')} onChange={(event) => changeContent('items', event.target.value.split(/\r?\n/).filter((item) => item.trim()))} placeholder="One item per line" className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
       {element.type === 'image-caption' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Caption<input value={String(element.content.caption || '')} onChange={(event) => changeContent('caption', event.target.value)} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-sans text-sm font-normal normal-case text-black" /></label>}
       {['accordion', 'tabs', 'social-links'].includes(element.type) && <div className="space-y-2 rounded-xl border border-black/15 bg-neutral-50 p-3"><p className="font-mono text-[10px] font-bold uppercase text-neutral-500">{element.type} items</p>{(Array.isArray(element.content.items) ? element.content.items as Array<Record<string, unknown>> : []).map((item, index, all) => <div key={index} className="space-y-1 rounded-lg border border-black/15 bg-white p-2"><label className="block text-[10px] font-bold">Label<input value={String(item.title || '')} onChange={(event) => changeContent('items', all.map((current, currentIndex) => currentIndex === index ? { ...current, title: event.target.value } : current))} className="mt-1 w-full rounded border px-2 py-1.5 text-xs" /></label>{element.type === 'social-links' ? <label className="block text-[10px] font-bold">Link URL<input value={String(item.url || '')} onChange={(event) => changeContent('items', all.map((current, currentIndex) => currentIndex === index ? { ...current, url: event.target.value } : current))} className="mt-1 w-full rounded border px-2 py-1.5 text-xs" /></label> : <label className="block text-[10px] font-bold">Content<textarea rows={2} value={String(item.description || '')} onChange={(event) => changeContent('items', all.map((current, currentIndex) => currentIndex === index ? { ...current, description: event.target.value } : current))} className="mt-1 w-full rounded border px-2 py-1.5 text-xs" /></label>}<button type="button" onClick={() => changeContent('items', all.filter((_, currentIndex) => currentIndex !== index))} className="text-[10px] font-bold text-red-700">Remove</button></div>)}<button type="button" onClick={() => changeContent('items', [...(Array.isArray(element.content.items) ? element.content.items as Array<Record<string, unknown>> : []), { title: element.type === 'accordion' ? 'Question' : `Item ${(Array.isArray(element.content.items) ? element.content.items.length : 0) + 1}`, description: 'Add content.', url: '' }])} className="w-full rounded-lg border border-black bg-white py-2 font-mono text-[10px] font-bold">+ Add item</button></div>}
@@ -2029,6 +2144,11 @@ function TreeElementProperties({ element, pages, device, onChange, onUpload }: {
       {element.type === 'icon' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Icon size<input type="number" min="8" max="256" value={Number(element.content.size || 36)} onChange={(event) => changeContent('size', Math.max(8, Math.min(256, Number(event.target.value) || 36)))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label>}
       {['image', 'image-caption', 'icon'].includes(element.type) && <label className="block cursor-pointer rounded-lg border-2 border-dashed border-black p-3 text-center font-mono text-xs font-bold">Upload {element.type}<input type="file" accept="image/*" className="sr-only" onChange={(event) => onUpload(event.target.files?.[0])} /></label>}
       {element.type === 'spacer' && <label className="block font-mono text-[10px] font-bold uppercase text-neutral-500">Height (px)<input type="number" min="0" max="1200" value={Number(element.content.height || 48)} onChange={(event) => changeContent('height', Math.max(0, Number(event.target.value) || 0))} className="mt-1 w-full rounded-lg border-2 border-black px-2 py-2 font-mono text-xs font-normal text-black" /></label>}
+      <details className="rounded-xl border border-black/20 bg-white p-2.5">
+        <summary className="cursor-pointer font-mono text-[9px] font-black uppercase">More editable properties</summary>
+        <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">Edit nested content, repeaters, and type-specific values without writing JSON.</p>
+        <ElementContentFields value={element.content} onChange={(content) => onChange((current) => ({ ...current, content }))} />
+      </details>
       <StructuredContentEditor key={JSON.stringify(element.content)} value={element.content} onChange={(content) => onChange((current) => ({ ...current, content }))} label="All content fields" />
     </div>}
     {tab === 'style' && <div className="space-y-3">
@@ -2112,7 +2232,7 @@ function SectionRenderer({
   onUpdateSectionContent: (sectionId: string, content: Record<string, unknown>) => void;
   selectedTreeElementId: string | null;
   onSelectTreeElement: (columnId: string, elementId: string) => void;
-  onUpdateTreeElement: (columnId: string, elementId: string, update: (element: SiteElement) => SiteElement) => void;
+  onUpdateTreeElement: (columnId: string, elementId: string, update: (element: SiteElement) => SiteElement, historyGroup?: string) => void;
   onResizeTreeColumn: (columnId: string, width: number) => void;
   onDuplicateTreeElement: (columnId: string, elementId: string) => void;
   onDeleteTreeElement: (columnId: string, elementId: string) => void;

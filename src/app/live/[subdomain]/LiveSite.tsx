@@ -27,6 +27,9 @@ import { getAnimationClass, resolveButtonHref, type ButtonTarget } from '@/lib/e
 import { createStorefrontPages } from '@/lib/templateContent';
 import { normalizeAnchorId, scrollToAnchor as scrollToResolvedAnchor } from '@/lib/navigation';
 import { elementVisualStyle } from '@/lib/elementVisualStyle';
+import SiteElementPreview, { supportsAdditionalElement } from '@/components/editor/SiteElementPreview';
+import CatalogWidgetPreview from '@/components/editor/CatalogWidgetPreview';
+import { getEditorWidgetDefinition } from '@/lib/editorWidgetRegistry';
 
 type LivePageSection = { id: string; type: string; name: string; content?: Record<string, unknown>; style?: Record<string, unknown>; columns?: Column[]; hidden?: Partial<Record<'desktop' | 'tablet' | 'mobile', boolean>>; anchorId?: string };
 type LivePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; oldSlugs?: string[]; sections?: LivePageSection[] };
@@ -116,7 +119,10 @@ function LiveTreeElement({ element, pages, subdomain, previewSuffix = '', onOpen
     case 'tabs': return <LiveTabs items={Array.isArray(element.content.items) ? element.content.items as Array<Record<string, unknown>> : []}/>;
     case 'social-links': return <div className="flex flex-wrap gap-3">{(Array.isArray(element.content.items) ? element.content.items as Array<Record<string, unknown>> : []).map((item, index) => <a key={index} href={String(item.url || '#')} className="font-bold underline">{String(item.title || `Social ${index + 1}`)}</a>)}</div>;
     case 'block': {
-      const kind = `${String(element.content.blockType || '')} ${String(element.content.title || '')}`.toLowerCase();
+      const blockType = String(element.content.blockType || '');
+      const widget = getEditorWidgetDefinition(blockType);
+      if (widget) return <CatalogWidgetPreview kind={widget.kind} widgetId={widget.id} content={element.content} style={style} />;
+      const kind = `${blockType} ${String(element.content.title || '')}`.toLowerCase();
       const items = Array.isArray(element.content.items) ? element.content.items as Array<Record<string, unknown>> : [];
       const heading = String(element.content.title || element.content.blockType || 'Content block');
       const actionLabel = String(element.content.buttonText || element.content.cta || '').trim();
@@ -137,6 +143,7 @@ function LiveTreeElement({ element, pages, subdomain, previewSuffix = '', onOpen
     }
     case 'form': return <form className="grid max-w-xl gap-3" onSubmit={(event) => event.preventDefault()}><input required placeholder="Your name" className="rounded-lg border px-3 py-2" /><input required type="email" placeholder="Email address" className="rounded-lg border px-3 py-2" /><textarea required rows={4} placeholder="Message" className="rounded-lg border px-3 py-2" /><button style={style} className="rounded-lg bg-yellow px-4 py-2 font-bold">{text || 'Send message'}</button></form>;
     default: {
+      if (supportsAdditionalElement(element.type)) return <SiteElementPreview element={element} style={style} />;
       const fallbackTitle = text || element.name || element.type.replace(/[-_]/g, ' ');
       const fallbackDescription = typeof element.content.description === 'string'
         ? element.content.description

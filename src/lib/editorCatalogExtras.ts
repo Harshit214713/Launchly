@@ -1,4 +1,4 @@
-import type { EditorCatalogItem } from '@/lib/editorCatalog';
+import type { EditorCatalogItem } from './editorCatalog.ts';
 
 export const extraCatalogItems: EditorCatalogItem[] = [
   { id: 'pro:extra:hero-with-search-bar', label: 'Hero with search bar', description: 'Add widget: Hero with search bar.', category: 'parts', plan: 'free' },
@@ -444,6 +444,5 @@ export const extraCatalogItems: EditorCatalogItem[] = [
   { id: 'pro:extra:curtain-reveal', label: 'curtain reveal', description: 'Add widget: curtain reveal.', category: 'interactive', plan: 'free' },
   { id: 'pro:extra:split-text-animation', label: 'split text animation', description: 'Add widget: split text animation.', category: 'interactive', plan: 'free' },
 ];
-
 
 

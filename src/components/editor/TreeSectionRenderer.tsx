@@ -15,6 +15,9 @@ import ImageCarousel from '@/components/ImageCarousel';
 import { getAnimationClass, resolveButtonHref, type ButtonTarget } from '@/lib/elementActions';
 import { getEditorCatalogItem } from '@/lib/editorCatalog';
 import { normalizeAnchorId, scrollToAnchor } from '@/lib/navigation';
+import SiteElementPreview, { supportsAdditionalElement } from '@/components/editor/SiteElementPreview';
+import CatalogWidgetPreview from '@/components/editor/CatalogWidgetPreview';
+import { getEditorWidgetDefinition } from '@/lib/editorWidgetRegistry';
 
 type Props = {
   sectionId: string;
@@ -23,7 +26,7 @@ type Props = {
   device: Device;
   selectedElementId: string | null;
   onSelectElement: (columnId: string, elementId: string) => void;
-  onUpdateElement: (columnId: string, elementId: string, update: (element: SiteElement) => SiteElement) => void;
+  onUpdateElement: (columnId: string, elementId: string, update: (element: SiteElement) => SiteElement, historyGroup?: string) => void;
   onResizeColumn: (columnId: string, width: number) => void;
   onDuplicateElement: (columnId: string, elementId: string) => void;
   onDeleteElement: (columnId: string, elementId: string) => void;
@@ -71,8 +74,8 @@ function TreeElement({ sectionId, element, pages, device, columnId, index, selec
   };
   const frame = (child: ReactNode) => <div ref={sortable.setNodeRef} style={{ transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition }} className={`group/tree-element relative rounded-lg ${element.customClass || ''} ${sortable.isDragging ? 'z-20 opacity-40' : ''} ${selected ? 'outline outline-2 outline-pink outline-offset-2' : 'hover:outline hover:outline-1 hover:outline-pink/60'}`} data-element-drop={element.id}><button type="button" {...sortable.attributes} {...sortable.listeners} aria-label={`Drag ${elementLabel}`} className="absolute -left-5 top-1 z-10 cursor-grab touch-none p-0.5 text-neutral-400 hover:text-black"><span aria-hidden="true">⠿</span></button><div className="absolute -top-3 right-1 z-10 hidden items-center gap-1 group-hover/tree-element:flex"><button type="button" onClick={(event) => { event.stopPropagation(); onSelect(columnId, element.id); }} className="rounded border border-black bg-yellow px-2 py-0.5 font-mono text-[9px] font-bold">{elementLabel}</button><button type="button" aria-label={`Duplicate ${elementLabel}`} onClick={(event) => { event.stopPropagation(); onDuplicate(columnId, element.id); }} className="rounded border border-black bg-white px-1.5 py-0.5 font-mono text-[9px] font-bold">⧉</button><button type="button" aria-label={`Delete ${elementLabel}`} onClick={(event) => { event.stopPropagation(); onDelete(columnId, element.id); }} className="rounded border border-black bg-white px-1.5 py-0.5 font-mono text-[9px] font-bold">×</button></div><div className={getAnimationClass(resolvedStyle.animation)} onClick={(event) => { event.stopPropagation(); onSelect(columnId, element.id); }}>{child}</div></div>;
   switch (element.type) {
-    case 'heading': { const Heading = `h${Math.max(1, Math.min(6, Number(element.content.level) || 2))}` as ElementType; return frame(<Heading style={style} contentEditable suppressContentEditableWarning onInput={(event: React.FormEvent<HTMLElement>) => { const value = event.currentTarget.innerText; onUpdate(columnId, element.id, (current) => ({ ...current, content: { ...current.content, text: value } })); }} className="text-3xl font-black">{text || 'Your heading'}</Heading>); }
-    case 'text': return frame(<p style={style} contentEditable suppressContentEditableWarning onInput={(event) => { const value = event.currentTarget.innerText; onUpdate(columnId, element.id, (current) => ({ ...current, content: { ...current.content, text: value } })); }} className="min-h-6 whitespace-pre-wrap leading-relaxed">{text || 'Write something for your visitors.'}</p>);
+    case 'heading': { const Heading = `h${Math.max(1, Math.min(6, Number(element.content.level) || 2))}` as ElementType; return frame(<Heading style={style} contentEditable suppressContentEditableWarning onInput={(event: React.FormEvent<HTMLElement>) => { const value = event.currentTarget.innerText; onUpdate(columnId, element.id, (current) => ({ ...current, content: { ...current.content, text: value } }), `typing:${element.id}:text`); }} className="text-3xl font-black">{text || 'Your heading'}</Heading>); }
+    case 'text': return frame(<p style={style} contentEditable suppressContentEditableWarning onInput={(event) => { const value = event.currentTarget.innerText; onUpdate(columnId, element.id, (current) => ({ ...current, content: { ...current.content, text: value } }), `typing:${element.id}:text`); }} className="min-h-6 whitespace-pre-wrap leading-relaxed">{text || 'Write something for your visitors.'}</p>);
     case 'button': { const target = String(element.content.linkTarget || 'url') as ButtonTarget; const href = resolveButtonHref(target, String(element.content.linkValue || element.content.href || ''), pages); return frame(<a href={href} download={target === 'download' ? String(element.content.downloadName || '') || undefined : undefined} target={element.content.newTab ? '_blank' : undefined} rel={element.content.newTab ? 'noreferrer' : undefined} aria-label={String(element.content.ariaLabel || '') || undefined} onClick={(event) => activateLink(event, href)} style={style} className="inline-flex rounded-xl border-2 border-black bg-yellow px-5 py-3 font-bold shadow-[2px_2px_0_#000]">{text || 'Button label'}</a>); }
     case 'image': return frame(typeof element.content.src === 'string' && element.content.src ? <Image src={element.content.src} alt={typeof element.content.alt === 'string' ? element.content.alt : ''} width={1200} height={900} unoptimized style={style} className="max-h-96 w-full rounded-xl object-cover" /> : <div className="flex h-48 items-center justify-center rounded-xl border-2 border-dashed border-black/30 bg-neutral-50 font-mono text-xs text-neutral-500">Select image in properties</div>);
     case 'icon': { const Icon = ({ Star, Heart, Sparkles, Camera } as Record<string, typeof Star>)[String(element.content.icon || 'Star')] || Star; return frame(typeof element.content.src === 'string' && element.content.src ? <Image src={element.content.src} alt={String(element.content.alt || '')} width={256} height={256} unoptimized style={style} className="h-12 w-12 object-contain" /> : <Icon size={Number(element.content.size || 36)} style={style} />); }
@@ -94,6 +97,8 @@ function TreeElement({ sectionId, element, pages, device, columnId, index, selec
     case 'block': {
       const blockType = String(element.content.blockType || '');
       const blockLabel = getEditorCatalogItem(blockType)?.label || String(element.content.title || element.name || 'Element');
+      const widget = getEditorWidgetDefinition(blockType);
+      if (widget) return frame(<CatalogWidgetPreview kind={widget.kind} widgetId={widget.id} content={element.content} style={style} isEditor onChange={(key, value, historyGroup) => onUpdate(columnId, element.id, (current) => ({ ...current, content: { ...current.content, [key]: value } }), historyGroup)} />);
       const catalogItem = getEditorCatalogItem(blockType);
       const normalized = `${blockType} ${blockLabel}`.toLowerCase();
       const blockItems = Array.isArray(element.content.items) ? element.content.items as Array<Record<string, unknown>> : [];
@@ -101,7 +106,7 @@ function TreeElement({ sectionId, element, pages, device, columnId, index, selec
       const actionTarget = String(element.content.linkTarget || 'url') as ButtonTarget;
       const rawActionHref = String(element.content.linkValue || element.content.href || '').trim();
       const actionHref = resolveButtonHref(actionTarget, rawActionHref, pages);
-      const editable = (key: string, value: string, className: string) => <span contentEditable suppressContentEditableWarning onInput={(event) => { const next = event.currentTarget.textContent || ''; onUpdate(columnId, element.id, (current) => ({ ...current, content: { ...current.content, [key]: next } })); }} className={className}>{value}</span>;
+      const editable = (key: string, value: string, className: string) => <span contentEditable suppressContentEditableWarning onInput={(event) => { const next = event.currentTarget.textContent || ''; onUpdate(columnId, element.id, (current) => ({ ...current, content: { ...current.content, [key]: next } }), `typing:${element.id}:${key}`); }} className={className}>{value}</span>;
       if (/cart|shopping bag|mini cart|cart drawer|cart modal/.test(normalized)) {
         const cartItems = blockItems.length ? blockItems : [{ title: 'Sample product', description: 'Add products from your store to see them here.', price: '₹1,499', quantity: 1 }];
         const subtotal = cartItems.reduce((total, item) => total + (Number(String(item.price || '').replace(/[^\d.]/g, '')) || 0) * (Number(item.quantity) || 1), 0);
@@ -121,10 +126,21 @@ function TreeElement({ sectionId, element, pages, device, columnId, index, selec
       if (/map|embed|iframe|calendar|instagram|twitter|social feed/.test(normalized) && typeof element.content.url === 'string' && /^https:\/\//i.test(element.content.url)) return frame(<section style={style} className="overflow-hidden rounded-xl border-2 border-black/15 bg-white"><h3 className="p-4 font-bold">{editable('title', String(element.content.title || blockLabel), 'outline-none focus-visible:ring-2 focus-visible:ring-pink')}</h3><iframe title={String(element.content.title || blockLabel)} src={element.content.url} loading="lazy" sandbox="allow-scripts allow-forms allow-presentation" referrerPolicy="no-referrer" className="h-72 w-full border-t border-black/10"/></section>);
       if (/audio|podcast/.test(normalized) && typeof element.content.url === 'string' && element.content.url) return frame(<section style={style} className="rounded-xl border-2 border-black/15 bg-white p-4"><h3 className="mb-3 font-bold">{editable('title', String(element.content.title || blockLabel), 'outline-none focus-visible:ring-2 focus-visible:ring-pink')}</h3><audio controls preload="none" src={element.content.url} className="w-full">Your browser does not support audio playback.</audio></section>);
       if (normalized.includes('skill bar') || normalized.includes('progress bar')) return frame(<article style={style} className="rounded-2xl border-2 border-black/15 bg-white p-5"><h3 className="font-display text-lg font-black">{editable('title', String(element.content.title || blockLabel), 'outline-none focus-visible:ring-2 focus-visible:ring-pink')}</h3>{Boolean(element.content.description) && <p className="mt-1 text-sm text-neutral-600">{editable('description', String(element.content.description), 'outline-none focus-visible:ring-2 focus-visible:ring-pink')}</p>}<div className="mt-5 space-y-4">{blockItems.map((item, index) => { const value = Math.max(0, Math.min(100, Number(item.value ?? item.percent ?? 70))); return <div key={index}><div className="mb-1 flex items-center justify-between gap-3 text-sm font-semibold"><span>{String(item.title || item.label || `Skill ${index + 1}`)}</span><span className="font-mono text-xs text-neutral-500">{value}%</span></div><div role="progressbar" aria-label={String(item.title || item.label || `Skill ${index + 1}`)} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} className="h-2.5 overflow-hidden rounded-full bg-neutral-100"><div className="h-full rounded-full bg-pink" style={{ width: `${value}%` }}/></div></div>; })}</div></article>);
-      const advanced = <CatalogBlockRenderer normalized={normalized} blockLabel={blockLabel} element={element} items={blockItems} style={style} actionLabel={actionLabel} actionHref={actionHref} onUpdate={(update) => onUpdate(columnId, element.id, update)} onNavigate={(event, href) => activateLink(event, href)} />;
+      const advanced = <CatalogBlockRenderer normalized={normalized} blockLabel={blockLabel} element={element} items={blockItems} style={style} actionLabel={actionLabel} actionHref={actionHref} onUpdate={(update, historyGroup) => onUpdate(columnId, element.id, update, historyGroup)} onNavigate={(event, href) => activateLink(event, href)} />;
       return frame(advanced);
     }
     default: {
+      if (supportsAdditionalElement(element.type)) {
+        return frame(<SiteElementPreview
+          element={element}
+          style={style}
+          isEditor
+          onChange={(key, value, historyGroup) => onUpdate(columnId, element.id, (current) => ({
+            ...current,
+            content: { ...current.content, [key]: value },
+          }), historyGroup)}
+        />);
+      }
       const fallbackTitle = text || element.name || element.type.replace(/[-_]/g, ' ');
       const fallbackDescription = typeof element.content.description === 'string'
         ? element.content.description
@@ -146,7 +162,7 @@ type CatalogBlockProps = {
   style: CSSProperties;
   actionLabel: string;
   actionHref: string;
-  onUpdate: (update: (element: SiteElement) => SiteElement) => void;
+  onUpdate: (update: (element: SiteElement) => SiteElement, historyGroup?: string) => void;
   onNavigate: (event: React.MouseEvent<HTMLElement>, href: string) => void;
 };
 
@@ -165,8 +181,8 @@ function CatalogBlockRenderer({ normalized, blockLabel, element, items, style, a
   const title = String(element.content.title || blockLabel);
   const description = String(element.content.description || 'Add useful content for your visitors.');
   const safeItems = items.length ? items : [{ title: 'First item', description: 'Add a clear detail here.', image: '' }, { title: 'Second item', description: 'Add another useful detail.', image: '' }];
-  const updateContent = (key: string, value: unknown) => onUpdate((current) => ({ ...current, content: { ...current.content, [key]: value } }));
-  const editable = (key: string, value: string, className = 'outline-none focus-visible:ring-2 focus-visible:ring-pink') => <span contentEditable suppressContentEditableWarning onInput={(event) => updateContent(key, event.currentTarget.textContent || '')} className={className}>{value}</span>;
+  const updateContent = (key: string, value: unknown, historyGroup?: string) => onUpdate((current) => ({ ...current, content: { ...current.content, [key]: value } }), historyGroup);
+  const editable = (key: string, value: string, className = 'outline-none focus-visible:ring-2 focus-visible:ring-pink') => <span contentEditable suppressContentEditableWarning onInput={(event) => updateContent(key, event.currentTarget.textContent || '', `typing:${element.id}:${key}`)} className={className}>{value}</span>;
   const safeHref = /^(https?:\/\/|mailto:|tel:|\/|#)/i.test(actionHref) ? actionHref : '#';
   const image = (item: Record<string, unknown>, index: number, className = 'h-40 w-full object-cover') => typeof (item.image || item.src || item.url) === 'string' && (item.image || item.src || item.url) ? <Image src={String(item.image || item.src || item.url)} alt={String(item.alt || item.title || `Image ${index + 1}`)} width={900} height={600} unoptimized className={className} /> : <div className={`${className} flex items-center justify-center bg-gradient-to-br from-yellow/40 via-pink/20 to-emerald-100 text-3xl font-black text-black/30`} aria-hidden="true">{String(index + 1).padStart(2, '0')}</div>;
   const button = (label: string, href = safeHref, extra?: string) => <a href={href} onClick={(event) => onNavigate(event, href)} className={`inline-flex items-center justify-center rounded-lg border-2 border-black bg-yellow px-4 py-2 text-sm font-bold shadow-[2px_2px_0_#000] ${extra || ''}`}>{label} <span aria-hidden="true" className="ml-2">↗</span></a>;

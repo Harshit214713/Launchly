@@ -24,6 +24,23 @@ test('document edits are undoable and redoable', () => {
   assert.equal(store.getState().document.theme.primaryColor, '#123456');
 });
 
+test('history groups only explicitly grouped typing edits', () => {
+  const store = createEditorStore(fixture());
+  const original = store.getState().document;
+  store.getState().updateDocument((document) => ({ ...document, name: 'First edit' }));
+  store.getState().updateDocument((document) => ({ ...document, name: 'Second edit' }));
+  assert.equal(store.getState().past.length, 2);
+
+  store.getState().updateDocument((document) => ({ ...document, name: 'Typing 1' }), 'typing:site-name');
+  store.getState().updateDocument((document) => ({ ...document, name: 'Typing 2' }), 'typing:site-name');
+  assert.equal(store.getState().past.length, 3);
+  store.getState().undo();
+  assert.equal(store.getState().document.name, 'Second edit');
+  store.getState().redo();
+  assert.equal(store.getState().document.name, 'Typing 2');
+  assert.notEqual(original, store.getState().document);
+});
+
 test('sections can be duplicated, reordered, and removed', () => {
   const store = createEditorStore(fixture());
   store.getState().duplicateSection('home', 'hero');
@@ -88,9 +105,9 @@ test('legacy drafts migrate content, section order, spacing, assets, and pages',
     assetUrl: 'data:image/png;base64,AA==',
     sitePages: [{ id: 'home', title: 'Home', description: 'Welcome' }, { id: 'about', title: 'About', description: 'Our story' }],
   }, fixture());
-  assert.equal(migrated.version, 3);
+  assert.equal(migrated.version, 4);
   assert.equal(migrated.name, 'Old Store');
-  assert.equal(migrated.content.hero.title, 'Old headline');
+  assert.equal(migrated.pages[0].sections[0].content.title, 'Old headline');
   assert.equal(migrated.pages[0].sections[0].style.padding?.top, 24);
   assert.equal(migrated.pages[1].slug, '/about');
   assert.equal(migrated.assets[0].src, 'data:image/png;base64,AA==');
@@ -148,6 +165,30 @@ test('block registry supplies useful starting content for supported block types'
   assert.equal(Array.isArray(blockRegistry.pricing.defaultContent.items), true);
 });
 
+test('registered sections receive independent defaults and update their renderer node', () => {
+  const types = Object.keys(blockRegistry);
+  const document = createSiteDocument({
+    id: 'defaults-test', name: 'Defaults', templateId: 'test',
+    theme: {}, sections: [...types, 'gallery'].map((type, index) => makeSection(type, `section-${index}`, type)),
+    hero: {}, features: [], testimonials: [], cta: { title: '', desc: '', buttonText: '' },
+  });
+  const home = document.pages[0];
+  assert.equal(home.sections.length, types.length + 1);
+  for (const section of home.sections) {
+    const expected = blockRegistry[section.type].defaultContent;
+    assert.deepEqual(section.content, expected);
+    assert.deepEqual(section.columns?.[0]?.elements[0]?.content, { blockType: section.type, ...expected });
+  }
+
+  const galleries = home.sections.filter((section) => section.type === 'gallery');
+  assert.equal(galleries.length, 2);
+  const firstItems = galleries[0].content.items;
+  assert.ok(Array.isArray(firstItems));
+  firstItems.push({ title: 'Only the first gallery' });
+  assert.notDeepEqual(galleries[1].content.items, firstItems);
+  assert.notDeepEqual(blockRegistry.gallery.defaultContent.items, firstItems);
+});
+
 test('menu edits retain external links and synchronize page visibility', () => {
   const store = createEditorStore(fixture());
   const pageId = store.getState().addPage('About', [makeSection('hero', 'about-hero')]);
@@ -170,10 +211,12 @@ test('renamed slugs survive editor projections for redirect handling', () => {
   const pageId = store.getState().addPage('About', [makeSection('hero', 'about-hero')]);
   store.getState().setPageSlug(pageId, 'our-story');
   const current = store.getState().document;
+  const homeSections = current.pages[0].sections;
+  const homeContent = (type) => homeSections.find((section) => section.type === type)?.content || {};
   const projection = createSiteDocument({
     id: current.id, name: current.name, templateId: current.templateId, theme: current.theme,
-    sections: current.pages[0].sections, pages: current.pages.map((page) => ({ id: page.id, title: page.title, description: page.seo.description, slug: page.slug, isHome: page.isHome, showInMenu: page.showInMenu, noindex: page.seo.noindex, oldSlugs: page.oldSlugs })),
-    hero: current.content.hero, features: current.content.features, testimonials: current.content.testimonials, cta: current.content.cta,
+    sections: homeSections, pages: current.pages.map((page) => ({ id: page.id, title: page.title, description: page.seo.description, slug: page.slug, isHome: page.isHome, showInMenu: page.showInMenu, noindex: page.seo.noindex, oldSlugs: page.oldSlugs, sections: page.sections })),
+    hero: homeContent('hero'), features: homeContent('features').items || [], testimonials: homeContent('testimonials').items || [], cta: homeContent('cta'),
   });
   const merged = mergeEditorProjection(current, projection, 'home');
   assert.deepEqual(merged.pages.find((page) => page.id === pageId)?.oldSlugs, ['/about']);

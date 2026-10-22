@@ -1,3 +1,5 @@
+import { getBlockDefinition } from './blockRegistry.ts';
+
 export type Device = 'desktop' | 'tablet' | 'mobile';
 export type PageTarget = { type: 'page' | 'url' | 'anchor' | 'email' | 'phone'; value: string };
 export type MenuItem = { id: string; label: string; target: PageTarget; newTab: boolean; rel?: string; icon?: string; badge?: string; children?: MenuItem[]; highlight?: boolean; visibleOn?: ('desktop' | 'mobile')[] };
@@ -435,11 +437,13 @@ export function makeSection(type: string, id: string, name?: string, style: Sect
 }
 
 function normalizeSection(section: Section): Section {
+  const defaults = getBlockDefinition(section.type).defaultContent;
+  const content = { ...structuredClone(defaults), ...structuredClone(section.content) };
   const columns = structuredClone(section.columns?.length ? section.columns : makeSection(section.type, section.id, section.name, section.style, section.content).columns || []);
   const primaryColumn = columns[0];
   const blockElement = primaryColumn?.elements.find((element) => element.type === 'block');
-  if (blockElement) blockElement.content = { blockType: section.type, ...structuredClone(section.content) };
-  return { ...section, layoutMode: section.layoutMode || 'flow', contentWidth: section.contentWidth || 'boxed', columns };
+  if (blockElement) blockElement.content = { blockType: section.type, ...structuredClone(content) };
+  return { ...section, content, layoutMode: section.layoutMode || 'flow', contentWidth: section.contentWidth || 'boxed', columns };
 }
 
 function normalizeDocument(document: SiteDocument): SiteDocument {
@@ -492,7 +496,12 @@ export function createSiteDocument(input: {
   const sections = input.sections.map((entry) => {
     const spacing = input.sectionSpacing?.[entry.id];
     const style: SectionStyle = { ...entry.style, ...(spacing ? { padding: { top: spacing.top || 0, right: spacing.right || 0, bottom: spacing.bottom || 0, left: spacing.left || 0 } } : {}) };
-    const defaultContent: SectionContent = entry.type === 'hero' ? input.hero : entry.type === 'features' ? { items: input.features } : entry.type === 'testimonials' ? { items: input.testimonials } : entry.type === 'cta' ? input.cta : {};
+    const defaults = getBlockDefinition(entry.type).defaultContent;
+    const defaultContent: SectionContent = entry.type === 'hero' && Object.keys(input.hero).length ? input.hero
+      : entry.type === 'features' && input.features.length ? { items: input.features }
+        : entry.type === 'testimonials' && input.testimonials.length ? { items: input.testimonials }
+          : entry.type === 'cta' && Object.values(input.cta).some(Boolean) ? input.cta
+            : defaults;
     const section = makeSection(entry.type, entry.id, entry.name, style, entry.content && Object.keys(entry.content).length ? entry.content : defaultContent);
     return { ...normalizeSection({ ...section, columns: entry.columns ? structuredClone(entry.columns) : section.columns }), hidden: { ...section.hidden, ...entry.hidden }, locked: entry.locked ?? section.locked, anchorId: entry.anchorId, customClass: entry.customClass };
   });

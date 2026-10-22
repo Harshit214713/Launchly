@@ -4,9 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Grid3X3, LayoutList, Loader2, Globe, X } from 'lucide-react';
 import TemplateCard from '@/components/TemplateCard';
-import ComingSoonCard from '@/components/ComingSoonCard';
-import { CATEGORIES, getTemplatesByCategory, searchTemplates, COMING_SOON_CATEGORIES } from '@/lib/templates';
-import { TemplateCategory } from '@/types';
+import { CATEGORIES, getTemplatesByCategory, searchTemplates } from '@/lib/templates';
 import { Template } from '@/types';
 import Link from 'next/link';
 
@@ -276,20 +274,6 @@ export default function TemplatesPageContent() {
                 Streaming high-aesthetic design themes from Creative API.
               </p>
             </div>
-          ) : COMING_SOON_CATEGORIES.includes(activeCategory as TemplateCategory) && !searchQuery ? (
-            <ComingSoonCard
-              category={activeCategory}
-              onBrowseAll={() => {
-                setActiveCategory('All');
-                setSearchQuery('');
-                router.replace('/templates', { scroll: false });
-              }}
-              onExploreEcommerce={() => {
-                setActiveCategory('Ecommerce');
-                setSearchQuery('');
-                router.replace('/templates?category=Ecommerce', { scroll: false });
-              }}
-            />
           ) : displayedTemplates.length > 0 ? (
             <div className={
               viewMode === 'grid'
