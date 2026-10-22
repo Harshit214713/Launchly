@@ -99,6 +99,8 @@ const paletteElementType = (id: string): SiteElement['type'] | null => {
     if (label.includes('map')) return 'map';
     if (label.includes('chart')) return 'chart';
     if (label.includes('lottie')) return 'lottie';
+    if (label.includes('qr')) return 'qr-code';
+    if (label.includes('device mockup')) return 'device-mockup';
     if (label.includes('before') && label.includes('after')) return 'before-after';
     if (label.includes('gallery') || label.includes('carousel') || label.includes('slider')) return 'gallery';
     if (label.includes('video') || label.includes('youtube') || label.includes('vimeo')) return 'video';
@@ -134,6 +136,8 @@ const paletteElementContent = (id: string, elementType: SiteElement['type']): Re
   if (elementType === 'chart') return { title: 'Chart', items: [{ title: 'Visitors', value: 64 }, { title: 'Signups', value: 82 }, { title: 'Sales', value: 47 }] };
   if (elementType === 'lottie') return { title: 'Animation', url: '', alt: 'Decorative animation' };
   if (elementType === 'before-after') return { title: 'Before and after', before: '', after: '', position: 50 };
+  if (elementType === 'qr-code') return { title: 'QR code', data: 'https://example.com' };
+  if (elementType === 'device-mockup') return { title: 'Device mockup', src: '', alt: 'App screen preview' };
   if (elementType === 'avatar') return { title: 'Profile', src: '', alt: 'Profile image' };
   if (elementType === 'logo') return { title: 'Logo', src: '', alt: 'Organization logo' };
   if (elementType === 'countdown') return { title: 'Countdown', seconds: 3600 };

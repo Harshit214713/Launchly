@@ -33,8 +33,13 @@ export default function CatalogWidgetPreview({ kind, widgetId, content, style, i
   const title = text(content.title, widgetId);
   const description = text(content.description);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
   const [activeTab, setActiveTab] = useState(0);
   const [comparison, setComparison] = useState(50);
+  const [seconds, setSeconds] = useState(Math.max(0, Number(content.seconds) || 0));
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [cookieVisible, setCookieVisible] = useState(true);
   const editable = (key: string, value: string, className?: string): ReactNode => isEditor && onChange
     ? <span contentEditable suppressContentEditableWarning onInput={(event) => onChange(key, event.currentTarget.textContent || '', `typing:widget:${widgetId}:${key}`)} className={className}>{value}</span>
     : value;
@@ -48,6 +53,61 @@ export default function CatalogWidgetPreview({ kind, widgetId, content, style, i
   };
   const button = (label: string, href: unknown, className = '') => <a href={safeHref(href)} className={`inline-flex items-center justify-center rounded-lg border-2 border-current px-4 py-2 text-sm font-bold transition-colors hover:bg-black/5 ${className}`}>{label}<span aria-hidden="true" className="ml-2">↗</span></a>;
   const section = (children: ReactNode, className = '') => <section style={style} className={`rounded-2xl border border-current/15 p-5 ${className}`}>{children}</section>;
+  const submitForm = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setFormError('');
+    const fields = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const configuredEndpoint = text(content.endpoint);
+    const newsletter = configuredEndpoint === 'newsletter';
+    const endpoint = newsletter ? '/api/newsletter' : configuredEndpoint === 'contact' ? '/api/contact' : configuredEndpoint;
+    if (!endpoint || (!endpoint.startsWith('/api/') && !/^https:\/\//i.test(endpoint))) {
+      setFormError('Use a local /api/ route or a secure https:// endpoint.');
+      setSubmitting(false);
+      return;
+    }
+    const payload = newsletter
+      ? { email: fields.email, source: title, website: '' }
+      : { ...fields, category: title, website: '' };
+    try {
+      const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const result = await response.json().catch(() => ({})) as { message?: string };
+      if (!response.ok) throw new Error(result.message || 'Submission failed. Please try again.');
+      setSubmitted(true);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Submission failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (kind === 'interactive' && /countdown/i.test(widgetId)) {
+    if (seconds > 0) {
+      window.setTimeout(() => setSeconds((value) => Math.max(0, value - 1)), 1000);
+    }
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor(seconds % 86400 / 3600);
+    const minutes = Math.floor(seconds % 3600 / 60);
+    const remaining = seconds % 60;
+    return section(<>{heading}<p className="mt-3 font-mono text-3xl font-black" aria-live="polite">{[days, hours, minutes, remaining].map((part) => String(part).padStart(2, '0')).join(' : ')}</p></>, 'bg-yellow/20 text-center');
+  }
+
+  if (kind === 'interactive' && /before.?after/i.test(widgetId)) return section(<>{heading}{intro}<div className="relative mt-4 h-64 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-200 to-yellow-100">
+    {content.afterImage ? <Image src={text(content.afterImage)} alt="After" width={1000} height={700} unoptimized className="absolute inset-0 h-full w-full object-cover" /> : <div className="absolute inset-0 grid place-items-center font-bold">AFTER · add image URL</div>}
+    <div className="absolute inset-y-0 left-0 grid place-items-center overflow-hidden border-r-2 border-white bg-gradient-to-br from-pink/30 to-amber-100" style={{ width: `${comparison}%` }}>
+      <span className="font-bold">BEFORE · {content.beforeImage ? 'image set' : 'add image URL'}</span>
+    </div>
+    <input aria-label="Before and after comparison" type="range" min="0" max="100" value={comparison} onChange={(event) => { const value = Number(event.target.value); setComparison(value); onChange?.('position', value); }} className="absolute inset-x-4 bottom-3 z-10" />
+  </div></>);
+
+  if (kind === 'interactive' && /popup|modal/i.test(widgetId)) return <div style={style} className="rounded-xl border border-current/15 p-4">
+    <button type="button" onClick={() => setPopupOpen(true)} className="rounded-lg border-2 border-current bg-yellow px-4 py-2 font-bold text-black">{text(content.buttonText, 'Open popup')}</button>
+    {popupOpen && <div className="fixed inset-0 z-[160] grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => { if (event.target === event.currentTarget) setPopupOpen(false); }}><div className="w-full max-w-lg rounded-xl border-2 border-black bg-white p-6 text-black shadow-[5px_5px_0_#000]"><div className="flex items-start justify-between gap-3"><div>{heading}{intro}</div><button type="button" onClick={() => setPopupOpen(false)} aria-label="Close popup" className="rounded border border-black px-2 py-1">×</button></div></div></div>}
+  </div>;
+
+  if (kind === 'interactive' && /cookie|consent/i.test(widgetId)) return cookieVisible
+    ? <aside style={style} role="dialog" aria-label={title} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-black bg-white p-4 text-black shadow-[3px_3px_0_#000]"><div><h2 className="font-bold">{title}</h2><p className="mt-1 text-sm">{description}</p></div><div className="flex gap-2"><button type="button" onClick={() => setCookieVisible(false)} className="rounded-lg border border-black px-3 py-2 text-xs font-bold">Decline</button><button type="button" onClick={() => setCookieVisible(false)} className="rounded-lg border-2 border-black bg-yellow px-3 py-2 text-xs font-bold">Accept</button></div></aside>
+    : null;
 
   if (kind === 'hero') {
     return <section style={style} className="overflow-hidden rounded-2xl border border-current/15 bg-gradient-to-br from-yellow/20 via-pink/10 to-transparent px-6 py-12 sm:px-10">
@@ -71,7 +131,7 @@ export default function CatalogWidgetPreview({ kind, widgetId, content, style, i
 
   if (kind === 'navigation') return <nav style={style} aria-label={title} className="rounded-xl border border-current/15 p-4"><p className="mb-3 font-mono text-[10px] font-bold uppercase tracking-widest opacity-60">{editable('title', title)}</p><ul className="flex flex-wrap gap-2">{items.map((item, index) => <li key={index}><a href={safeHref(item.href || item.url)} className="rounded-lg px-3 py-2 text-sm font-semibold underline-offset-4 hover:underline">{text(item.title || item.label, `Link ${index + 1}`)}</a></li>)}</ul></nav>;
 
-  if (kind === 'form') return <form style={style} onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setSubmitted(true); }} className="grid gap-3 rounded-2xl border-2 border-current/15 p-5" aria-label={title}>
+  if (kind === 'form') return <form style={style} onSubmit={(event: FormEvent<HTMLFormElement>) => { void submitForm(event); }} className="grid gap-3 rounded-2xl border-2 border-current/15 p-5" aria-label={title}>
     {heading}{intro}
     {items.map((item, index) => {
       const label = text(item.title || item.label, `Field ${index + 1}`);
@@ -81,8 +141,9 @@ export default function CatalogWidgetPreview({ kind, widgetId, content, style, i
         ? <textarea name={name} required={Boolean(item.required)} className="min-h-24 rounded-lg border border-current/25 bg-transparent p-2" />
         : <input name={name} type={['email', 'tel', 'date', 'number'].includes(type) ? type : 'text'} required={Boolean(item.required)} placeholder={text(item.placeholder)} className="rounded-lg border border-current/25 bg-transparent p-2" />}</label>;
     })}
-    <button type="submit" className="w-fit rounded-lg border-2 border-current bg-yellow px-4 py-2 font-bold text-black">{text(content.submitLabel, 'Send message')}</button>
-    {submitted && <p role="status" className="rounded-lg bg-emerald-100 p-3 text-sm font-bold text-emerald-950">{text(content.successMessage, 'Demo submission received. Connect a form endpoint to collect responses.')}</p>}
+    <button type="submit" disabled={submitting} className="w-fit rounded-lg border-2 border-current bg-yellow px-4 py-2 font-bold text-black disabled:opacity-60">{submitting ? 'Sending…' : text(content.submitLabel, 'Send message')}</button>
+    {formError && <p role="alert" className="rounded-lg bg-red-100 p-3 text-sm font-bold text-red-900">{formError}</p>}
+    {submitted && <p role="status" className="rounded-lg bg-emerald-100 p-3 text-sm font-bold text-emerald-950">{text(content.successMessage, 'Your response has been received.')}</p>}
   </form>;
 
   if (kind === 'gallery' || kind === 'commerce' || kind === 'editorial' || kind === 'people' || kind === 'cards') {

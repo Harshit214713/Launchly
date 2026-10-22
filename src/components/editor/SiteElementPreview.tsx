@@ -107,7 +107,13 @@ export default function SiteElementPreview({ element, style, isEditor = false, o
     case 'avatar':
       return <div style={style} className="inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-black bg-yellow font-bold text-black">{typeof (content.src || content.image) === 'string' && (content.src || content.image) ? image(content.src || content.image, content.alt || title, 'h-full w-full object-cover') : textValue(content.initials, title.slice(0, 2).toUpperCase())}</div>;
     case 'before-after':
-      return <div style={style} className="relative overflow-hidden rounded-xl border-2 border-black"><div className="grid min-h-56 place-items-center bg-neutral-200 font-bold">AFTER</div><div className="absolute inset-y-0 left-0 grid place-items-center overflow-hidden bg-yellow font-bold" style={{ width: `${comparison}%` }}><span className="min-w-56 text-center">BEFORE</span></div><input aria-label="Before and after comparison" type="range" min="0" max="100" value={comparison} onChange={(event) => setComparison(Number(event.target.value))} className="absolute inset-x-4 bottom-4" /></div>;
+      return <div style={style} className="relative isolate min-h-56 overflow-hidden rounded-xl border-2 border-black bg-neutral-100">
+        {content.after ? image(content.after, content.afterAlt || 'After', 'absolute inset-0 -z-10 h-full w-full object-cover') : <div className="absolute inset-0 -z-10 grid place-items-center bg-gradient-to-br from-emerald-200 to-emerald-50 font-bold">AFTER · add image</div>}
+        <div className="absolute inset-y-0 left-0 -z-0 overflow-hidden border-r-2 border-white" style={{ width: `${comparison}%` }}>
+          {content.before ? image(content.before, content.beforeAlt || 'Before', 'absolute inset-0 h-full w-full object-cover') : <div className="grid h-full min-w-[calc(100vw-3rem)] place-items-center bg-gradient-to-br from-amber-200 to-yellow-50 font-bold">BEFORE · add image</div>}
+        </div>
+        <input aria-label="Before and after comparison" type="range" min="0" max="100" value={comparison} onChange={(event) => { const value = Number(event.target.value); setComparison(value); onChange?.('position', value); }} className="absolute inset-x-4 bottom-4 z-10" />
+      </div>;
     case 'device-mockup':
       return <div style={style} className="mx-auto max-w-md rounded-[2rem] border-[8px] border-neutral-800 bg-neutral-900 p-2 shadow-xl"><div className="overflow-hidden rounded-[1.4rem] bg-white">{image(content.src || content.image, content.alt || title, 'aspect-[9/16] w-full object-cover')}</div></div>;
     case 'qr-code': {

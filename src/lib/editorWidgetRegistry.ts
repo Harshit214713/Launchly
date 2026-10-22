@@ -34,14 +34,15 @@ const classifyWidget = (item: EditorCatalogItem): EditorWidgetKind => {
   if (/faq|accordion|knowledge base|help center/.test(label)) return 'faq';
   if (/timeline|roadmap|milestone|process|steps|changelog/.test(label)) return 'timeline';
   if (/stat|counter|metric|kpi|progress|skill bar/.test(label)) return 'metrics';
-  if (/gallery|carousel|slider|masonry|before after|logo wall|logo cloud|avatar group/.test(label)) return 'gallery';
+  if (/before after/.test(label)) return 'interactive';
+  if (/gallery|carousel|slider|masonry|logo wall|logo cloud|avatar group/.test(label)) return 'gallery';
   if (/product|shop|store|catalog|cart|checkout|wishlist|gift card|bundle|delivery slot/.test(label)) return 'commerce';
   if (/blog|article|news|post|resource|story|portfolio|project|case study|author|press|comments|rss/.test(label)) return 'editorial';
   if (/team|people|staff|member|advisor|speaker|founder|ceo/.test(label)) return 'people';
   if (/map|embed|iframe|video|audio|podcast|lottie|calendar|social feed|calendly|typeform/.test(label)) return 'embed';
   if (/table|comparison/.test(label)) return 'table';
   if (item.category === 'buttons' || /button|action|download|share|back to top/.test(label)) return 'actions';
-  if (item.category === 'interactive' || /modal|popup|toggle|tab|tooltip|parallax|scroll|sticky|hover|animation|confetti|fireworks|starfield/.test(label)) return 'interactive';
+  if (item.category === 'interactive' || /modal|popup|cookie|consent|countdown|toggle|tab|tooltip|parallax|scroll|sticky|hover|animation|confetti|fireworks|starfield/.test(label)) return 'interactive';
   if (/hero|banner|splash|intro|announcement|call to action|cta/.test(label)) return 'hero';
   return 'cards';
 };
@@ -160,13 +161,24 @@ export function createEditorWidgetContent(id: string): Record<string, unknown> |
     content.href = '#contact';
   }
   if (widget.kind === 'form') {
-    content.submitLabel = /newsletter|subscribe/i.test(widget.label) ? 'Subscribe' : 'Send message';
+    const newsletter = /newsletter|subscribe/i.test(widget.label);
+    content.endpoint = newsletter ? 'newsletter' : 'contact';
+    content.items = newsletter
+      ? [{ title: 'Email', name: 'email', type: 'email', required: true }]
+      : defaultItems(widget.kind, widget.label);
+    content.submitLabel = newsletter ? 'Subscribe' : 'Send message';
     content.successMessage = 'Thanks. Your response has been received.';
   }
   if (widget.kind === 'gallery') {
     content.columns = 3;
     content.autoplay = /carousel|slider/i.test(widget.label);
     content.intervalMs = 4000;
+  }
+  if (widget.kind === 'interactive' && /countdown/i.test(widget.label)) content.seconds = 3600;
+  if (widget.kind === 'interactive' && /before.?after/i.test(widget.label)) {
+    content.beforeImage = '';
+    content.afterImage = '';
+    content.position = 50;
   }
   return content;
 }
