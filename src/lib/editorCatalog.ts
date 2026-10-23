@@ -65,23 +65,45 @@ const editorCatalogCore: EditorCatalogItem[] = [
   ]),
 ];
 
+const describeCatalogItem = (label: string, category: EditorPaletteCategory): string => {
+  const normalized = label.toLowerCase();
+  if (/hero/.test(normalized)) return 'Build a hero section with a clear headline, supporting message, and strong call-to-action.';
+  if (/tab|tabs|feature/.test(normalized)) return 'Group related content into clear tabs or benefit panels with concise labels.';
+  if (/pricing|plan|subscription/.test(normalized)) return 'Show pricing options, compare plans, and guide visitors toward the right tier.';
+  if (/faq|help|knowledge|glossary/.test(normalized)) return 'Answer common questions in a clear, scannable format that helps visitors decide quickly.';
+  if (/timeline|roadmap|milestone|process/.test(normalized)) return 'Explain a step-by-step journey or rollout with dates, milestones, and clear progress.';
+  if (/testimonial|review|quote|founder|ceo|speaker|author|bio/.test(normalized)) return 'Highlight a trusted perspective or personal story with a readable quote and attribution.';
+  if (/gallery|grid|logo|carousel|image/.test(normalized)) return 'Arrange images, product shots, or brand visuals into an editorial, scannable showcase.';
+  if (/newsletter|form|contact|demo|signup|booking|calendly|typeform/.test(normalized)) return 'Collect leads or inquiry details with a straightforward conversion-focused form.';
+  if (/navigation|menu|breadcrumb|table of contents/.test(normalized)) return 'Add navigational structure that helps visitors move through the page with confidence.';
+  if (/button|chat|share|download|copy/.test(normalized)) return 'Add a user action that guides visitors toward the next meaningful step.';
+  if (/calendar|event/.test(normalized)) return 'Display time-based information in an easy-to-scan format for bookings, launches, or updates.';
+  if (/compare|comparison|rank|leaderboard/.test(normalized)) return 'Compare options in a sharp, structured layout that makes differences easy to understand.';
+  if (/partner|integrations|awards|resource/.test(normalized)) return 'Present trust signals, references, or supporting content in a polished proof section.';
+  switch (category) {
+    case 'layout': return 'Add this layout block, then adjust its content, spacing, and responsive style in the inspector.';
+    case 'text': return 'Add editable text and tune its typography, alignment, and color in the inspector.';
+    case 'buttons': return 'Add an action control and choose its page, anchor, contact, download, or URL destination.';
+    case 'media': return 'Add media content, upload or link assets, and set accessible labels and display options.';
+    case 'navigation': return 'Add a navigation element and configure its links and presentation in the inspector.';
+    case 'parts': return 'Add this editable section pattern and customize its content, imagery, actions, and style.';
+    case 'forms': return 'Add a form block, configure its fields and validation, then choose where submissions are sent.';
+    case 'interactive': return 'Add an interactive element and configure its content, trigger, and behavior in the inspector.';
+  }
+};
+
 export const editorCatalog: EditorCatalogItem[] = [
   ...editorCatalogCore,
   ...extraCatalogItems.filter((extra) => !editorCatalogCore.some((item) => item.label.toLocaleLowerCase() === extra.label.toLocaleLowerCase())),
 ].map((item) => {
   const label = item.label.charAt(0).toUpperCase() + item.label.slice(1);
   const placeholderDescription = /^Add widget:/i.test(item.description);
-  const categoryDescription: Record<EditorPaletteCategory, string> = {
-    layout: 'Add this layout block, then adjust its content, spacing, and responsive style in the inspector.',
-    text: 'Add editable text and tune its typography, alignment, and color in the inspector.',
-    buttons: 'Add an action control and choose its page, anchor, contact, download, or URL destination.',
-    media: 'Add media content, upload or link assets, and set accessible labels and display options.',
-    navigation: 'Add a navigation element and configure its links and presentation in the inspector.',
-    parts: 'Add this editable section pattern and customize its content, imagery, actions, and style.',
-    forms: 'Add a form block, configure its fields and validation, then choose where submissions are sent.',
-    interactive: 'Add an interactive element and configure its content, trigger, and behavior in the inspector.',
+  return {
+    ...item,
+    label,
+    description: placeholderDescription ? describeCatalogItem(item.label, item.category) : item.description,
+    plan: item.id.startsWith('pro:') ? 'pro' as const : item.plan,
   };
-  return { ...item, label, description: placeholderDescription ? categoryDescription[item.category] : item.description, plan: 'free' as const };
 });
 
 export const paletteCategories: Array<{ id: EditorPaletteCategory; label: string }> = [

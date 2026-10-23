@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { ArrowUpRight } from 'lucide-react';
 
 const STEPS = [
@@ -10,8 +9,8 @@ const STEPS = [
     number: '01',
     badge: 'Step 1',
     badgeBg: 'bg-yellow',
-    title: 'Choose an ecommerce template',
-    description: 'Start with a complete grocery or technology storefront and make it your own.',
+    title: 'Choose a starting point',
+    description: 'Preview a storefront template or open a blank site to begin with your own content.',
     cta: 'Explore templates',
     href: '/templates',
   },
@@ -20,7 +19,7 @@ const STEPS = [
     badge: 'Step 2',
     badgeBg: 'bg-pink',
     title: 'Customize every pixel',
-    description: 'Swap headlines, reorder sections, test responsive breakpoints, and preview dark mode in real-time with zero boilerplate.',
+    description: 'Edit copy, arrange sections, and check desktop, tablet, and mobile layouts in the visual editor.',
     cta: 'Try visual studio',
     href: '/editor/fresh-crate',
   },
@@ -29,14 +28,13 @@ const STEPS = [
     badge: 'Step 3',
     badgeBg: 'bg-mint',
     title: 'Publish or export code',
-    description: 'Go live on a free Launchly edge subdomain, connect your own domain, or download the complete Next.js 15 source code.',
+    description: 'Publish to a Launchly URL or export the site source to continue developing in your own environment.',
     cta: 'Start building free',
     href: '/signup',
   },
 ];
 
 export default function HowItWorks() {
-  const router = useRouter();
   const [activeStep, setActiveStep] = useState(0);
 
   return (
@@ -47,20 +45,16 @@ export default function HowItWorks() {
           How Launchly works in 3 steps.
         </h2>
         <p className="mt-3 text-base text-muted-foreground">
-          From blank idea to published, production-grade website in less time than it takes to brew a cup of coffee.
+          Move from a first draft to a site you can preview, publish, or continue building with exported source.
         </p>
       </div>
 
       {/* 3 Step Cards Grid */}
       <div className="grid gap-6 md:grid-cols-3">
         {STEPS.map((step, idx) => (
-          <div
+          <article
             key={step.number}
-            onClick={() => {
-              setActiveStep(idx);
-              router.push(step.href);
-            }}
-            className={`brutal-press rounded-2xl border-[3px] border-ink bg-card p-6 sm:p-7 shadow-brutal hover:shadow-brutal-md transition-all cursor-pointer flex flex-col justify-between ${
+            className={`rounded-2xl border-[3px] border-ink bg-card p-6 sm:p-7 shadow-brutal transition-shadow hover:shadow-brutal-md ${
               activeStep === idx ? 'ring-2 ring-ink ring-offset-2' : ''
             }`}
           >
@@ -90,13 +84,14 @@ export default function HowItWorks() {
             <div className="mt-8 pt-4 border-t-[2px] border-ink/10">
               <Link
                 href={step.href}
+                onClick={() => setActiveStep(idx)}
                 className="inline-flex items-center gap-1.5 font-display text-xs font-black uppercase tracking-wider text-ink hover:text-pink transition-colors"
               >
                 <span>{step.cta}</span>
                 <ArrowUpRight size={14} className="stroke-[3]" />
               </Link>
             </div>
-          </div>
+          </article>
         ))}
       </div>
     </section>

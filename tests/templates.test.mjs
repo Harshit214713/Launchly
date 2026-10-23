@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { CATEGORIES, DEFAULT_TEMPLATE, getTemplateById, getTemplatesByCategory, searchTemplates, TEMPLATES } from '../src/lib/templates.ts';
+import { createStorefrontPages, getTemplateFeatureDescriptions } from '../src/lib/templateContent.ts';
 
 test('catalog contains the two ecommerce starters', () => {
   assert.deepEqual(TEMPLATES.map(({ id }) => id), ['fresh-crate', 'volt-gear']);
-  assert.deepEqual(CATEGORIES, ['All', 'Ecommerce']);
+  assert.deepEqual(CATEGORIES, ['All', 'SaaS', 'AI', 'Agency', 'Portfolio', 'Ecommerce', 'Web3', 'Media']);
   assert.equal(getTemplatesByCategory('All').length, 2);
   assert.equal(getTemplatesByCategory('Ecommerce').length, 2);
   assert.equal(searchTemplates('').length, 2);
@@ -32,4 +33,29 @@ test('blank editor starter remains available alongside templates', () => {
   assert.ok(DEFAULT_TEMPLATE.bgColor);
   assert.ok(DEFAULT_TEMPLATE.textColor);
   assert.equal(DEFAULT_TEMPLATE.previewUrl, '/editor');
+});
+
+test('storefront pages use authored copy and purposeful feature descriptions', () => {
+  for (const template of TEMPLATES) {
+    const pages = createStorefrontPages(template.id, template.pages, template.products);
+    assert.equal(pages.length, template.pages.length);
+    assert.ok(pages.every((page) => page.title && page.description && page.seoTitle));
+    assert.ok(pages.every((page) => !page.description.startsWith(`Explore ${page.title.toLowerCase()} at`)));
+
+    const features = getTemplateFeatureDescriptions(template.id, template.features);
+    assert.equal(features.length, template.features.length);
+    assert.ok(features.every((feature) => feature.title && feature.desc));
+    assert.ok(features.every((feature) => feature.desc !== `${feature.title} is thoughtfully integrated into the ${template.name} shopping experience.`));
+  }
+});
+
+test('template FAQ seeds provide display-compatible questions and answers', () => {
+  for (const template of TEMPLATES) {
+    const pages = createStorefrontPages(template.id, template.pages, template.products);
+    const faqPage = pages.find((page) => page.id === 'faq' || page.id === 'support');
+    const faq = faqPage?.sections.find((section) => section.type === 'faq');
+    const items = faq?.content.items;
+    assert.ok(Array.isArray(items) && items.length);
+    assert.ok(items.every((item) => item.question && item.answer));
+  }
 });

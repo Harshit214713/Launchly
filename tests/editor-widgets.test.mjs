@@ -9,6 +9,8 @@ test('all 591 Element Library entries have a unique widget definition', () => {
   assert.equal(definitions.length, editorCatalog.length);
   assert.equal(new Set(definitions.map((widget) => widget.id)).size, definitions.length);
   assert.ok(definitions.every((widget) => widget.kind));
+  assert.ok(editorCatalog.every((item) => item.plan === (item.id.startsWith('pro:') ? 'pro' : 'free')));
+  assert.ok(editorCatalog.every((item) => !/^Add widget:/i.test(item.description)));
   assert.ok(definitions.every((widget) =>
     widget.renderer === 'catalog-widget' &&
     widget.propertySchema.length > 0 &&

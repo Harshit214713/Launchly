@@ -20,32 +20,38 @@ export default function CTA() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
 
     setLoading(true);
+    setError('');
     try {
-      await fetch('/api/contact', {
+      const response = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           category,
           rating,
-          name: userEmail.trim() ? `${userEmail.trim()} [${category}] (${rating}/5 Stars)` : `Anonymous [${category}] (${rating}/5 Stars)`,
-          email: userEmail.trim() || 'anonymous@launchly.site',
+          name: 'Launchly website feedback',
+          email: userEmail.trim() || undefined,
           message: message.trim(),
         }),
       });
-    } catch {
-      // Graceful fallback
-    } finally {
-      setLoading(false);
+      const result = await response.json().catch(() => ({})) as { success?: boolean; message?: string };
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'We could not send your feedback. Please try again.');
+      }
       setSent(true);
       setMessage('');
       setUserEmail('');
-      setTimeout(() => setSent(false), 5000);
+      window.setTimeout(() => setSent(false), 5000);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'We could not send your feedback. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -54,7 +60,7 @@ export default function CTA() {
       {/* Top Header */}
       <div className="text-center max-w-2xl mx-auto">
         <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-black text-ink leading-tight">
-          Got a wild idea, found a bug, or have a hot take?
+          Help us make Launchly better.
         </h2>
       </div>
 
@@ -67,10 +73,10 @@ export default function CTA() {
           </div>
           <div>
             <h3 className="font-mono text-sm font-black uppercase tracking-wider text-ink leading-tight">
-              DISPATCH FEEDBACK
+              SHARE FEEDBACK
             </h3>
             <p className="font-mono text-[11px] text-muted-foreground mt-0.5">
-              Direct line to our engineering &amp; design team
+              Send a product idea, report an issue, or share what could work better.
             </p>
           </div>
         </div>
@@ -82,13 +88,13 @@ export default function CTA() {
             </div>
             <div className="inline-flex items-center gap-1 rounded-full border border-black bg-yellow px-2.5 py-0.5 font-mono text-[10px] font-black uppercase text-black">
               <CheckCircle2 size={11} className="stroke-[2.5]" />
-              TRANSMISSION RECORDED
+              FEEDBACK RECEIVED
             </div>
             <h4 className="font-display text-lg font-black text-ink">
-              Transmission received!
+              Thank you for taking the time to share feedback.
             </h4>
             <p className="font-mono text-xs text-muted-foreground max-w-md mx-auto">
-              Your note has been saved to the database and delivered directly to our product team.
+              Your submission was accepted. We appreciate your help improving Launchly.
             </p>
             <button
               type="button"
@@ -145,15 +151,16 @@ export default function CTA() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  YOUR EMAIL OR SOCIAL (OPTIONAL)
+                  EMAIL ADDRESS (OPTIONAL)
                 </label>
                 <span className="font-mono text-[9px] text-neutral-400">Leave blank to stay anonymous</span>
               </div>
               <input
-                type="text"
+                type="email"
+                maxLength={254}
                 value={userEmail}
                 onChange={(e) => setUserEmail(e.target.value)}
-                placeholder="Enter your Email Id"
+                placeholder="you@example.com"
                 className="w-full rounded-xl border-2 border-black dark:border-[#26283d] bg-[#faf8f5] dark:bg-[#151726] px-3.5 py-2 font-mono text-xs text-ink placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink/50 shadow-xs"
               />
             </div>
@@ -161,13 +168,13 @@ export default function CTA() {
             {/* Message Area */}
             <div>
               <label className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-2">
-                THE RAW TRUTH // YOUR THOUGHTS <span className="text-pink">*</span>
+                YOUR MESSAGE <span className="text-pink">*</span>
               </label>
               <textarea
                 rows={4}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Roast our animations, request your dream template, or describe the feature that would make Launchly your default builder..."
+                placeholder="Tell us what you were trying to do and how we could improve the experience."
                 className="w-full rounded-2xl border-[2.5px] border-black dark:border-[#26283d] bg-[#faf8f5] dark:bg-[#151726] p-4 font-mono text-xs sm:text-[13px] text-ink placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-pink/50 shadow-inner resize-y min-h-[110px]"
                 required
               />
@@ -175,6 +182,7 @@ export default function CTA() {
 
             {/* Bottom Row */}
             <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-1">
+              {error && <p role="alert" className="w-full text-sm font-semibold text-red-700 dark:text-red-300">{error}</p>}
 
               <button
                 type="submit"
@@ -184,12 +192,12 @@ export default function CTA() {
                 {loading ? (
                   <>
                     <Loader2 size={14} className="animate-spin text-black" />
-                    <span>Transmitting…</span>
+                    <span>Sending…</span>
                   </>
                 ) : (
                   <>
                     <Send size={14} className="stroke-[2.5]" />
-                    <span>Dispatch Feedback</span>
+                    <span>Send feedback</span>
                   </>
                 )}
               </button>
