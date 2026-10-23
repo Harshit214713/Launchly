@@ -119,6 +119,53 @@ const classifyWidget = (item: EditorCatalogItem): EditorWidgetKind => {
 };
 
 const defaultItems = (kind: EditorWidgetKind, label: string): Array<Record<string, unknown>> => {
+  const normalized = label.toLowerCase();
+
+  const heroDefaults = [
+    { title: 'A sharper way to grow', description: 'Explain the bigger promise and why visitors should care.' },
+    { title: 'Built around the details that matter', description: 'Add product, team, or service proof that makes the message believable.' },
+  ];
+
+  const tabsDefaults = [
+    { title: 'Overview', description: 'Summarize the key idea in a concise, supportive paragraph.' },
+    { title: 'Benefits', description: 'Call out the most important reasons this helps your audience.' },
+    { title: 'How it works', description: 'Give a simple path from curiosity to action.' },
+  ];
+
+  const compareDefaults = [
+    { title: 'Starter', description: 'A simple entry point for new customers.', feat: 'Essential setup' },
+    { title: 'Growth', description: 'More features for rising demand.', feat: 'Best value' },
+    { title: 'Scale', description: 'For teams that need flexibility and support.', feat: 'Advanced support' },
+  ];
+
+  if (kind === 'cards' && (/feature/.test(normalized) || /tabs/.test(normalized) || /benefit/.test(normalized))) {
+    return tabsDefaults;
+  }
+
+  if (kind === 'cards' && (/hero/.test(normalized) || /intro/.test(normalized) || /manifesto/.test(normalized))) {
+    return heroDefaults;
+  }
+
+  if (/pricing|plan|subscription/.test(normalized) || kind === 'pricing') {
+    return [
+      { title: 'Starter', price: '$19', interval: '/ month', description: 'A simple place to begin.', features: ['Core features', 'Email support'] },
+      { title: 'Growth', price: '$49', interval: '/ month', description: 'More room to grow.', features: ['Everything in Starter', 'Priority support', 'Advanced tools'], highlighted: true },
+      { title: 'Custom', price: 'Let’s talk', interval: '', description: 'A plan shaped around your needs.', features: ['Flexible scope', 'Dedicated guidance'] },
+    ];
+  }
+
+  if (/carousel|gallery|grid|logo|partner|awards|integrations/.test(normalized) || kind === 'gallery') {
+    return [
+      { title: 'Featured item', description: 'Add a supporting caption and visual for this card.', image: '', alt: 'Featured item' },
+      { title: 'Second item', description: 'Show another strong example, proof point, or highlight.', image: '', alt: 'Second item' },
+      { title: 'Third item', description: 'Complete the collection with a final supporting detail.', image: '', alt: 'Third item' },
+    ];
+  }
+
+  if (/comparison|compare|ranking|leaderboard|roadmap|timeline|milestone|process/.test(normalized) || kind === 'timeline' || kind === 'table') {
+    return compareDefaults;
+  }
+
   switch (kind) {
     case 'metrics':
       return [
@@ -135,24 +182,6 @@ const defaultItems = (kind: EditorWidgetKind, label: string): Array<Record<strin
       return [
         { title: 'How does it work?', description: 'Get started in a few simple steps. Contact us if you need help.' },
         { title: 'How can I learn more?', description: 'Send us a message and our team will be happy to help.' },
-      ];
-    case 'timeline':
-      return [
-        { title: 'Discover', date: 'Step 1', description: 'Share your goals and the outcome you want to achieve.' },
-        { title: 'Create', date: 'Step 2', description: 'Shape the plan, review the details, and make it yours.' },
-        { title: 'Launch', date: 'Step 3', description: 'Put your work into the world and keep improving.' },
-      ];
-    case 'pricing':
-      return [
-        { title: 'Starter', price: '$19', interval: '/ month', description: 'A simple place to begin.', features: ['Core features', 'Email support'] },
-        { title: 'Growth', price: '$49', interval: '/ month', description: 'More room to grow.', features: ['Everything in Starter', 'Priority support', 'Advanced tools'], highlighted: true },
-        { title: 'Custom', price: 'Let’s talk', interval: '', description: 'A plan shaped around your needs.', features: ['Flexible scope', 'Dedicated guidance'] },
-      ];
-    case 'gallery':
-      return [
-        { title: 'First highlight', description: 'Add an image URL and describe what visitors should notice.', image: '', alt: 'First gallery item' },
-        { title: 'Second highlight', description: 'Show another detail, project, or product.', image: '', alt: 'Second gallery item' },
-        { title: 'Third highlight', description: 'Complete the collection with one more visual.', image: '', alt: 'Third gallery item' },
       ];
     case 'navigation':
       return [
@@ -185,11 +214,6 @@ const defaultItems = (kind: EditorWidgetKind, label: string): Array<Record<strin
       ];
     case 'embed':
       return [{ title: 'Embedded content', description: 'Paste a secure HTTPS URL in the inspector to configure this embed.', url: '' }];
-    case 'table':
-      return [
-        { title: 'Option A', description: 'Add the key details here.', status: 'Included' },
-        { title: 'Option B', description: 'Compare another option.', status: 'Available' },
-      ];
     case 'actions':
       return [
         { title: 'Get started', href: '#contact' },

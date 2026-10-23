@@ -25,7 +25,7 @@ import SiteForm from '@/components/SiteForm';
 import ImageCarousel from '@/components/ImageCarousel';
 import StoreHeroArtwork from '@/components/storefront/StoreHeroArtwork';
 import { getAnimationClass, resolveButtonHref, type ButtonTarget } from '@/lib/elementActions';
-import { createStorefrontPages } from '@/lib/templateContent';
+import { createStorefrontPages, getTemplateFeatureDescriptions } from '@/lib/templateContent';
 import { scrollToAnchor as scrollToResolvedAnchor } from '@/lib/navigation';
 import { resolveLiveNavigationHref } from '@/lib/liveNavigation';
 import { elementVisualStyle } from '@/lib/elementVisualStyle';
@@ -604,10 +604,12 @@ export default function LiveWebsitePage({
     stat2Value: catDefaults.stat2Value,
   });
 
-  const [featuresContent, setFeaturesContent] = useState(template.features.map((title) => ({
-    title,
-    desc: `${title} is thoughtfully integrated into the ${template.name} shopping experience.`,
-  })));
+  const [featuresContent, setFeaturesContent] = useState(isBrandedStore
+    ? getTemplateFeatureDescriptions(template.id, template.features)
+    : template.features.map((title) => ({
+      title,
+      desc: `${title} is thoughtfully integrated into the ${template.name} experience.`,
+    })));
 
   const [testimonialsContent, setTestimonialsContent] = useState([
     { 

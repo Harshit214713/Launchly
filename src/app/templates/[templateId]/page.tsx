@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use, useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { 
   ArrowLeft, 
@@ -20,6 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import { getTemplateById } from '@/lib/templates';
+import { createStorefrontPages, getTemplateFeatureDescriptions } from '@/lib/templateContent';
 import { redirect } from 'next/navigation';
 
 const COLOR_PALETTES = [
@@ -88,6 +89,11 @@ export default function TemplatePreviewPage({
 
   const currentAccent = COLOR_PALETTES[activePalette].color || template.accent;
   const products = template.products || [];
+  const featureDescriptions = getTemplateFeatureDescriptions(template.id, template.features);
+  const previewPages = useMemo(
+    () => createStorefrontPages(template.id, template.pages, products),
+    [template.id, template.pages, products],
+  );
   const visibleProducts = activeSection.includes('wishlist')
     ? products.filter((product) => wishlist.includes(product.name))
     : products;
@@ -440,7 +446,7 @@ export default function TemplatePreviewPage({
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                      {template.features.map((feat) => (
+                      {template.features.map((feat, index) => (
                         <div 
                           key={feat} 
                           className={`p-4 rounded-2xl border shadow-xs transition-all text-left ${
@@ -454,7 +460,7 @@ export default function TemplatePreviewPage({
                             {feat}
                           </p>
                           <p className={`text-[11px] mt-1 ${isDarkTemplate ? 'text-neutral-400' : 'text-[#737373]'}`}>
-                            Fully responsive with modular React components.
+                            {featureDescriptions[index]?.desc}
                           </p>
                         </div>
                       ))}
@@ -468,8 +474,8 @@ export default function TemplatePreviewPage({
               <section className="px-6 sm:px-12 py-12 max-w-5xl mx-auto relative z-10">
                 <div className="text-center mb-8">
                   <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: currentAccent }}>{template.name}</span>
-                  <h2 className={`text-3xl font-black mt-1 capitalize ${isDarkTemplate ? 'text-white' : 'text-black'}`}>{activeSection}</h2>
-                  <p className="text-xs text-neutral-400 mt-2">{products.length > 0 ? 'Discover the collection, save a favorite, or add a piece to your bag.' : `Explore the ${template.name} starter content and make it your own.`}</p>
+                  <h2 className={`text-3xl font-black mt-1 ${isDarkTemplate ? 'text-white' : 'text-black'}`}>{previewPages.find((page) => page.id === activeSection)?.title || activeSection.replace(/-/g, ' ')}</h2>
+                  <p className="mx-auto mt-2 max-w-2xl text-sm text-neutral-400">{previewPages.find((page) => page.id === activeSection)?.description || template.description}</p>
                 </div>
                 {activeSection.includes('checkout') ? (
                   <form onSubmit={(event) => { event.preventDefault(); setOrderPlaced(true); }} className={`max-w-xl mx-auto rounded-2xl border p-6 space-y-3 ${isDarkTemplate ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-black/10 text-black'}`}>

@@ -11,10 +11,10 @@ import {
   Loader2, ExternalLink, Mail, Zap, CheckCircle2, Crown
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { DEFAULT_TEMPLATE, getTemplateById } from '@/lib/templates';
+import { DEFAULT_TEMPLATE, getTemplateById, TEMPLATES } from '@/lib/templates';
 import { cn, formatDate } from '@/lib/utils';
 import BrandWordmark from '@/components/BrandWordmark';
-import { scrollToSection } from '@/lib/navigation';
+import TemplateCard from '@/components/TemplateCard';
 
 interface WebsiteItem {
   id: string;
@@ -438,11 +438,7 @@ export default function Dashboard() {
                   Deploy unlimited websites, hook up custom domains, and download complete source code.
                 </p>
                 <Link
-                  href="/"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    scrollToSection('pricing', router);
-                  }}
+                  href="/checkout?plan=pro&billing=monthly"
                   className="brutal-press inline-flex items-center justify-center gap-1.5 w-full text-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-pink/90 transition-all cursor-pointer"
                 >
                   <span>Claim Pro Membership</span>
@@ -525,11 +521,11 @@ export default function Dashboard() {
             </Link>
 
             <Link
-              href="/editor"
+              href="/templates"
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-2 border-transparent hover:border-black dark:hover:border-[#262638] text-neutral-700 dark:text-neutral-300 hover:bg-[#faf5ff] dark:hover:bg-[#181824] font-display text-xs font-black uppercase tracking-wider transition-all"
             >
               <Edit3 size={16} />
-              <span>Open Editor</span>
+              <span>Browse Templates</span>
             </Link>
 
             <button
@@ -563,11 +559,7 @@ export default function Dashboard() {
               </div>
 
               <Link
-                href="/"
-                onClick={(e) => {
-                  e.preventDefault();
-                  scrollToSection('pricing', router);
-                }}
+                href="/checkout?plan=pro&billing=monthly"
                 className="brutal-press w-full inline-flex items-center justify-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-pink/90 transition-all cursor-pointer"
               >
                 <ArrowUpRight size={13} className="mr-1 stroke-[2.5]" />
@@ -685,7 +677,7 @@ export default function Dashboard() {
 
             {/* Create Website CTA Button */}
             <Link
-              href="/editor"
+              href="/templates"
               className="brutal-press inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl border-2 border-black bg-pink text-black font-display text-xs sm:text-sm font-black uppercase tracking-wider shadow-brutal hover:bg-pink/90 transition-all shrink-0 cursor-pointer"
             >
               <Plus size={15} className="stroke-[3]" />
@@ -732,7 +724,7 @@ export default function Dashboard() {
 
             <div className="flex items-center gap-2 self-start sm:self-auto">
               <Link
-                href="/editor"
+                href="/templates"
                 className="brutal-press inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-card text-ink font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-neutral-100 dark:hover:bg-[#1a1a26]"
               >
                 <Layers size={14} />
@@ -804,47 +796,21 @@ export default function Dashboard() {
             ) : websites.length === 0 ? (
               /* Neo-Brutalist Personalized Empty State */
               <div className="rounded-3xl border-[3.5px] border-black dark:border-[#262638] bg-card dark:bg-[#12121a] p-6 sm:p-10 shadow-brutal-lg text-center relative overflow-hidden">
-                <div className="max-w-xl mx-auto space-y-4">
+                <div className="mx-auto space-y-4">
                   <h3 className="font-display text-2xl sm:text-3xl font-black text-black dark:text-white tracking-tight">
                     {user
-                      ? `${user.name.split(' ')[0]}, you haven't launched any websites yet!`
-                      : 'You haven\'t launched any websites yet'}
+                      ? `${user.name.split(' ')[0]}, choose a template to get started`
+                      : 'Choose a template to get started'}
                   </h3>
 
-                  <p className="font-mono text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                    Start with a blank canvas, add your pages and components in the Studio editor, then publish to your custom <span className="font-bold text-pink">.launchly.site</span> subdomain.
+                  <p className="mx-auto max-w-2xl font-mono text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                    Pick a professionally designed storefront, open it in Studio, and customize it before publishing to your <span className="font-bold text-pink">.launchly.site</span> subdomain.
                   </p>
 
-                  <div className="pt-2">
-                    <Link
-                      href="/editor"
-                      className="brutal-press inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl border-[3px] border-black bg-pink text-black font-display text-sm font-black uppercase tracking-wider shadow-brutal hover:bg-pink/90 transition-all cursor-pointer"
-                    >
-                      <Plus size={18} className="stroke-[3]" />
-                      <span>Create Your First Website</span>
-                      <ArrowRight size={16} className="stroke-[3]" />
-                    </Link>
-                  </div>
-
-                  {/* 3-Step Simple Guide */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-6 text-left border-t-2 border-black/10 dark:border-[#262638]/60 mt-6">
-                    <div className="p-3.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#181824] shadow-brutal-xs">
-                      <span className="font-mono text-xs font-black text-pink block mb-1">01 / CREATE</span>
-                      <span className="font-display text-xs font-black text-black dark:text-white block">Start from a blank canvas</span>
-                      <span className="font-mono text-[10px] text-neutral-500">Build your site with editable sections and elements.</span>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#181824] shadow-brutal-xs">
-                      <span className="font-mono text-xs font-black text-yellow block mb-1">02 / TWEAK</span>
-                      <span className="font-display text-xs font-black text-black dark:text-white block">Edit in Studio</span>
-                      <span className="font-mono text-[10px] text-neutral-500">Visual editor + live Next.js hot reload.</span>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#181824] shadow-brutal-xs">
-                      <span className="font-mono text-xs font-black text-mint block mb-1">03 / SHIP</span>
-                      <span className="font-display text-xs font-black text-black dark:text-white block">Instant Edge URL</span>
-                      <span className="font-mono text-[10px] text-neutral-500">Free SSL, global CDN, zero configuration.</span>
-                    </div>
+                  <div className="grid gap-5 pt-4 text-left sm:grid-cols-2 xl:grid-cols-3">
+                    {TEMPLATES.map((template) => (
+                      <TemplateCard key={template.id} template={template} />
+                    ))}
                   </div>
                 </div>
               </div>
@@ -865,7 +831,7 @@ export default function Dashboard() {
               <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
                 {/* Create New Website Card */}
                 <Link
-                  href="/editor"
+                  href="/templates"
                   className="border-[2.5px] border-dashed border-black/30 dark:border-[#262638] hover:border-black dark:hover:border-white rounded-3xl p-6 flex flex-col items-center justify-center gap-3 transition-all group bg-background/50 dark:bg-[#12121a]/50 hover:bg-yellow/10 min-h-60 text-center"
                 >
                   <div className="h-12 w-12 rounded-2xl border-2 border-black dark:border-[#262638] bg-yellow text-black flex items-center justify-center group-hover:bg-pink transition-all shadow-brutal-xs">
@@ -1052,30 +1018,33 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Blank canvas remains available alongside the ecommerce starters. */}
+          {websites.length > 0 && (
           <div className="pt-6 border-t-2 border-black/10 dark:border-[#262638]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 mb-4">
               <div className="min-w-0">
                 <h2 className="font-display text-xl sm:text-2xl font-black text-black dark:text-white">
-                  Start from a blank canvas
+                  Start with a template
                 </h2>
                 <p className="font-mono text-xs text-neutral-500 mt-0.5">
-                  Add your own pages, sections, and content in the visual editor.
+                  Choose a storefront and customize it in Studio.
                 </p>
               </div>
               <Link
-                href="/editor"
+                href="/templates"
                 className="font-mono text-xs font-black uppercase text-pink hover:underline inline-flex items-center gap-1 shrink-0 whitespace-nowrap self-start sm:self-auto"
               >
-                <span>Open editor</span>
+                <span>Browse all templates</span>
                 <ChevronRight size={14} className="shrink-0" />
               </Link>
             </div>
 
-            <Link href="/editor" className="flex min-h-32 items-center justify-center rounded-2xl border-2 border-dashed border-black/25 bg-card px-6 text-center font-display font-bold text-neutral-600 transition-colors hover:border-pink hover:text-pink dark:border-white/20">
-              Create a new website <ChevronRight size={18} className="ml-2" />
-            </Link>
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {TEMPLATES.map((template) => (
+                <TemplateCard key={template.id} template={template} />
+              ))}
+            </div>
           </div>
+          )}
         </div>
       </main>
     </div>

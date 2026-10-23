@@ -39,10 +39,10 @@ export default function TemplatesPageContent() {
       <header className="border-b-[3px] border-ink bg-[#fdf2f8] px-6 py-14 dark:bg-[#0c0d16] sm:py-16">
         <div className="mx-auto max-w-7xl">
           <h1 className="max-w-3xl font-display text-4xl font-black tracking-tight text-ink sm:text-6xl">
-            Two storefronts. Every detail ready to customize.
+            Start with a template. Make it yours.
           </h1>
           <p className="mt-4 max-w-3xl font-mono text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Choose a complete ecommerce starting point for fresh local groceries or modern technology. Customize products, pages, and branding in Launchly Studio.
+            Browse the available website starters, preview their pages, and customize the content, layout, and branding in Launchly Studio.
           </p>
         </div>
       </header>
@@ -50,9 +50,9 @@ export default function TemplatesPageContent() {
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col gap-3 border-b-[2px] border-ink/20 pb-4 md:flex-row md:items-center md:justify-between">
             <label className="relative min-w-0 flex-1 md:max-w-lg">
-              <span className="sr-only">Search ecommerce templates</span>
+              <span className="sr-only">Search templates</span>
               <Search size={16} aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 text-ink" />
-              <input value={searchQuery} onChange={(event) => updateFilters(activeCategory, event.target.value)} placeholder="Search ecommerce templates…" className="w-full rounded-xl border-2 border-ink bg-card py-3 pl-10 pr-10 font-mono text-sm text-ink shadow-brutal-xs outline-none focus-visible:ring-2 focus-visible:ring-pink" />
+              <input value={searchQuery} onChange={(event) => updateFilters(activeCategory, event.target.value)} placeholder="Search templates…" className="w-full rounded-xl border-2 border-ink bg-card py-3 pl-10 pr-10 font-mono text-sm text-ink shadow-brutal-xs outline-none focus-visible:ring-2 focus-visible:ring-pink" />
               {searchQuery && <button type="button" aria-label="Clear search" onClick={() => updateFilters(activeCategory, '')} className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-ink hover:text-pink"><X size={16}/></button>}
             </label>
             <div role="group" aria-label="Template display mode" className="flex self-end rounded-xl border-2 border-ink bg-card p-1 shadow-brutal-xs md:self-auto">
@@ -64,7 +64,7 @@ export default function TemplatesPageContent() {
             {CATEGORIES.map((category) => <button key={category} type="button" aria-pressed={activeCategory === category} onClick={() => updateFilters(category, searchQuery)} className={`rounded-lg border-2 border-ink px-3 py-2 font-mono text-xs font-bold uppercase shadow-brutal-xs ${activeCategory === category ? 'bg-pink text-black' : 'bg-card text-ink hover:bg-yellow'}`}>{category}</button>)}
           </div>
           <p className="mb-5 font-mono text-xs font-bold text-muted-foreground" aria-live="polite">
-            Showing {displayedTemplates.length} ecommerce templates
+            Showing {displayedTemplates.length} {activeCategory === 'All' ? 'templates' : `${activeCategory} templates`}
             {(searchQuery || activeCategory !== 'All') && <button type="button" onClick={() => updateFilters('All', '')} className="ml-3 text-pink underline">Clear filters</button>}
           </p>
           {displayedTemplates.length ? <div className={viewMode === 'grid' ? 'grid gap-7 sm:grid-cols-2 xl:grid-cols-3' : 'flex flex-col gap-5'}>

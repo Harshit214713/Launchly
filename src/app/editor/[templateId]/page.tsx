@@ -31,7 +31,7 @@ import { getDefaultFormFields, type FormField } from '@/components/SiteForm';
 import { getAnimationClass, type ButtonTarget } from '@/lib/elementActions';
 import { editorCatalog, getEditorCatalogItem, paletteCategories, type EditorPaletteCategory } from '@/lib/editorCatalog';
 import { createEditorWidgetContent, getEditorWidgetDefinition } from '@/lib/editorWidgetRegistry';
-import { createStorefrontPages } from '@/lib/templateContent';
+import { createStorefrontPages, getTemplateFeatureDescriptions } from '@/lib/templateContent';
 import StoreHeroArtwork from '@/components/storefront/StoreHeroArtwork';
 import { normalizeAnchorId, scrollToAnchor as scrollToResolvedAnchor } from '@/lib/navigation';
 
@@ -338,12 +338,12 @@ export default function EditorPage({ params }: { params: Promise<{ templateId: s
     stat2Value: isFreshCrate ? 'Same-day slots' : isVoltGear ? '30-day window' : '99.98% SLA',
   });
 
-  const initialFeatures = template.features.map((title) => ({
-    title,
-    desc: isFreshCrate || isVoltGear
-      ? `${title} is thoughtfully integrated into the ${template.name} shopping experience.`
-      : `${title} helps tell the ${template.name} story and gives visitors a clear next step.`,
-  }));
+  const initialFeatures = isFreshCrate || isVoltGear
+    ? getTemplateFeatureDescriptions(template.id, template.features)
+    : template.features.map((title) => ({
+      title,
+      desc: `${title} helps tell the ${template.name} story and gives visitors a clear next step.`,
+    }));
   const [featuresContent, setFeaturesContent] = useState(initialFeatures);
 
   const [testimonialsContent, setTestimonialsContent] = useState([

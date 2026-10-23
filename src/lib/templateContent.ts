@@ -53,15 +53,61 @@ const voltCopy: Record<string, { title: string; description: string; detail: str
   components: { title: 'The Volt Gear component bench', description: 'A style guide for the store’s cards, badges, specs, and interaction patterns.', detail: 'Use these components consistently across product, support, and editorial pages.' },
 };
 
+const freshFeatureDescriptions: Record<string, string> = {
+  'Twenty purpose-built storefront pages': 'Explore focused pages for shopping, recipes, delivery, customer support, and the full order journey.',
+  'Twelve seasonal grocery products': 'Start with a curated range of produce, bakery favorites, pantry staples, and ready-made bundles.',
+  'Product variants and stock-aware shopping': 'Choose available crate sizes and product options before adding them to your order.',
+  'Searchable, filterable shop catalog': 'Help customers narrow the weekly selection by category and find the ingredients they need.',
+  'One-off combo baskets and weekly offers': 'Highlight useful seasonal bundles without requiring a subscription.',
+  'Recipe index and recipe detail pages': 'Connect seasonal ingredients with practical recipes and clear preparation notes.',
+  'Editorial blog and article detail pages': 'Share grower stories, seasonal guides, and useful ideas for making the most of each delivery.',
+  'Persistent cart and demo checkout': 'Keep a local shopping basket through the preview and demonstrate the checkout journey without processing payment.',
+  'Order confirmation and tracking screens': 'Show customers what happens after checkout, from confirmation through delivery.',
+  'Wishlist and recently viewed products': 'Let shoppers save interesting items and return to them while planning a crate.',
+  'Local delivery areas and slot information': 'Explain where delivery is available and how customers choose a suitable window.',
+  'Customer reviews and common questions': 'Build confidence with customer feedback and concise answers to common ordering questions.',
+  'Contact form and newsletter signup': 'Give visitors a direct way to ask for help or opt in to market updates.',
+  'Responsive navigation and shared footer': 'Keep key store links easy to find across mobile and desktop layouts.',
+  'Per-page SEO titles and descriptions': 'Give each storefront page its own editable search title and description.',
+  'Warm, customizable market theme': 'Adjust the color palette, type, and visual styling to fit your brand.',
+};
+
+const voltFeatureDescriptions: Record<string, string> = {
+  'Twenty-one purpose-built storefront pages': 'Explore focused pages for the collection, product details, comparison, support, and the full order journey.',
+  'Twelve sample technology products': 'Start with a curated set of audio, desk, display, creator, and travel gear.',
+  'Variant selection with stock information': 'Choose available product finishes and review the sample stock count before adding to a bag.',
+  'Searchable, sortable shop catalog': 'Help customers narrow the collection and compare products by useful details.',
+  'Product detail and comparison pages': 'Present product specifications clearly and let shoppers compare selected gear side by side.',
+  'Limited-drop deals and promotions': 'Highlight a small collection of promotional items with clear prices and availability notes.',
+  'Build-your-setup bundle showcase': 'Group compatible products into considered bundles for work, travel, and creator setups.',
+  'Persistent cart and demo checkout': 'Keep a local shopping basket through the preview and demonstrate checkout without processing payment.',
+  'Order confirmation and tracking screens': 'Show customers what happens after checkout, from confirmation through delivery.',
+  'Wishlist and recently viewed products': 'Let shoppers save interesting gear and return to it while planning a setup.',
+  'Support, warranty, and FAQ information': 'Make setup guidance, warranty information, and common answers easy to find.',
+  'Editorial blog and article detail pages': 'Publish useful product explainers, setup guides, and release notes.',
+  'Store locator and partner information': 'Present verified retail or demo locations and explain how customers can visit.',
+  'Customer reviews and newsletter signup': 'Build confidence with customer feedback and give visitors an opt-in way to hear about releases.',
+  'Responsive navigation and shared footer': 'Keep key store links easy to find across mobile and desktop layouts.',
+  'Per-page SEO and complete component showcase': 'Edit search metadata page by page and use the component page as a consistent visual reference.',
+};
+
+export function getTemplateFeatureDescriptions(templateId: string, features: string[]): Array<{ title: string; desc: string }> {
+  const descriptions = templateId === 'fresh-crate' ? freshFeatureDescriptions : templateId === 'volt-gear' ? voltFeatureDescriptions : {};
+  return features.map((title) => ({
+    title,
+    desc: descriptions[title] || `${title}. Add the details that make this part of your store distinctive.`,
+  }));
+}
+
 const freshRecipes = [
-  { title: 'Green market bowl', description: 'Spinach, tomatoes, grains, lemon, and a handful of toasted seeds.', price: '25 min · Easy' },
-  { title: 'Carrot and herb fritters', description: 'Rainbow carrots, fresh herbs, yogurt, and a crisp pan-fried finish.', price: '35 min · Family favorite' },
-  { title: 'Strawberry breakfast toast', description: 'Country sourdough, ripe berries, and whipped honey ricotta.', price: '10 min · No fuss' },
+  { title: 'Green market bowl', description: 'Toss tender spinach and ripe tomatoes with warm grains, lemon dressing, and toasted seeds.', price: '25 min · Easy' },
+  { title: 'Carrot and herb fritters', description: 'Grate rainbow carrots with fresh herbs, pan-sear until crisp, and serve with lemon yogurt.', price: '35 min · Serves 4' },
+  { title: 'Strawberry breakfast toast', description: 'Layer ripe strawberries and whipped honey ricotta over thick slices of toasted sourdough.', price: '10 min · Easy' },
 ];
 const voltArticles = [
-  { title: 'The practical guide to USB-C docks', description: 'Check display bandwidth, charging, ports, and compatibility before buying.', price: '6 min read' },
-  { title: 'Mechanical switches, explained', description: 'A clear guide to sound, travel, actuation, and hot-swap boards.', price: '8 min read' },
-  { title: 'Set up a better video call', description: 'A microphone, light, and camera setup that stays simple and reliable.', price: '5 min read' },
+  { title: 'The practical guide to USB-C docks', description: 'Compare display bandwidth, power delivery, port selection, and host compatibility before choosing a dock.', price: '6 min read' },
+  { title: 'Mechanical switches, explained', description: 'Understand switch feel, sound, actuation, and hot-swap support before choosing a keyboard.', price: '8 min read' },
+  { title: 'Set up a better video call', description: 'Build a dependable call setup with balanced lighting, clear microphone placement, and a stable camera angle.', price: '5 min read' },
 ];
 
 function section(id: string, type: string, name: string, content: Record<string, unknown>): Section {
@@ -124,7 +170,7 @@ function pageSections(id: string, title: string, description: string, detail: st
   } else if (id === 'recipe-detail' || id === 'blog-post') {
     contentSections.push(section(`${id}-article`, 'rich-text', isFresh ? 'Make it your own' : 'Start with your setup', { heading: isFresh ? 'A little prep goes a long way' : 'The details that matter', body: `${detail}\n\n${description}\n\n${isFresh ? 'Wash and prepare the ingredients, keep the dressing separate, and finish with fresh herbs just before serving.' : 'Check compatibility with your current devices, leave room for future upgrades, and choose the features that support your daily workflow.'}` }));
   } else if (id === 'faq' || id === 'support') {
-    contentSections.push(section(`${id}-answers`, 'faq', isFresh ? 'Ordering, answered' : 'Support, answered', { heading: 'Frequently asked questions', items: isFresh ? [{ question: 'When are orders packed?', answer: 'We pack orders close to delivery so produce spends less time in storage.' }, { question: 'Can I change a crate?', answer: 'Yes. Swap an item or add a note before the order cutoff shown at checkout.' }, { question: 'What if something is missing?', answer: 'Send our team your order number and we will make it right.' }] : [{ question: 'How do I check compatibility?', answer: 'Compare the listed ports, operating systems, and power requirements with your devices.' }, { question: 'How do I start a warranty request?', answer: 'Send the product model and order number through the support form.' }, { question: 'Can I update an order?', answer: 'Contact support as soon as possible and include the order reference.' }] }));
+    contentSections.push(section(`${id}-answers`, 'faq', isFresh ? 'Ordering, answered' : 'Support, answered', { heading: 'Frequently asked questions', items: isFresh ? [{ question: 'When are orders packed?', answer: 'Orders are packed close to their delivery window to help keep produce fresh.' }, { question: 'Can I change a crate?', answer: 'Update your selection or leave a note before the order cutoff shown at checkout.' }, { question: 'What if something is missing?', answer: 'Contact the team with your order reference and a brief description so we can help.' }] : [{ question: 'How do I check compatibility?', answer: 'Compare the listed ports, operating systems, and power requirements with your devices. If you are unsure, include your device model in a support request.' }, { question: 'How do I start a warranty request?', answer: 'Share the product model and order reference with the support team to get the right next steps.' }, { question: 'Can I update an order?', answer: 'Contact support as soon as possible and include your order reference; changes depend on fulfillment status.' }] }));
   } else if (id === 'contact') {
     contentSections.push(section(`${id}-form`, 'contact', 'Send us a note', { heading: 'How can we help?', description, submitLabel: 'Send message', successMessage: 'Thanks — your message is on its way.' }));
   } else if (id === 'delivery-areas' || id === 'store-locator') {
@@ -182,7 +228,7 @@ export function createTemplateDocument(template: Template): SiteDocument {
   const pages = createStorefrontPages(template.id, template.pages, template.products || []);
   const home = pages.find((page) => page.isHome) || pages[0];
   const hero = home.sections.find((entry) => entry.type === 'hero')?.content || {};
-  const features = template.features.map((feature) => ({ title: feature, desc: '' }));
+  const features = getTemplateFeatureDescriptions(template.id, template.features);
   const testimonials = template.topReview ? [{
     quote: template.topReview.comment,
     name: template.topReview.author,
