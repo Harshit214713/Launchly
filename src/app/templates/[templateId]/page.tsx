@@ -20,8 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import { getTemplateById } from '@/lib/templates';
-import { notFound } from 'next/navigation';
-import PaymentModal from '@/components/PaymentModal';
+import { redirect } from 'next/navigation';
 
 const COLOR_PALETTES = [
   { name: 'Original', color: '' },
@@ -49,7 +48,7 @@ export default function TemplatePreviewPage({
   const template = getTemplateById(templateId);
 
   if (!template) {
-    notFound();
+    redirect('/editor');
   }
 
   const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
@@ -57,11 +56,27 @@ export default function TemplatePreviewPage({
   const [activePalette, setActivePalette] = useState(0);
   const [activeSection, setActiveSection] = useState(template.pages[0]?.toLowerCase() || 'overview');
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isPro, setIsPro] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [cartCount, setCartCount] = useState(0);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [orderPlaced, setOrderPlaced] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((response) => response.json())
+      .then((data) => {
+        setIsAuthenticated(Boolean(data?.authenticated && data.user));
+        setIsPro(Boolean(data?.authenticated && data.user?.plan === 'pro'));
+      })
+      .catch(() => {
+        setIsAuthenticated(false);
+        setIsPro(false);
+      })
+      .finally(() => setAuthResolved(true));
+  }, []);
 
   useEffect(() => {
     const requestedPage = new URLSearchParams(window.location.search).get('page')?.toLowerCase();
@@ -119,15 +134,6 @@ export default function TemplatePreviewPage({
               <span className="font-mono text-[9px] font-black uppercase text-black bg-mint border border-ink px-1.5 py-0.5 rounded shadow-2xs shrink-0">
                 {template.category}
               </span>
-              {template.isPro ? (
-                <span className="font-mono text-[9px] font-black uppercase text-black bg-yellow border border-ink px-1.5 py-0.5 rounded flex items-center gap-0.5 shadow-2xs shrink-0">
-                  <Sparkles size={9} /> PRO
-                </span>
-              ) : (
-                <span className="font-mono text-[9px] font-black uppercase text-black bg-pink border border-ink px-1.5 py-0.5 rounded shadow-2xs shrink-0">
-                  FREE
-                </span>
-              )}
             </div>
           </div>
 
@@ -190,8 +196,9 @@ export default function TemplatePreviewPage({
               onClick={() => setShowExportModal(true)}
               className="hidden xl:flex brutal-press items-center gap-1 px-2.5 py-1.5 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-mint border-2 border-ink shadow-brutal-xs cursor-pointer"
             >
-              <Download size={12} />
+              {isPro ? <Download size={12} /> : <Lock size={12} />}
               <span>Source Code</span>
+              {!isPro && <span className="rounded border border-ink bg-yellow px-1 py-0.5 text-[8px]">PRO</span>}
             </button>
 
             {/* Share Link */}
@@ -313,7 +320,7 @@ export default function TemplatePreviewPage({
               <div className={`hidden sm:flex items-center gap-5 text-xs font-semibold ${
                 isDarkTemplate ? 'text-neutral-300' : 'text-[#525252]'
               }`}>
-                {template.pages.filter((page) => ['home', 'shop', 'about', 'contact'].includes(page.toLowerCase())).map((p) => {
+                {template.pages.filter((page) => page.toLowerCase() !== 'home').slice(0, 3).map((p) => {
                   const key = p.toLowerCase();
                   const isActive = activeSection === key;
                   return (
@@ -334,9 +341,11 @@ export default function TemplatePreviewPage({
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                <button type="button" onClick={() => setActiveSection(template.pages.find((page) => page.toLowerCase().includes('cart'))?.toLowerCase() || template.pages[0].toLowerCase())} className="relative rounded-full border px-3 py-2 text-xs font-bold" aria-label={`Shopping bag, ${cartCount} items`}>
-                  Bag{cartCount > 0 && <span className="ml-1 rounded-full px-1.5 py-0.5 text-[9px] text-black" style={{ backgroundColor: currentAccent }}>{cartCount}</span>}
-                </button>
+                {products.length > 0 ? (
+                  <button type="button" onClick={() => setActiveSection(template.pages.find((page) => page.toLowerCase().includes('cart'))?.toLowerCase() || template.pages[0].toLowerCase())} className="relative rounded-full border px-3 py-2 text-xs font-bold" aria-label={`Shopping bag, ${cartCount} items`}>
+                    Bag{cartCount > 0 && <span className="ml-1 rounded-full px-1.5 py-0.5 text-[9px] text-black" style={{ backgroundColor: currentAccent }}>{cartCount}</span>}
+                  </button>
+                ) : null}
                 <Link href={`/editor/${template.id}`} className="text-xs font-bold px-4 py-2 rounded-full shadow-xs transition-transform hover:scale-105" style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#FFFFFF' : '#171717' }}>Use Template</Link>
               </div>
             </nav>
@@ -385,7 +394,7 @@ export default function TemplatePreviewPage({
                           : 'border-black/30 text-black hover:border-black bg-black/5'
                       }`}
                     >
-                      Browse the store
+                      Explore {template.pages[1] || 'the site'}
                     </button>
                   </div>
                 </section>
@@ -393,14 +402,19 @@ export default function TemplatePreviewPage({
                 <section className={`px-6 sm:px-12 pb-14 pt-4 ${isDarkTemplate ? 'text-white' : 'text-[#171717]'}`}>
                   <div className="max-w-5xl mx-auto">
                     <div className="flex items-end justify-between mb-5">
-                      <div><span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: currentAccent }}>Curated for you</span><h2 className="text-2xl font-black mt-1">Featured pieces</h2></div>
-                      <button type="button" onClick={() => document.getElementById('template-featured-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="text-xs font-bold underline underline-offset-4">Shop all</button>
+                      <div><span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: currentAccent }}>{products.length > 0 ? 'Curated for you' : 'A closer look'}</span><h2 className="text-2xl font-black mt-1">{products.length > 0 ? 'Featured pieces' : 'Built for your next idea'}</h2></div>
+                      <button type="button" onClick={() => document.getElementById('template-featured-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="text-xs font-bold underline underline-offset-4">{products.length > 0 ? 'Shop all' : 'Explore features'}</button>
                     </div>
                     <div id="template-featured-products" className="grid grid-cols-1 scroll-mt-24 sm:grid-cols-3 gap-4">
-                      {products.slice(0, 3).map((product, index) => (
+                      {products.length > 0 ? products.slice(0, 3).map((product, index) => (
                         <article key={product.name} className={`overflow-hidden rounded-2xl border ${isDarkTemplate ? 'bg-white/5 border-white/10' : 'bg-white border-black/10'}`}>
                           <div className="h-40 overflow-hidden"><PreviewProductArt fresh={template.id === 'fresh-crate'} index={index}/></div>
                           <div className="p-4"><span className="font-mono text-[9px] uppercase tracking-wider opacity-60">{product.category}</span><h3 className="font-bold mt-1">{product.name}</h3><p className="text-xs opacity-65 mt-1">{product.detail}</p><div className="flex items-center justify-between mt-4"><span className="font-black">₹{product.price.toLocaleString('en-IN')}</span><button type="button" onClick={() => setCartCount((count) => count + 1)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#111' : '#171717' }}>Add to {template.id === 'fresh-crate' ? 'crate' : 'bag'}</button></div></div>
+                        </article>
+                      )) : template.features.slice(0, 3).map((feature) => (
+                        <article key={feature} className={`flex min-h-40 flex-col justify-between rounded-2xl border p-5 ${isDarkTemplate ? 'bg-white/5 border-white/10' : 'bg-white border-black/10'}`}>
+                          <CheckCircle2 size={20} style={{ color: currentAccent }} />
+                          <h3 className="mt-5 font-bold">{feature}</h3>
                         </article>
                       ))}
                     </div>
@@ -455,7 +469,7 @@ export default function TemplatePreviewPage({
                 <div className="text-center mb-8">
                   <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: currentAccent }}>{template.name}</span>
                   <h2 className={`text-3xl font-black mt-1 capitalize ${isDarkTemplate ? 'text-white' : 'text-black'}`}>{activeSection}</h2>
-                  <p className="text-xs text-neutral-400 mt-2">Discover the collection, save a favorite, or add a piece to your bag.</p>
+                  <p className="text-xs text-neutral-400 mt-2">{products.length > 0 ? 'Discover the collection, save a favorite, or add a piece to your bag.' : `Explore the ${template.name} starter content and make it your own.`}</p>
                 </div>
                 {activeSection.includes('checkout') ? (
                   <form onSubmit={(event) => { event.preventDefault(); setOrderPlaced(true); }} className={`max-w-xl mx-auto rounded-2xl border p-6 space-y-3 ${isDarkTemplate ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-black/10 text-black'}`}>
@@ -479,10 +493,17 @@ export default function TemplatePreviewPage({
                         <div className="h-48 overflow-hidden"><PreviewProductArt fresh={template.id === 'fresh-crate'} index={index}/></div>
                         <div className="p-4"><span className="font-mono text-[9px] uppercase tracking-wider opacity-60">{product.category}</span><h3 className="font-bold mt-1">{product.name}</h3><p className="text-xs opacity-65 mt-1">{product.detail}</p><div className="flex items-center justify-between mt-4"><span className="font-black">₹{product.price.toLocaleString('en-IN')}</span><div className="flex gap-2"><button type="button" aria-label={`Save ${product.name}`} onClick={() => setWishlist((items) => items.includes(product.name) ? items.filter((item) => item !== product.name) : [...items, product.name])} className="rounded-lg border px-2 py-1 text-xs">{wishlist.includes(product.name) ? '♥' : '♡'}</button><button type="button" onClick={() => setCartCount((count) => count + 1)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-black" style={{ backgroundColor: currentAccent }}>Add to {template.id === 'fresh-crate' ? 'crate' : 'bag'}</button></div></div></div>
                       </article>
-                  )) : <p className="col-span-full py-12 text-center text-sm opacity-60">No saved items yet. Tap the heart on a piece to add it to your wishlist.</p>}
+                  )) : products.length > 0
+                    ? <p className="col-span-full py-12 text-center text-sm opacity-60">No saved items yet. Tap the heart on a piece to add it to your wishlist.</p>
+                    : template.features.map((feature) => (
+                      <article key={feature} className={`flex min-h-40 flex-col justify-between rounded-2xl border p-5 ${isDarkTemplate ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-black/10 text-black'}`}>
+                        <CheckCircle2 size={20} style={{ color: currentAccent }} />
+                        <h3 className="mt-5 font-bold">{feature}</h3>
+                      </article>
+                    ))}
                   </div>
                 )}
-                <div className="mt-10 text-center"><Link href={`/editor/${template.id}`} className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-bold shadow-md hover:scale-105 transition-all" style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#111' : '#171717' }}><Sparkles size={13} /><span>Customize this storefront</span></Link></div>
+                <div className="mt-10 text-center"><Link href={`/editor/${template.id}`} className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-bold shadow-md hover:scale-105 transition-all" style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#111' : '#171717' }}><Sparkles size={13} /><span>Customize this template</span></Link></div>
               </section>
             )}
             {/* Template Bottom Footer */}
@@ -552,17 +573,27 @@ export default function TemplatePreviewPage({
             </div>
 
             <div className="flex flex-col gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowExportModal(false);
-                  setShowPaymentModal(true);
-                }}
-                className="brutal-press w-full py-2.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-pink border-2 border-ink shadow-brutal-xs hover:bg-yellow transition-colors cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Download size={14} className="stroke-[2.5]" />
-                <span>Pay & Download Source Code ($49)</span>
-              </button>
+              {!authResolved ? (
+                <button type="button" disabled className="w-full py-2.5 px-4 rounded-xl border-2 border-ink bg-background font-display text-xs font-black uppercase text-muted-foreground disabled:opacity-60">
+                  Checking plan…
+                </button>
+              ) : isPro ? (
+                <a
+                  href={`${template.sourceCodeUrl || `/api/templates/${template.id}/source`}?format=download`}
+                  className="brutal-press w-full py-2.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-pink border-2 border-ink shadow-brutal-xs hover:bg-yellow transition-colors cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Download size={14} className="stroke-[2.5]" />
+                  <span>Download source code</span>
+                </a>
+              ) : (
+                <Link
+                  href={isAuthenticated ? '/dashboard' : '/login'}
+                  className="brutal-press w-full py-2.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-yellow border-2 border-ink shadow-brutal-xs hover:bg-pink transition-colors flex items-center justify-center gap-2"
+                >
+                  <Lock size={14} />
+                  <span>{isAuthenticated ? 'Upgrade to Pro for source code' : 'Sign in for Pro source code'}</span>
+                </Link>
+              )}
               <div className="flex items-center gap-2">
                 <Link
                   href={`/editor/${template.id}`}
@@ -583,14 +614,6 @@ export default function TemplatePreviewPage({
         </div>
       )}
 
-      {/* Official QR Payment Modal */}
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        itemName={`${template.name} Source Code`}
-        price="$49"
-        planId={`template-${template.id}`}
-      />
     </div>
   );
 }

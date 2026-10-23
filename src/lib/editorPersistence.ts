@@ -88,7 +88,8 @@ export async function loadEditorDraft(id: string): Promise<unknown | null> {
   } catch { return null; }
 }
 
-export async function saveEditorDraft(id: string, document: SiteDocument): Promise<void> {
+export async function saveEditorDraft(id: string, document: SiteDocument): Promise<'indexeddb' | 'localstorage'> {
+  let indexedDbError: unknown;
   try {
     await writeValue('drafts', id, document);
     try {
@@ -96,14 +97,17 @@ export async function saveEditorDraft(id: string, document: SiteDocument): Promi
       localStorage.removeItem(`launchly_site_${document.settings.subdomain}`);
     } catch { /* Legacy browser storage can be unavailable. */ }
     void migrateLegacyBrowserBackups();
-    return;
+    return 'indexeddb';
   }
-  catch { /* IndexedDB fallback below is size-capped and best-effort. */ }
+  catch (error) { indexedDbError = error; }
+
   try {
-    const withoutLargeMedia = compact(document) as SiteDocument;
-    const serialized = JSON.stringify(withoutLargeMedia);
-    if (serialized.length <= 1_500_000) localStorage.setItem(`launchly_site_${id}`, serialized);
-  } catch { /* Report the draft as offline in the caller; do not throw from autosave. */ }
+    localStorage.setItem(`launchly_site_${id}`, JSON.stringify(document));
+    return 'localstorage';
+  } catch (localStorageError) {
+    const describe = (error: unknown) => error instanceof Error ? error.message : String(error);
+    throw new Error(`The draft could not be saved to browser storage. IndexedDB: ${describe(indexedDbError)}. Local storage: ${describe(localStorageError)}.`);
+  }
 }
 
 export async function loadEditorVersions(id: string): Promise<SiteVersion[]> {

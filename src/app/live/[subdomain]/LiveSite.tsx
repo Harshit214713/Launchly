@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useState, useEffect, useMemo } from 'react';
+import { useStore } from 'zustand';
 import type { ElementType } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -16,21 +17,36 @@ import {
   X
   , Heart, Sparkles, Camera, CheckCircle2
 } from 'lucide-react';
-import { ALL_TEMPLATES, getTemplateById, TEMPLATES } from '@/lib/templates';
+import { ALL_TEMPLATES, DEFAULT_TEMPLATE, getTemplateById } from '@/lib/templates';
 import { loadEditorDraft } from '@/lib/editorPersistence';
 import { Template } from '@/types';
-import type { Column, SiteElement } from '@/lib/siteDocument';
+import { createStorefrontMenu, type Column, type SiteElement } from '@/lib/siteDocument';
 import SiteForm from '@/components/SiteForm';
 import ImageCarousel from '@/components/ImageCarousel';
 import StoreHeroArtwork from '@/components/storefront/StoreHeroArtwork';
 import { getAnimationClass, resolveButtonHref, type ButtonTarget } from '@/lib/elementActions';
 import { createStorefrontPages } from '@/lib/templateContent';
-import { normalizeAnchorId, scrollToAnchor as scrollToResolvedAnchor } from '@/lib/navigation';
+import { scrollToAnchor as scrollToResolvedAnchor } from '@/lib/navigation';
+import { resolveLiveNavigationHref } from '@/lib/liveNavigation';
 import { elementVisualStyle } from '@/lib/elementVisualStyle';
+import SiteElementPreview, { supportsAdditionalElement } from '@/components/editor/SiteElementPreview';
+import CatalogWidgetPreview from '@/components/editor/CatalogWidgetPreview';
+import { getEditorWidgetDefinition } from '@/lib/editorWidgetRegistry';
+import { getElementAccessibilityProps } from '@/lib/elementAccessibility';
+import { useStorefrontStore } from '@/store/storefrontStore';
+import { formatStoreCurrency, getCartTotals, getCoupon, type StoreCartItem, type StoreCurrency } from '@/lib/storefrontCommerce';
 
 type LivePageSection = { id: string; type: string; name: string; content?: Record<string, unknown>; style?: Record<string, unknown>; columns?: Column[]; hidden?: Partial<Record<'desktop' | 'tablet' | 'mobile', boolean>>; anchorId?: string };
 type LivePage = { id: string; title: string; description: string; slug?: string; isHome?: boolean; showInMenu?: boolean; oldSlugs?: string[]; sections?: LivePageSection[] };
 type LiveMenuItem = { id: string; label: string; target: { type: 'page' | 'url' | 'anchor'; value: string }; newTab?: boolean; children?: LiveMenuItem[] };
+type StorefrontProduct = NonNullable<Template['products']>[number];
+const EMPTY_CART: StoreCartItem[] = [];
+const EMPTY_IDS: string[] = [];
+
+function storefrontProductId(templateId: string, name: string) {
+  const slug = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  return `${templateId}:${slug}`;
+}
 
 function normalizeLivePagePath(value: string | undefined): string {
   const clean = String(value || '').trim().replace(/^\/+|\/+$/g, '');
@@ -92,6 +108,10 @@ function completeStoreSections(saved: LivePageSection[] | undefined, defaults: L
 }
 
 function LiveTreeElement({ element, pages, subdomain, previewSuffix = '', onOpenCart, cartCount = 0 }: { element: SiteElement; pages: LivePage[]; subdomain: string; previewSuffix?: string; onOpenCart?: () => void; cartCount?: number }) {
+  return <div {...getElementAccessibilityProps(element)} className={element.customClass}>{renderLiveTreeElement({ element, pages, subdomain, previewSuffix, onOpenCart, cartCount })}</div>;
+}
+
+function renderLiveTreeElement({ element, pages, subdomain, previewSuffix = '', onOpenCart, cartCount = 0 }: { element: SiteElement; pages: LivePage[]; subdomain: string; previewSuffix?: string; onOpenCart?: () => void; cartCount?: number }) {
   const style: React.CSSProperties = { ...elementVisualStyle(element.style), marginLeft: element.style.textAlign === 'center' || element.style.textAlign === 'right' ? 'auto' : undefined, marginRight: element.style.textAlign === 'center' || element.style.textAlign === 'left' ? 'auto' : undefined };
   const text = String(element.content.text || element.content.title || '');
   switch (element.type) {
@@ -99,8 +119,8 @@ function LiveTreeElement({ element, pages, subdomain, previewSuffix = '', onOpen
     case 'text': return <p style={style} className="whitespace-pre-wrap leading-relaxed">{text}</p>;
     case 'button': { const target = String(element.content.linkTarget || 'url') as ButtonTarget; const value = String(element.content.linkValue || element.content.href || ''); const resolved = resolveButtonHref(target, value, pages, `/live/${subdomain}`); const href = resolveLiveElementHref(resolved, pages, subdomain, previewSuffix); return <a href={href} download={target === 'download' ? String(element.content.downloadName || '') || undefined : undefined} target={element.content.newTab ? '_blank' : undefined} rel={element.content.newTab ? 'noreferrer' : undefined} aria-label={String(element.content.ariaLabel || '') || undefined} style={style} className="inline-flex rounded-xl px-5 py-3 font-bold">{text || 'Button'}</a>; }
     case 'form': return <SiteForm id={element.id} content={element.content} style={style} />;
-    case 'image': return typeof element.content.src === 'string' && element.content.src ? <Image src={element.content.src} alt={String(element.content.alt || 'Site image')} width={1200} height={900} unoptimized className="w-full rounded-xl object-cover" /> : <div style={style} className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-current/30 bg-current/5 p-6 text-center text-sm opacity-70">Add an image in the editor</div>;
-    case 'icon': return typeof element.content.src === 'string' && element.content.src ? <Image src={element.content.src} alt={String(element.content.alt || '')} width={256} height={256} unoptimized style={style} className="h-12 w-12 object-contain" /> : <span aria-hidden="true" style={style} className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100">✦</span>;
+    case 'image': return typeof element.content.src === 'string' && element.content.src ? <Image src={element.content.src} alt={String(element.a11y?.alt || element.content.alt || 'Site image')} width={1200} height={900} unoptimized className="w-full rounded-xl object-cover" /> : <div style={style} className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-current/30 bg-current/5 p-6 text-center text-sm opacity-70">Add an image in the editor</div>;
+    case 'icon': return typeof element.content.src === 'string' && element.content.src ? <Image src={element.content.src} alt={String(element.a11y?.alt || element.content.alt || '')} width={256} height={256} unoptimized style={style} className="h-12 w-12 object-contain" /> : <span aria-hidden="true" style={style} className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100">✦</span>;
     case 'video': return typeof element.content.src === 'string' && element.content.src ? <video controls src={element.content.src} className="w-full rounded-xl" /> : <div style={style} className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-current/30 bg-current/5 p-6 text-center text-sm opacity-70">Add a video URL in the editor</div>;
     case 'divider': return <hr style={{ borderColor: element.style.borderColor || '#111', borderWidth: element.style.borderWidth || 1 }} />;
     case 'spacer': return <div style={{ height: Number(element.content.height || 48) }} />;
@@ -111,12 +131,15 @@ function LiveTreeElement({ element, pages, subdomain, previewSuffix = '', onOpen
     case 'badge': return <span style={style} className="inline-flex rounded-full border border-black/20 bg-yellow px-3 py-1 font-mono text-xs font-bold">{text || 'Badge'}</span>;
     case 'numbered-list': return <ol style={style} className="list-inside list-decimal space-y-1">{(Array.isArray(element.content.items) ? element.content.items : []).map((item, index) => <li key={index}>{String(item)}</li>)}</ol>;
     case 'image-caption': return typeof element.content.src === 'string' && element.content.src ? <figure><Image src={element.content.src} alt={String(element.content.alt || 'Site image')} width={1200} height={900} unoptimized className="w-full rounded-xl object-cover"/><figcaption className="mt-2 text-sm opacity-75">{String(element.content.caption || 'Image caption')}</figcaption></figure> : <figure style={style} className="rounded-xl border border-dashed border-current/30 bg-current/5 p-6 text-center"><div className="text-sm opacity-70">Add an image in the editor</div><figcaption className="mt-2 text-sm opacity-70">{String(element.content.caption || 'Image caption')}</figcaption></figure>;
-    case 'anchor': return <span id={element.anchorId || String(element.content.id || '')} className="sr-only">Anchor</span>;
+    case 'anchor': return <span className="sr-only">Anchor</span>;
     case 'accordion': return <div className="divide-y divide-black/15">{(Array.isArray(element.content.items) ? element.content.items as Array<Record<string, unknown>> : []).map((item, index) => <details key={index} className="py-3"><summary className="cursor-pointer font-bold">{String(item.title || `Question ${index + 1}`)}</summary><p className="mt-2 text-sm opacity-75">{String(item.description || '')}</p></details>)}</div>;
     case 'tabs': return <LiveTabs items={Array.isArray(element.content.items) ? element.content.items as Array<Record<string, unknown>> : []}/>;
     case 'social-links': return <div className="flex flex-wrap gap-3">{(Array.isArray(element.content.items) ? element.content.items as Array<Record<string, unknown>> : []).map((item, index) => <a key={index} href={String(item.url || '#')} className="font-bold underline">{String(item.title || `Social ${index + 1}`)}</a>)}</div>;
     case 'block': {
-      const kind = `${String(element.content.blockType || '')} ${String(element.content.title || '')}`.toLowerCase();
+      const blockType = String(element.content.blockType || '');
+      const widget = getEditorWidgetDefinition(blockType);
+      if (widget) return <CatalogWidgetPreview kind={widget.kind} widgetId={widget.id} content={element.content} style={style} />;
+      const kind = `${blockType} ${String(element.content.title || '')}`.toLowerCase();
       const items = Array.isArray(element.content.items) ? element.content.items as Array<Record<string, unknown>> : [];
       const heading = String(element.content.title || element.content.blockType || 'Content block');
       const actionLabel = String(element.content.buttonText || element.content.cta || '').trim();
@@ -137,6 +160,7 @@ function LiveTreeElement({ element, pages, subdomain, previewSuffix = '', onOpen
     }
     case 'form': return <form className="grid max-w-xl gap-3" onSubmit={(event) => event.preventDefault()}><input required placeholder="Your name" className="rounded-lg border px-3 py-2" /><input required type="email" placeholder="Email address" className="rounded-lg border px-3 py-2" /><textarea required rows={4} placeholder="Message" className="rounded-lg border px-3 py-2" /><button style={style} className="rounded-lg bg-yellow px-4 py-2 font-bold">{text || 'Send message'}</button></form>;
     default: {
+      if (supportsAdditionalElement(element.type)) return <SiteElementPreview element={element} style={style} />;
       const fallbackTitle = text || element.name || element.type.replace(/[-_]/g, ' ');
       const fallbackDescription = typeof element.content.description === 'string'
         ? element.content.description
@@ -186,6 +210,11 @@ function StoreCatalog({
   accent,
   isVolt,
   onAdd,
+  onToggleWishlist,
+  onToggleCompare,
+  wishlistIds,
+  comparedIds,
+  displayCurrency,
 }: {
   products: Array<{ name: string; price: number; category: string; detail: string }>;
   pages: LivePage[];
@@ -193,13 +222,31 @@ function StoreCatalog({
   accent: string;
   isVolt: boolean;
   onAdd: (product: { name: string; price: number; category: string; detail: string }) => void;
+  onToggleWishlist: (productId: string) => void;
+  onToggleCompare: (productId: string) => void;
+  wishlistIds: string[];
+  comparedIds: string[];
+  displayCurrency: StoreCurrency;
 }) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
+  const [sort, setSort] = useState<'featured' | 'name' | 'price-asc' | 'price-desc'>('featured');
+  const [page, setPage] = useState(1);
   const categories = ['All', ...new Set(products.map((product) => product.category))];
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = products.filter((product) => (category === 'All' || product.category === category)
     && (!normalizedQuery || `${product.name} ${product.category} ${product.detail}`.toLowerCase().includes(normalizedQuery)));
+  const sorted = [...filtered].sort((left, right) => sort === 'name'
+    ? left.name.localeCompare(right.name)
+    : sort === 'price-asc'
+      ? left.price - right.price
+      : sort === 'price-desc'
+        ? right.price - left.price
+        : products.indexOf(left) - products.indexOf(right));
+  const pageSize = 6;
+  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageProducts = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const surface = isVolt ? 'border-white/10 bg-[#171B25] text-white' : 'border-[#1F2A1B]/10 bg-white text-[#1F2A1B]';
   const muted = isVolt ? 'text-white/55' : 'text-[#65705D]';
   return <div className="mt-6">
@@ -207,27 +254,86 @@ function StoreCatalog({
       <label className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl border px-4 py-3 ${surface}`}>
         <span aria-hidden="true" className={muted}>⌕</span>
         <span className="sr-only">Search products</span>
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search the collection" className={`min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:opacity-50 ${isVolt ? 'text-white' : 'text-[#1F2A1B]'}`} />
+        <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Search the collection" className={`min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:opacity-50 ${isVolt ? 'text-white' : 'text-[#1F2A1B]'}`} />
       </label>
       <label className={`rounded-xl border px-4 py-3 text-sm ${surface}`}>
         <span className="sr-only">Filter by category</span>
-        <select value={category} onChange={(event) => setCategory(event.target.value)} className={`w-full bg-transparent outline-none ${isVolt ? 'text-white' : 'text-[#1F2A1B]'}`}>
+        <select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }} className={`w-full bg-transparent outline-none ${isVolt ? 'text-white' : 'text-[#1F2A1B]'}`}>
           {categories.map((item) => <option key={item} value={item} className="bg-white text-black">{item === 'All' ? 'All categories' : item}</option>)}
         </select>
       </label>
+      <label className={`rounded-xl border px-4 py-3 text-sm ${surface}`}>
+        <span className="sr-only">Sort products</span>
+        <select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)} className={`w-full bg-transparent outline-none ${isVolt ? 'text-white' : 'text-[#1F2A1B]'}`}>
+          <option value="featured" className="bg-white text-black">Featured</option><option value="name" className="bg-white text-black">Name</option><option value="price-asc" className="bg-white text-black">Price: low to high</option><option value="price-desc" className="bg-white text-black">Price: high to low</option>
+        </select>
+      </label>
     </div>
-    <p className={`mb-4 font-mono text-xs ${muted}`} aria-live="polite">Showing {filtered.length} of {products.length} products</p>
-    {filtered.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{filtered.map((product, index) => {
+    <p className={`mb-4 font-mono text-xs ${muted}`} aria-live="polite">Showing {pageProducts.length} of {filtered.length} products</p>
+    {pageProducts.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{pageProducts.map((product, index) => {
       const page = pages.find((entry) => entry.title === product.name);
-      const href = page ? `/live/${subdomain}${page.slug || ''}` : '#';
+      const href = page ? `/live/${subdomain}${page.slug || ''}` : `/live/${subdomain}/product-details?product=${encodeURIComponent(product.name)}`;
+      const productId = storefrontProductId(isVolt ? 'volt-gear' : 'fresh-crate', product.name);
       return <article key={product.name} className={`overflow-hidden rounded-2xl border transition-transform duration-300 hover:-translate-y-1 ${surface} ${isVolt ? 'shadow-[0_14px_36px_rgba(0,0,0,.3)]' : 'shadow-[0_12px_35px_rgba(31,42,27,.08)]'}`}>
         <a href={href} aria-label={`View ${product.name}`} className={`relative flex h-52 items-center justify-center overflow-hidden ${isVolt ? 'bg-[#202532]' : 'bg-[#E8F0DF]'}`}>
           <span aria-hidden="true" className={`absolute h-36 w-36 rounded-full blur-2xl ${isVolt ? 'bg-[#7C5CFF]/25' : 'bg-[#F4A93B]/25'}`} />
           <StoreProductArtwork fresh={!isVolt} index={index} name={product.name} category={product.category} />
         </a>
-        <div className="p-5"><span className={`font-mono text-[9px] uppercase tracking-wider ${muted}`}>{product.category}</span><a href={href} className="mt-1 block rounded-sm font-display text-lg font-black outline-offset-2 focus-visible:outline focus-visible:outline-2" style={{ outlineColor: accent }}>{product.name}</a><p className={`mt-1 font-mono text-xs ${muted}`}>{product.detail}</p><div className="mt-5 flex items-center justify-between"><span className="font-display font-black">₹{product.price.toLocaleString('en-IN')}</span><button type="button" onClick={() => onAdd(product)} className={`rounded-full px-4 py-2 font-mono text-[10px] font-black transition-transform hover:scale-105 ${isVolt ? 'border border-[#C6FF3D] text-[#C6FF3D]' : 'border border-[#3FA34D]/30 text-[#286A32]'}`}>{isVolt ? 'Add to setup' : 'Add to crate'}</button></div></div>
+        <div className="p-5"><span className={`font-mono text-[9px] uppercase tracking-wider ${muted}`}>{product.category}</span><a href={href} className="mt-1 block rounded-sm font-display text-lg font-black outline-offset-2 focus-visible:outline focus-visible:outline-2" style={{ outlineColor: accent }}>{product.name}</a><p className={`mt-1 font-mono text-xs ${muted}`}>{product.detail}</p><div className="mt-5 flex items-center justify-between"><span className="font-display font-black">{formatStoreCurrency(product.price, displayCurrency)}</span><button type="button" onClick={() => onAdd(product)} className={`rounded-full px-4 py-2 font-mono text-[10px] font-black transition-transform hover:scale-105 ${isVolt ? 'border border-[#C6FF3D] text-[#C6FF3D]' : 'border border-[#3FA34D]/30 text-[#286A32]'}`}>{isVolt ? 'Add to setup' : 'Add to crate'}</button></div><div className="mt-3 flex gap-4 text-xs font-semibold"><button type="button" aria-pressed={wishlistIds.includes(productId)} onClick={() => onToggleWishlist(productId)} className="underline underline-offset-2">{wishlistIds.includes(productId) ? '♥ Saved' : '♡ Save'}</button><button type="button" aria-pressed={comparedIds.includes(productId)} onClick={() => onToggleCompare(productId)} className="underline underline-offset-2">{comparedIds.includes(productId) ? '✓ Comparing' : 'Compare'}</button></div></div>
       </article>;
-    })}</div> : <div className={`rounded-2xl border border-dashed p-10 text-center ${surface}`}><h3 className="font-display text-xl font-black">No matching products</h3><p className={`mt-2 text-sm ${muted}`}>Try another search or category.</p><button type="button" onClick={() => { setQuery(''); setCategory('All'); }} className="mt-4 rounded-full px-4 py-2 font-bold text-black" style={{ backgroundColor: accent }}>Clear filters</button></div>}
+    })}</div> : <div className={`rounded-2xl border border-dashed p-10 text-center ${surface}`}><h3 className="font-display text-xl font-black">No matching products</h3><p className={`mt-2 text-sm ${muted}`}>Try another search or category.</p><button type="button" onClick={() => { setQuery(''); setCategory('All'); setPage(1); }} className="mt-4 rounded-full px-4 py-2 font-bold text-black" style={{ backgroundColor: accent }}>Clear filters</button></div>}
+    {pageCount > 1 && <nav aria-label="Product pages" className="mt-6 flex justify-center gap-2">{Array.from({ length: pageCount }, (_, index) => index + 1).map((pageNumber) => <button key={pageNumber} type="button" aria-current={currentPage === pageNumber ? 'page' : undefined} onClick={() => setPage(pageNumber)} className={`rounded-lg border px-3 py-2 text-sm font-bold ${currentPage === pageNumber ? 'border-current' : 'border-current/20 opacity-70'}`}>{pageNumber}</button>)}</nav>}
+  </div>;
+}
+
+function ProductDetailPanel({
+  product,
+  isFresh,
+  isVolt,
+  accent,
+  currency,
+  variantId,
+  quantity,
+  onVariantChange,
+  onQuantityChange,
+  onAdd,
+}: {
+  product: StorefrontProduct;
+  isFresh: boolean;
+  isVolt: boolean;
+  accent: string;
+  currency: StoreCurrency;
+  variantId: string;
+  quantity: number;
+  onVariantChange: (id: string) => void;
+  onQuantityChange: (quantity: number) => void;
+  onAdd: (variant: NonNullable<StorefrontProduct['variants']>[number] | undefined, quantity: number) => void;
+}) {
+  const variants = product.variants || [];
+  const variant = variants.find((entry) => entry.id === variantId) || variants[0];
+  const price = variant?.price || product.price;
+  const stock = variant?.stock;
+  return <div className={`mt-8 grid gap-8 rounded-3xl border p-5 sm:p-8 md:grid-cols-2 ${isVolt ? 'border-white/10 bg-[#151923]' : 'border-[#1F2A1B]/10 bg-white'}`}>
+    <div className={`relative flex min-h-64 items-center justify-center overflow-hidden rounded-2xl ${isVolt ? 'bg-[#202532]' : 'bg-[#E8F0DF]'}`}>
+      <StoreProductArtwork fresh={isFresh} index={Math.max(0, variants.findIndex((entry) => entry.id === variant?.id))} name={`${product.name} ${variant?.label || ''}`} category={product.category} />
+    </div>
+    <div className="flex flex-col justify-center">
+      <p className="font-mono text-xs font-bold uppercase tracking-widest" style={{ color: accent }}>{product.category}</p>
+      <h2 className="mt-2 font-display text-3xl font-black">{product.name}</h2>
+      <p className={`mt-3 leading-relaxed ${isVolt ? 'text-white/65' : 'text-neutral-600'}`}>{product.detail}</p>
+      {variants.length > 0 && <label className="mt-5 grid gap-2 text-sm font-bold">Choose an option
+        <select value={variant?.id || ''} onChange={(event) => onVariantChange(event.target.value)} className="rounded-lg border border-current/25 bg-transparent px-3 py-2">
+          {variants.map((entry) => <option key={entry.id} value={entry.id} className="bg-white text-black">{entry.label} · {formatStoreCurrency(entry.price, currency)}</option>)}
+        </select>
+      </label>}
+      <strong className="mt-5 text-2xl">{formatStoreCurrency(price, currency)}</strong>
+      <p className={`mt-2 text-xs ${isVolt ? 'text-white/45' : 'text-neutral-500'}`}>{typeof stock === 'number' ? stock > 0 ? `${stock} available in this option.` : 'Currently out of stock.' : isFresh ? 'Seasonal availability is confirmed while packing.' : 'Check compatibility and specifications before ordering.'}</p>
+      <div className="mt-5 flex items-center gap-3">
+        <label className="sr-only" htmlFor="product-quantity">Quantity</label>
+        <div className="inline-flex items-center rounded-lg border border-current/25"><button type="button" aria-label="Decrease quantity" disabled={quantity <= 1} onClick={() => onQuantityChange(Math.max(1, quantity - 1))} className="px-3 py-2 disabled:opacity-40">−</button><input id="product-quantity" type="number" min={1} max={stock || 99} value={quantity} onChange={(event) => onQuantityChange(Math.max(1, Math.min(stock || 99, Number(event.target.value) || 1)))} className="w-12 bg-transparent text-center text-sm font-bold"/><button type="button" aria-label="Increase quantity" disabled={typeof stock === 'number' && quantity >= stock} onClick={() => onQuantityChange(Math.min(stock || 99, quantity + 1))} className="px-3 py-2 disabled:opacity-40">+</button></div>
+        <button type="button" disabled={stock === 0} onClick={() => onAdd(variant, quantity)} className="flex-1 rounded-full px-5 py-3 font-bold text-black disabled:cursor-not-allowed disabled:opacity-50" style={{ backgroundColor: accent }}>{isFresh ? 'Add to crate' : 'Add to bag'}</button>
+      </div>
+    </div>
   </div>;
 }
 
@@ -243,7 +349,8 @@ export default function LiveWebsitePage({
 }) {
   const { subdomain, slug } = use(params);
   const routeSlug = slug?.join('/') || '';
-  const template: Template = getTemplateById(subdomain.toLowerCase()) || ALL_TEMPLATES.find((entry) => entry.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') === subdomain.toLowerCase()) || TEMPLATES[0];
+  const template: Template = getTemplateById(subdomain.toLowerCase()) || ALL_TEMPLATES.find((entry) => entry.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') === subdomain.toLowerCase()) || DEFAULT_TEMPLATE;
+  const storeId = `${template.id}:${subdomain.toLowerCase()}`;
   const isFreshCrate = template.id === 'fresh-crate';
   const isVoltGear = template.id === 'volt-gear';
   const isBrandedStore = isFreshCrate || isVoltGear;
@@ -276,26 +383,27 @@ export default function LiveWebsitePage({
   const [isPreview, setIsPreview] = useState(false);
   const [watermarkRequired, setWatermarkRequired] = useState(false);
   const [previewWatermarkVisible, setPreviewWatermarkVisible] = useState(true);
-  const [cartCount, setCartCount] = useState(0);
-  const [cartItems, setCartItems] = useState<Array<{ name: string; price: number; category: string; detail: string; quantity: number }>>([]);
+  const cartItems = useStore(useStorefrontStore, (state) => state.carts[storeId]) || EMPTY_CART;
+  const savedCoupon = useStore(useStorefrontStore, (state) => state.coupons[storeId]) || '';
+  const wishlistedIds = useStore(useStorefrontStore, (state) => state.wishlists[storeId]) || EMPTY_IDS;
+  const comparedIds = useStore(useStorefrontStore, (state) => state.comparisons[storeId]) || EMPTY_IDS;
+  const displayCurrency = useStore(useStorefrontStore, (state) => state.displayCurrency);
+  const addItem = useStore(useStorefrontStore, (state) => state.addItem);
+  const updateQuantity = useStore(useStorefrontStore, (state) => state.updateQuantity);
+  const setCoupon = useStore(useStorefrontStore, (state) => state.setCoupon);
+  const toggleWishlist = useStore(useStorefrontStore, (state) => state.toggleWishlist);
+  const toggleCompare = useStore(useStorefrontStore, (state) => state.toggleCompare);
+  const recordProductView = useStore(useStorefrontStore, (state) => state.recordProductView);
+  const clearCart = useStore(useStorefrontStore, (state) => state.clearCart);
+  const setDisplayCurrency = useStore(useStorefrontStore, (state) => state.setDisplayCurrency);
+  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
   const [cartOpen, setCartOpen] = useState(false);
-  const [cartReady, setCartReady] = useState(false);
+  const [couponDraft, setCouponDraft] = useState('');
+  const [couponMessage, setCouponMessage] = useState('');
+  const [selectedProductName, setSelectedProductName] = useState(storeProducts[0]?.name || '');
+  const [selectedVariant, setSelectedVariant] = useState('standard');
+  const [productQuantity, setProductQuantity] = useState(1);
   const [formMessages, setFormMessages] = useState<Record<string, string>>({});
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(`launchly_cart_${subdomain}`) || '[]') as Array<{ name: string; price: number; category: string; detail: string; quantity: number }>;
-      if (Array.isArray(saved)) {
-        const validItems = saved.filter((item) => item && typeof item.name === 'string' && Number.isFinite(item.price) && Number.isFinite(item.quantity) && item.quantity > 0);
-        setCartItems(validItems);
-        setCartCount(validItems.reduce((total, item) => total + item.quantity, 0));
-      }
-    } catch { /* Start with an empty bag when stored data is unavailable. */ }
-    setCartReady(true);
-  }, [subdomain]);
-  useEffect(() => {
-    if (!cartReady) return;
-    try { localStorage.setItem(`launchly_cart_${subdomain}`, JSON.stringify(cartItems)); } catch { /* The bag still works for this page view when storage is unavailable. */ }
-  }, [cartItems, cartReady, subdomain]);
   useEffect(() => {
     if (!cartOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -310,17 +418,20 @@ export default function LiveWebsitePage({
     return () => window.removeEventListener('launchly:open-cart', openCart);
   }, []);
   const addToBag = (product: { name: string; price: number; category: string; detail: string }) => {
-    setCartItems((current) => {
-      const existing = current.find((item) => item.name === product.name);
-      return existing ? current.map((item) => item.name === product.name ? { ...item, quantity: item.quantity + 1 } : item) : [...current, { ...product, quantity: 1 }];
-    });
-    setCartCount((count) => count + 1);
+    addItem(storeId, { ...product, id: storefrontProductId(template.id, product.name) });
   };
-  const updateBagQuantity = (name: string, change: number) => {
-    setCartItems((current) => current.flatMap((item) => item.name === name ? (item.quantity + change > 0 ? [{ ...item, quantity: item.quantity + change }] : []) : [item]));
-    setCartCount((count) => Math.max(0, count + change));
+  const updateBagQuantity = (productId: string, change: number) => updateQuantity(storeId, productId, change);
+  const cartTotals = getCartTotals(cartItems, template.id, savedCoupon);
+  const applyCoupon = () => {
+    const coupon = getCoupon(template.id, couponDraft);
+    if (!coupon) {
+      setCouponMessage('That code is not available for this store.');
+      return;
+    }
+    setCoupon(storeId, coupon.code);
+    setCouponDraft(coupon.code);
+    setCouponMessage(`${coupon.percent}% discount applied.`);
   };
-  const bagSubtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
   const sectionOrder = (type: string) => Math.max(0, siteSections.findIndex((section) => section.type === type));
   const sectionVisible = (type: string) => siteSections.some((section) => section.type === type);
   const sectionName = (type: string, fallback: string) => siteSections.find((section) => section.type === type)?.name || fallback;
@@ -372,32 +483,50 @@ export default function LiveWebsitePage({
     ? [{ id: 'menu-shop', label: 'Shop', target: { type: 'anchor', value: 'collection' } }, { id: 'menu-how-it-works', label: 'How it works', target: { type: 'anchor', value: 'home-how-it-works' } }, { id: 'menu-recipes', label: 'Recipes', target: { type: 'anchor', value: 'home-recipes' } }, { id: 'menu-our-story', label: 'Our story', target: { type: 'anchor', value: 'home-story' } }]
     : isVoltGear ? [{ id: 'menu-shop', label: 'Shop gear', target: { type: 'anchor', value: 'collection' } }, { id: 'menu-how-it-works', label: 'How it works', target: { type: 'anchor', value: 'home-how-it-works' } }, { id: 'menu-our-story', label: 'Our story', target: { type: 'anchor', value: 'home-story' } }]
       : template.pages.slice(1).map((title) => { const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-'); return { id, label: title, target: { type: 'page' as const, value: id } }; });
-  const liveNavigation: LiveMenuItem[] = siteMenu.length ? siteMenu : pageNavigation.length ? pageNavigation : templateNavigation;
+  const defaultStoreMenu: LiveMenuItem[] = createStorefrontMenu(template.id).flatMap((item) => item.target.type === 'anchor'
+    ? [{ id: item.id, label: item.label, target: { type: 'anchor', value: item.target.value }, newTab: item.newTab }]
+    : []);
+  const generatedPageMenu = siteMenu.length > 0 && siteMenu.length === pageNavigation.length
+    && siteMenu.every((item) => item.target.type === 'page' && pageNavigation.some((page) => page.id === item.target.value && page.label === item.label));
+  const liveNavigation: LiveMenuItem[] = siteMenu.length && !generatedPageMenu
+    ? siteMenu
+    : defaultStoreMenu.length
+      ? defaultStoreMenu
+      : pageNavigation.length ? pageNavigation : templateNavigation;
   const previewSuffix = isPreview ? '?preview=1' : '';
-  const navigationHref = (item: LiveMenuItem) => {
-    if (item.target.type === 'url') return item.target.value;
-    if (item.target.type === 'anchor') {
-      const anchor = normalizeAnchorId(item.target.value);
-      // Anchors from another page always return to the home page first. The
-      // hash is preserved so the browser can scroll after the page renders.
-      return activePage === 'home' && !routeSlug
-        ? `#${anchor}`
-        : `/live/${subdomain}${previewSuffix}#${anchor}`;
-    }
-    const requested = item.target.value.replace(/^\/+/, '').replace(/\/+$/, '');
-    const page = sitePages.find((entry) => entry.id === item.target.value || entry.id === requested || normalizeLivePagePath(entry.slug) === normalizeLivePagePath(requested) || entry.title.toLowerCase() === requested.toLowerCase());
-    const pagePath = page?.isHome ? '' : normalizeLivePagePath(page?.slug || requested);
-    return `/live/${subdomain}${pagePath}${previewSuffix}`;
-  };
+  const navigationHref = (item: LiveMenuItem) => resolveLiveNavigationHref(item, sitePages, subdomain, isPreview);
   const productHref = (name: string) => {
-    const page = sitePages.find((entry) => entry.title === name);
-    return page ? `/live/${subdomain}${page.isHome ? '' : normalizeLivePagePath(page.slug)}${previewSuffix}` : '#collection';
+    return `/live/${subdomain}/product-details?product=${encodeURIComponent(name)}${isPreview ? '&preview=1' : ''}`;
   };
+  const selectedProduct = storeProducts.find((product) => product.name === selectedProductName) || storeProducts[0];
+  const favoriteProducts = storeProducts.filter((product) => wishlistedIds.includes(storefrontProductId(template.id, product.name)));
+  const compareProducts = storeProducts.filter((product) => comparedIds.includes(storefrontProductId(template.id, product.name)));
+  const recentlyViewedProducts = (useStore(useStorefrontStore, (state) => state.recentlyViewed[storeId]) || EMPTY_IDS)
+    .map((id) => storeProducts.find((product) => storefrontProductId(template.id, product.name) === id))
+    .filter((product): product is NonNullable<typeof product> => Boolean(product));
   const checkoutPage = sitePages.find((page) => /checkout/i.test(page.title));
+  const confirmationPage = sitePages.find((page) => /order confirmation/i.test(page.title));
+  const placeDemoOrder = () => {
+    clearCart(storeId);
+    setCouponDraft('');
+    setCouponMessage('');
+    setFormMessages((current) => ({ ...current, checkout: 'Demo order confirmed. No payment was collected.' }));
+    if (confirmationPage) setActivePage(confirmationPage.id);
+  };
   useEffect(() => {
     const requestedPage = new URLSearchParams(window.location.search).get('page');
     if (requestedPage) setActivePage(requestedPage);
   }, []);
+  useEffect(() => {
+    const productName = new URLSearchParams(window.location.search).get('product');
+    if (!productName) return;
+    const product = storeProducts.find((entry) => entry.name === productName);
+    if (!product) return;
+    setSelectedProductName(product.name);
+    setSelectedVariant(product.variants?.[0]?.id || 'standard');
+    setProductQuantity(1);
+    recordProductView(storeId, storefrontProductId(template.id, product.name));
+  }, [recordProductView, routeSlug, storeId, storeProducts, template.id]);
   useEffect(() => {
     if (!routeSlug || !sitePages.length) return;
     const path = normalizeLivePagePath(routeSlug);
@@ -699,8 +828,8 @@ export default function LiveWebsitePage({
       {/* ACTUAL LIVE WEBSITE SURFACE — 100% Identical to Editor Preview Canvas */}
       <main id="top" className={`relative flex flex-col flex-1 pt-12 sm:pt-13 ${isFreshCrate ? 'bg-[#FFF8EC] text-[#1F2A1B]' : isVoltGear ? 'bg-[#0B0D12] text-[#F5F7FA]' : ''}`}>
         {/* Navigation Block */}
-        <nav style={{ order: sectionOrder('nav'), display: sectionVisible('nav') ? undefined : 'none', ...sectionPadding('nav') }} className={`sticky top-12 z-40 flex items-center justify-between border-b px-4 py-3 backdrop-blur-md sm:px-10 sm:py-4 ${navContent.sticky === true ? 'top-0' : ''} ${isVoltGear ? 'border-white/10 bg-[#0B0D12]/90' : isFreshCrate ? 'border-[#1F2A1B]/10 bg-[#FFF8EC]/90' : 'border-black/10 border-b-2 bg-white/90'}`}>
-          <a href={`/live/${subdomain}`} aria-label={`Go to ${siteTitle} home page`} title={`Go to ${siteTitle} home page`} className="flex items-center gap-2.5 rounded-lg outline-offset-4 hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black">
+        <nav style={{ order: sectionOrder('nav'), display: sectionVisible('nav') ? undefined : 'none', ...sectionPadding('nav') }} className={`sticky top-12 z-40 flex items-center justify-between gap-3 border-b px-4 py-3 backdrop-blur-md sm:px-10 sm:py-4 ${navContent.sticky === true ? 'top-0' : ''} ${isVoltGear ? 'border-white/10 bg-[#0B0D12]/90' : isFreshCrate ? 'border-[#1F2A1B]/10 bg-[#FFF8EC]/90' : 'border-black/10 border-b-2 bg-white/90'}`}>
+          <a href={`/live/${subdomain}`} aria-label={`Go to ${siteTitle} home page`} title={`Go to ${siteTitle} home page`} className="flex shrink-0 items-center gap-2.5 rounded-lg outline-offset-4 hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black">
             {navContent.showLogo !== false && (navLogo ? <Image src={navLogo} alt={String(navContent.logoAlt || `${navBrand} logo`)} width={36} height={36} unoptimized className="h-9 w-9 rounded-lg object-contain" /> : <div
               style={{ backgroundColor: theme.primaryColor }}
               className="w-8 h-8 rounded-lg border-2 border-black shadow-[2px_2px_0px_#000] flex items-center justify-center font-display font-black text-sm text-black"
@@ -712,7 +841,7 @@ export default function LiveWebsitePage({
             </span>
           </a>
 
-          <div aria-label="Site pages" className={`${navContent.showMenu === false ? 'hidden' : 'hidden sm:flex'} min-w-0 max-w-[65%] items-center gap-5 overflow-x-auto whitespace-nowrap px-1 font-mono text-xs font-bold [scrollbar-width:thin] ${isVoltGear ? 'text-white/70' : isFreshCrate ? 'text-[#53604C]' : 'text-neutral-700'}`}>
+          <div aria-label="Site pages" className={`${navContent.showMenu === false ? 'hidden' : 'hidden sm:flex'} min-w-0 flex-1 flex-wrap items-center justify-center gap-x-5 gap-y-1 overflow-hidden px-1 font-mono text-xs font-bold ${isVoltGear ? 'text-white/70' : isFreshCrate ? 'text-[#53604C]' : 'text-neutral-700'}`}>
             {liveNavigation.map(item => (
               <a
                 key={item.id}
@@ -730,10 +859,34 @@ export default function LiveWebsitePage({
             {mobileNavigationOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
 
-          {navContent.showCta !== false && (isBrandedStore && (navCtaLabel.toLowerCase().includes('bag') || navCtaTarget === '#cart') ? <button type="button" aria-label={`Open shopping bag, ${cartCount} items`} aria-haspopup="dialog" aria-expanded={cartOpen} onClick={() => setCartOpen(true)} style={navCtaStyle} className="rounded-full border-2 border-black px-4 py-2 font-display text-xs font-black shadow-[2px_2px_0px_#000] hover:scale-103">{navCtaLabel}{cartCount > 0 ? ` (${cartCount})` : ''}</button> : <a href={navigationHref({ id: 'nav-cta', label: navCtaLabel, target: navCtaTarget.startsWith('#') ? { type: 'anchor', value: navCtaTarget.slice(1) } : navCtaTarget.startsWith('/') ? { type: 'page', value: navCtaTarget.replace(/^\/+/, '') } : { type: 'url', value: navCtaTarget }, newTab: navContent.ctaNewTab === true })} target={navContent.ctaNewTab === true ? '_blank' : undefined} rel={navContent.ctaNewTab === true ? 'noreferrer' : undefined} style={navCtaStyle} className="rounded-xl border-2 border-black px-4 py-2 font-display text-xs font-black shadow-[2px_2px_0px_#000] transition-all hover:scale-103">{navCtaLabel}</a>)}
+          {navContent.showCta !== false && (isBrandedStore && (navCtaLabel.toLowerCase().includes('bag') || navCtaTarget === '#cart') ? <button type="button" aria-label={`Open shopping bag, ${cartCount} items`} aria-haspopup="dialog" aria-expanded={cartOpen} onClick={() => setCartOpen(true)} style={navCtaStyle} className="shrink-0 whitespace-nowrap rounded-full border-2 border-black px-4 py-2 font-display text-xs font-black shadow-[2px_2px_0px_#000] hover:scale-103">{navCtaLabel}{cartCount > 0 ? ` (${cartCount})` : ''}</button> : <a href={navigationHref({ id: 'nav-cta', label: navCtaLabel, target: navCtaTarget.startsWith('#') ? { type: 'anchor', value: navCtaTarget.slice(1) } : navCtaTarget.startsWith('/') ? { type: 'page', value: navCtaTarget.replace(/^\/+/, '') } : { type: 'url', value: navCtaTarget }, newTab: navContent.ctaNewTab === true })} target={navContent.ctaNewTab === true ? '_blank' : undefined} rel={navContent.ctaNewTab === true ? 'noreferrer' : undefined} style={navCtaStyle} className="shrink-0 whitespace-nowrap rounded-xl border-2 border-black px-4 py-2 font-display text-xs font-black shadow-[2px_2px_0px_#000] transition-all hover:scale-103">{navCtaLabel}</a>)}
         </nav>
         {mobileNavigationOpen && <nav aria-label="Mobile navigation" className={`sticky top-12 z-40 border-b px-5 py-4 sm:hidden ${isVoltGear ? 'border-white/10 bg-[#0B0D12] text-white' : isFreshCrate ? 'border-[#1F2A1B]/10 bg-[#FFF8EC] text-[#1F2A1B]' : 'border-black/10 bg-white'}`}><div className="flex flex-col gap-4 font-mono text-sm font-bold">{liveNavigation.map((item) => <a key={item.id} href={navigationHref(item)} target={item.newTab ? '_blank' : undefined} rel={item.newTab ? 'noreferrer' : undefined} onClick={() => setMobileNavigationOpen(false)}>{item.label}</a>)}</div></nav>}
-        {cartOpen && <div className="fixed inset-0 z-[70] flex justify-end bg-black/45" onMouseDown={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}><section role="dialog" aria-modal="true" aria-labelledby="bag-title" className="flex h-full w-full max-w-md flex-col p-5 shadow-2xl sm:p-7" style={{ backgroundColor: template.id === 'volt-gear' ? '#151923' : '#FFFFFF', color: template.id === 'volt-gear' ? '#F5F7FA' : '#111111' }}><div className="flex items-center justify-between border-b border-black/10 pb-4"><div><p className="font-mono text-[10px] font-bold uppercase tracking-widest text-neutral-500">{siteTitle}</p><h2 id="bag-title" className="mt-1 text-2xl font-black">Your bag <span className="text-sm font-semibold text-neutral-500">({cartCount})</span></h2></div><button type="button" autoFocus onClick={() => setCartOpen(false)} aria-label="Close shopping bag" className="rounded-full border-2 border-black p-2 hover:bg-neutral-100"><X size={18}/></button></div><div className="min-h-0 flex-1 overflow-y-auto py-4">{cartItems.length ? <ul className="space-y-4">{cartItems.map((item) => <li key={item.name} className="flex items-start justify-between gap-4 border-b border-black/10 pb-4"><div className="min-w-0"><p className="font-bold">{item.name}</p><p className="mt-1 text-xs text-neutral-500">{item.category} · ₹{item.price.toLocaleString('en-IN')}</p><div className="mt-3 inline-flex items-center rounded-lg border border-black/20"><button type="button" aria-label={`Remove one ${item.name}`} onClick={() => updateBagQuantity(item.name, -1)} className="px-3 py-1.5">−</button><span className="min-w-8 text-center text-sm font-bold">{item.quantity}</span><button type="button" aria-label={`Add one ${item.name}`} onClick={() => updateBagQuantity(item.name, 1)} className="px-3 py-1.5">+</button></div></div><strong className="whitespace-nowrap">₹{(item.price * item.quantity).toLocaleString('en-IN')}</strong></li>)}</ul> : <div className="flex h-full flex-col items-center justify-center text-center"><span aria-hidden="true" className="text-4xl">{template.id === 'fresh-crate' ? '🥬' : '✦'}</span><h3 className="mt-3 text-lg font-bold">Your bag is waiting</h3><p className="mt-1 max-w-xs text-sm text-neutral-600">Add a few favorites and they will show up here.</p><button type="button" onClick={() => { setCartOpen(false); setActivePage('home'); window.location.hash = 'collection'; }} className="mt-5 rounded-lg border-2 border-black px-4 py-2 font-bold">Browse the shop</button></div>}</div>{cartItems.length > 0 && <div className="border-t border-black/10 pt-4"><div className="flex justify-between text-sm"><span>Subtotal</span><strong>₹{bagSubtotal.toLocaleString('en-IN')}</strong></div><p className="mt-1 text-xs text-neutral-500">Delivery and taxes are calculated at checkout.</p>{checkoutPage ? <button type="button" onClick={() => { setCartOpen(false); setActivePage(checkoutPage.id); }} className="mt-4 w-full rounded-xl border-2 border-black px-4 py-3 font-bold text-black shadow-[3px_3px_0_#000]" style={{ backgroundColor: theme.primaryColor }}>Continue to checkout</button> : <p className="mt-4 rounded-lg border border-current/20 p-3 text-xs">Checkout is not on this starter page yet. Add a Checkout page in the editor to enable it.</p>}<button type="button" onClick={() => setCartOpen(false)} className="mt-3 w-full py-2 text-sm font-semibold underline underline-offset-4">Continue shopping</button></div>}</section></div>}
+        {cartOpen && <div className="fixed inset-0 z-[70] flex justify-end bg-black/45" onMouseDown={(event) => { if (event.target === event.currentTarget) setCartOpen(false); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="bag-title" className="flex h-full w-full max-w-md flex-col p-5 shadow-2xl sm:p-7" style={{ backgroundColor: isVoltGear ? '#151923' : '#FFFFFF', color: isVoltGear ? '#F5F7FA' : '#111111' }}>
+            <div className="flex items-center justify-between border-b border-black/10 pb-4">
+              <div><p className="font-mono text-[10px] font-bold uppercase tracking-widest text-neutral-500">{siteTitle}</p><h2 id="bag-title" className="mt-1 text-2xl font-black">Your bag <span className="text-sm font-semibold text-neutral-500">({cartCount})</span></h2></div>
+              <button type="button" autoFocus onClick={() => setCartOpen(false)} aria-label="Close shopping bag" className="rounded-full border-2 border-black p-2 hover:bg-neutral-100"><X size={18}/></button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto py-4">
+              {cartItems.length ? <ul className="space-y-4">{cartItems.map((item) => <li key={item.id} className="flex items-start justify-between gap-4 border-b border-black/10 pb-4">
+                <div className="min-w-0"><p className="font-bold">{item.name}</p><p className="mt-1 text-xs text-neutral-500">{item.category} · {formatStoreCurrency(item.price, displayCurrency)}</p>
+                  <div className="mt-3 inline-flex items-center rounded-lg border border-black/20"><button type="button" aria-label={`Remove one ${item.name}`} onClick={() => updateBagQuantity(item.id, -1)} className="px-3 py-1.5">−</button><span className="min-w-8 text-center text-sm font-bold">{item.quantity}</span><button type="button" aria-label={`Add one ${item.name}`} onClick={() => updateBagQuantity(item.id, 1)} className="px-3 py-1.5">+</button></div>
+                </div><strong className="whitespace-nowrap">{formatStoreCurrency(item.price * item.quantity, displayCurrency)}</strong>
+              </li>)}</ul> : <div className="flex h-full flex-col items-center justify-center text-center"><span aria-hidden="true" className="text-4xl">{isFreshCrate ? '🥬' : '✦'}</span><h3 className="mt-3 text-lg font-bold">Your bag is waiting</h3><p className="mt-1 max-w-xs text-sm text-neutral-600">Add a few favorites and they will show up here.</p><button type="button" onClick={() => { setCartOpen(false); setActivePage('home'); window.location.hash = 'collection'; }} className="mt-5 rounded-lg border-2 border-black px-4 py-2 font-bold">Browse the shop</button></div>}
+            </div>
+            {cartItems.length > 0 && <div className="border-t border-black/10 pt-4">
+              <div className="mb-3 flex items-center justify-between gap-3"><label htmlFor="display-currency" className="text-xs font-semibold">Display currency</label><select id="display-currency" value={displayCurrency} onChange={(event) => setDisplayCurrency(event.target.value as StoreCurrency)} className="rounded-lg border border-current/25 bg-transparent px-2 py-1 text-xs"><option value="INR">INR · ₹</option><option value="USD">USD · $</option><option value="EUR">EUR · €</option></select></div>
+              <form onSubmit={(event) => { event.preventDefault(); applyCoupon(); }} className="flex gap-2"><label htmlFor="bag-coupon" className="sr-only">Coupon code</label><input id="bag-coupon" value={couponDraft} onChange={(event) => setCouponDraft(event.target.value)} placeholder={isFreshCrate ? 'FRESH10' : 'VOLT15'} className="min-w-0 flex-1 rounded-lg border border-current/25 bg-transparent px-3 py-2 text-sm"/><button type="submit" className="rounded-lg border border-current px-3 py-2 text-xs font-bold">Apply</button></form>
+              {couponMessage && <p role="status" className="mt-2 text-xs">{couponMessage}</p>}
+              <p className="mt-3 rounded-lg bg-current/5 p-2 text-xs">{cartTotals.amountToFreeShipping > 0 ? `${formatStoreCurrency(cartTotals.amountToFreeShipping, displayCurrency)} away from free shipping.` : 'You qualify for free shipping.'}</p>
+              <div className="mt-3 space-y-1 text-sm"><div className="flex justify-between"><span>Subtotal</span><strong>{formatStoreCurrency(cartTotals.subtotal, displayCurrency)}</strong></div>{cartTotals.discount > 0 && <div className="flex justify-between"><span>Discount ({cartTotals.coupon?.code})</span><strong>−{formatStoreCurrency(cartTotals.discount, displayCurrency)}</strong></div>}<div className="flex justify-between"><span>Estimated delivery</span><strong>{cartTotals.shipping ? formatStoreCurrency(cartTotals.shipping, displayCurrency) : 'Free'}</strong></div><div className="flex justify-between"><span>Estimated tax</span><strong>{formatStoreCurrency(cartTotals.tax, displayCurrency)}</strong></div><div className="flex justify-between border-t border-current/15 pt-2 text-base font-black"><span>Estimated total</span><strong>{formatStoreCurrency(cartTotals.total, displayCurrency)}</strong></div></div>
+              <p className="mt-2 text-[10px] opacity-65">Currency conversion is indicative for preview only. No payment will be collected.</p>
+              {checkoutPage ? <button type="button" onClick={() => { setCartOpen(false); setActivePage(checkoutPage.id); }} className="mt-4 w-full rounded-xl border-2 border-black px-4 py-3 font-bold text-black shadow-[3px_3px_0_#000]" style={{ backgroundColor: theme.primaryColor }}>Continue to checkout</button> : <p className="mt-4 rounded-lg border border-current/20 p-3 text-xs">Checkout is not on this starter page yet. Add a Checkout page in the editor to enable it.</p>}
+              <button type="button" onClick={() => setCartOpen(false)} className="mt-3 w-full py-2 text-sm font-semibold underline underline-offset-4">Continue shopping</button>
+            </div>}
+          </section>
+        </div>}
 
         {activePage === 'home' ? <>
 
@@ -955,13 +1108,15 @@ export default function LiveWebsitePage({
           </div>
         </footer>
         </> : <section className={`min-h-[70vh] px-5 py-14 sm:px-12 ${isVoltGear ? 'bg-[#0B0D12] text-white' : isFreshCrate ? 'bg-[#FFF8EC] text-[#1F2A1B]' : 'bg-[#FAF9F6] text-black'}`}>
-          {(() => { const page = sitePages.find((entry) => entry.id === activePage); const title = page?.title || activePage.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); const activeProduct = storeProducts.find((product) => product.name === page?.title);
+          {(() => { const page = sitePages.find((entry) => entry.id === activePage); const title = page?.title || activePage.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); const activeProduct = activePage === 'product-details' ? selectedProduct : storeProducts.find((product) => product.name === page?.title);
             return <div className="mx-auto max-w-6xl"><p className="font-mono text-xs font-bold uppercase tracking-[.2em]" style={{ color: theme.primaryColor }}>{siteTitle}</p><h1 className="mt-3 text-4xl font-black sm:text-6xl">{activePage === '404' ? 'Page not found' : title}</h1><p className={`mt-4 max-w-2xl text-base leading-relaxed ${isVoltGear ? 'text-white/65' : 'text-neutral-600'}`}>{activePage === '404' ? 'The page you requested could not be found.' : page?.description || `Welcome to ${title} at ${siteTitle}.`}</p>
-              {activeProduct && <div className={`mt-8 grid gap-8 rounded-3xl border p-5 sm:p-8 md:grid-cols-2 ${isVoltGear ? 'border-white/10 bg-[#151923]' : 'border-[#1F2A1B]/10 bg-white'}`}>
-                <div className={`relative flex min-h-64 items-center justify-center overflow-hidden rounded-2xl ${isVoltGear ? 'bg-[#202532]' : 'bg-[#E8F0DF]'}`}><StoreProductArtwork fresh={isFreshCrate} index={Math.max(0, storeProducts.findIndex((product) => product.name === activeProduct.name))} name={activeProduct.name} category={activeProduct.category} /></div>
-                <div className="flex flex-col justify-center"><p className="font-mono text-xs font-bold uppercase tracking-widest" style={{ color: theme.primaryColor }}>{activeProduct.category}</p><h2 className="mt-2 font-display text-3xl font-black">{activeProduct.name}</h2><p className={`mt-3 leading-relaxed ${isVoltGear ? 'text-white/65' : 'text-neutral-600'}`}>{activeProduct.detail}</p><strong className="mt-6 text-2xl">₹{activeProduct.price.toLocaleString('en-IN')}</strong><p className={`mt-2 text-xs ${isVoltGear ? 'text-white/45' : 'text-neutral-500'}`}>{isFreshCrate ? 'Seasonal availability is confirmed while packing.' : 'Check compatibility and specifications before ordering.'}</p><button type="button" onClick={() => addToBag(activeProduct)} className="mt-5 self-start rounded-full px-6 py-3 font-bold text-black" style={{ backgroundColor: theme.primaryColor }}>Add to {isFreshCrate ? 'crate' : 'bag'}</button></div>
-              </div>}
-              {page?.sections?.filter((section) => !['nav', 'footer', 'hero'].includes(section.type) && !(activePage === 'shop' && section.type === 'product-grid') && !section.hidden?.desktop).map((section) => {
+              {activePage === 'product-details' && activeProduct && <ProductDetailPanel product={activeProduct} isFresh={isFreshCrate} isVolt={isVoltGear} accent={theme.primaryColor} currency={displayCurrency} variantId={selectedVariant} quantity={productQuantity} onVariantChange={(id) => setSelectedVariant(id)} onQuantityChange={setProductQuantity} onAdd={(variant, quantity) => addItem(storeId, { id: `${storefrontProductId(template.id, activeProduct.name)}:${variant?.id || 'standard'}`, name: variant ? `${activeProduct.name} · ${variant.label}` : activeProduct.name, price: variant?.price || activeProduct.price, category: activeProduct.category, detail: activeProduct.detail }, quantity)} />}
+              {activePage === 'wishlist' && <section className="mt-8"><h2 className="text-2xl font-black">Saved for later</h2>{favoriteProducts.length ? <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{favoriteProducts.map((product) => {
+                const productId = storefrontProductId(template.id, product.name);
+                return <article key={productId} className={`rounded-2xl border p-5 ${isVoltGear ? 'border-white/10 bg-[#151923]' : 'border-[#1F2A1B]/10 bg-white'}`}><a href={productHref(product.name)} className="font-bold underline-offset-2 hover:underline">{product.name}</a><p className="mt-2 text-sm opacity-70">{product.detail}</p><strong className="mt-3 block">{formatStoreCurrency(product.price, displayCurrency)}</strong><div className="mt-4 flex gap-3"><button type="button" onClick={() => addToBag(product)} className="rounded-lg px-3 py-2 text-sm font-bold text-black" style={{ backgroundColor: theme.primaryColor }}>Add to bag</button><button type="button" onClick={() => toggleWishlist(storeId, productId)} className="rounded-lg border px-3 py-2 text-sm">Remove</button></div></article>;
+              })}</div> : <p className="mt-3 text-sm opacity-70">Save products from the shop to build your wishlist.</p>}</section>}
+              {activePage === 'compare' && <section className="mt-8 overflow-x-auto"><h2 className="text-2xl font-black">Compare your picks</h2>{compareProducts.length ? <table className="mt-5 min-w-full border-collapse text-left text-sm"><thead><tr className="border-b border-current/20"><th className="p-3">Product</th>{compareProducts.map((product) => <th key={product.name} className="min-w-48 p-3">{product.name}</th>)}</tr></thead><tbody><tr className="border-b border-current/10"><th className="p-3">Price</th>{compareProducts.map((product) => <td key={product.name} className="p-3">{formatStoreCurrency(product.price, displayCurrency)}</td>)}</tr><tr className="border-b border-current/10"><th className="p-3">Category</th>{compareProducts.map((product) => <td key={product.name} className="p-3">{product.category}</td>)}</tr><tr className="border-b border-current/10"><th className="p-3">Details</th>{compareProducts.map((product) => <td key={product.name} className="p-3">{product.detail}</td>)}</tr><tr><th className="p-3">Actions</th>{compareProducts.map((product) => <td key={product.name} className="p-3"><button type="button" onClick={() => addToBag(product)} className="rounded-lg px-3 py-2 font-bold text-black" style={{ backgroundColor: theme.primaryColor }}>Add to bag</button><button type="button" onClick={() => toggleCompare(storeId, storefrontProductId(template.id, product.name))} className="ml-2 underline">Remove</button></td>)}</tr></tbody></table> : <p className="mt-3 text-sm opacity-70">Choose products to compare from the shop.</p>}</section>}
+              {page?.sections?.filter((section) => !['nav', 'footer', 'hero'].includes(section.type) && !(['shop', 'product-details'].includes(activePage) && section.type === 'product-grid') && !section.hidden?.desktop).map((section) => {
                 const content = section.content || {};
                 const heading = [content.heading, content.title, section.name].find((value): value is string => typeof value === 'string' && value.length > 0) || section.type.replace(/[-_]/g, ' ');
                 const description = [content.description, content.desc, content.subtitle].find((value): value is string => typeof value === 'string') || '';
@@ -977,10 +1132,36 @@ export default function LiveWebsitePage({
                     : typeof content.body === 'string' ? <p className="mt-5 whitespace-pre-wrap leading-relaxed text-neutral-700">{content.body}</p> : <p className="mt-5 text-sm text-neutral-500">{description || `Explore ${heading}.`}</p>}
                 </section>;
               })}
-              {activePage === 'shop' && <StoreCatalog products={storeProducts} pages={sitePages} subdomain={subdomain} accent={theme.primaryColor} isVolt={isVoltGear} onAdd={addToBag} />}
+              {activePage === 'shop' && <><StoreCatalog products={storeProducts} pages={sitePages} subdomain={subdomain} accent={theme.primaryColor} isVolt={isVoltGear} onAdd={addToBag} onToggleWishlist={(productId) => toggleWishlist(storeId, productId)} onToggleCompare={(productId) => toggleCompare(storeId, productId)} wishlistIds={wishlistedIds} comparedIds={comparedIds} displayCurrency={displayCurrency} />
+                {recentlyViewedProducts.length > 0 && <section className={`mt-10 rounded-2xl border p-5 sm:p-7 ${isVoltGear ? 'border-white/10 bg-[#151923]' : 'border-[#1F2A1B]/10 bg-white'}`}><h2 className="text-xl font-black">Recently viewed</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{recentlyViewedProducts.map((product) => <a key={product.name} href={productHref(product.name)} className="rounded-xl border border-current/10 p-4 transition-transform hover:-translate-y-0.5"><span className="text-xs opacity-60">{product.category}</span><strong className="mt-1 block">{product.name}</strong><span className="mt-2 block text-sm">{formatStoreCurrency(product.price, displayCurrency)}</span></a>)}</div></section>}
+              </>}
               {/(shop|collection|store)/i.test(title) && !page?.sections?.some((section) => section.type === 'product-grid') && <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{storeProducts.map((product, index) => <article key={product.name} className="overflow-hidden rounded-2xl border border-black/10 bg-white"><div className="flex h-56 items-center justify-center bg-neutral-100">{assetUrl ? <Image src={assetUrl} alt={product.name} width={640} height={640} unoptimized className="h-full w-full object-cover" /> : <span className="text-5xl font-black">0{index + 1}</span>}</div><div className="p-5"><span className="font-mono text-[10px] uppercase text-neutral-500">{product.category}</span><h2 className="font-bold">{product.name}</h2><p className="mt-2 text-sm text-neutral-600">{product.detail}</p><div className="mt-4 flex items-center justify-between"><strong>₹{product.price.toLocaleString('en-IN')}</strong><button type="button" onClick={() => addToBag(product)} className="rounded-lg px-4 py-2 text-sm font-bold" style={{ backgroundColor: theme.primaryColor }}>Add to bag</button></div></div></article>)}</div>}
-              {/cart/i.test(title) && <div className="mt-8 rounded-2xl border border-black/10 bg-white p-6"><h2 className="text-2xl font-bold">Your bag</h2>{cartItems.length ? <ul className="mt-4 divide-y divide-black/10">{cartItems.map((item) => <li key={item.name} className="flex items-center justify-between gap-3 py-3"><span>{item.name} × {item.quantity}</span><strong>₹{(item.price * item.quantity).toLocaleString('en-IN')}</strong></li>)}</ul> : <p className="mt-2 text-neutral-600">Your bag is empty.</p>}<p className="mt-3 font-bold">Subtotal ₹{bagSubtotal.toLocaleString('en-IN')}</p><button type="button" onClick={() => setCartOpen(true)} className="mt-5 inline-flex rounded-lg px-5 py-3 font-bold" style={{ backgroundColor: theme.primaryColor }}>Review bag</button>{checkoutPage && <button type="button" onClick={() => setActivePage(checkoutPage.id)} className="ml-3 mt-5 inline-flex rounded-lg border border-black px-5 py-3 font-bold">Continue to checkout</button>}</div>}
-              {/checkout/i.test(title) && <div className={`mt-8 grid gap-6 lg:grid-cols-[1.2fr_.8fr]`}><form className={`grid gap-4 rounded-2xl border p-6 ${isVoltGear ? 'border-white/10 bg-[#151923]' : 'border-[#1F2A1B]/10 bg-white'}`} onSubmit={(event) => { event.preventDefault(); setFormMessages((current) => ({ ...current, checkout: 'Checkout preview complete. Connect a payment provider to accept orders.' })); }}><div><h2 className="text-xl font-bold">Delivery details</h2><p className={`mt-1 text-sm ${isVoltGear ? 'text-white/55' : 'text-neutral-600'}`}>This is a preview checkout. No payment will be collected.</p></div><label className="grid gap-1 text-sm font-semibold">Email address<input required type="email" autoComplete="email" className="rounded-lg border border-black/20 bg-white px-4 py-3 font-normal text-black"/></label><label className="grid gap-1 text-sm font-semibold">Full name<input required autoComplete="name" className="rounded-lg border border-black/20 bg-white px-4 py-3 font-normal text-black"/></label><label className="grid gap-1 text-sm font-semibold">Delivery address<input required autoComplete="street-address" className="rounded-lg border border-black/20 bg-white px-4 py-3 font-normal text-black"/></label>{isFreshCrate && <label className="grid gap-1 text-sm font-semibold">Delivery window<select className="rounded-lg border border-black/20 bg-white px-4 py-3 font-normal text-black"><option>Saturday · 9:00–12:00</option><option>Saturday · 12:00–15:00</option><option>Sunday · 9:00–12:00</option></select></label>}<button className="rounded-lg px-5 py-3 font-bold text-black" style={{ backgroundColor: theme.primaryColor }}>Review order</button><p role="status" aria-live="polite" className="text-sm">{formMessages.checkout || ''}</p></form><aside className={`h-fit rounded-2xl border p-6 ${isVoltGear ? 'border-white/10 bg-[#151923]' : 'border-[#1F2A1B]/10 bg-white'}`}><h2 className="text-lg font-bold">Order summary</h2>{cartItems.length ? <ul className="mt-4 divide-y divide-current/10">{cartItems.map((item) => <li key={item.name} className="flex justify-between gap-3 py-3 text-sm"><span>{item.name} × {item.quantity}</span><strong>₹{(item.price * item.quantity).toLocaleString('en-IN')}</strong></li>)}</ul> : <p className={`mt-3 text-sm ${isVoltGear ? 'text-white/55' : 'text-neutral-600'}`}>Your bag is empty. Add a product before checkout.</p>}<div className="mt-4 flex justify-between border-t border-current/10 pt-4"><span>Subtotal</span><strong>₹{bagSubtotal.toLocaleString('en-IN')}</strong></div><p className={`mt-2 text-xs ${isVoltGear ? 'text-white/45' : 'text-neutral-500'}`}>Shipping and taxes are calculated after delivery details.</p></aside></div>}
+              {/cart/i.test(title) && <div className="mt-8 rounded-2xl border border-black/10 bg-white p-6 text-black">
+                <h2 className="text-2xl font-bold">Your bag</h2>
+                {cartItems.length ? <ul className="mt-4 divide-y divide-black/10">{cartItems.map((item) => <li key={item.id} className="flex items-center justify-between gap-3 py-3"><span>{item.name} × {item.quantity}</span><strong>{formatStoreCurrency(item.price * item.quantity, displayCurrency)}</strong></li>)}</ul> : <p className="mt-2 text-neutral-600">Your bag is empty.</p>}
+                <p className="mt-3 font-bold">Estimated total {formatStoreCurrency(cartTotals.total, displayCurrency)}</p>
+                <button type="button" onClick={() => setCartOpen(true)} className="mt-5 inline-flex rounded-lg px-5 py-3 font-bold" style={{ backgroundColor: theme.primaryColor }}>Review bag</button>
+                {checkoutPage && <button type="button" onClick={() => setActivePage(checkoutPage.id)} className="ml-3 mt-5 inline-flex rounded-lg border border-black px-5 py-3 font-bold">Continue to checkout</button>}
+              </div>}
+              {/checkout/i.test(title) && <div className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
+                <form className={`grid gap-4 rounded-2xl border p-6 ${isVoltGear ? 'border-white/10 bg-[#151923]' : 'border-[#1F2A1B]/10 bg-white'}`} onSubmit={(event) => { event.preventDefault(); placeDemoOrder(); }}>
+                  <div><h2 className="text-xl font-bold">Delivery details</h2><p className={`mt-1 text-sm ${isVoltGear ? 'text-white/55' : 'text-neutral-600'}`}>Demo checkout only. No payment will be collected.</p></div>
+                  <label className="grid gap-1 text-sm font-semibold">Email address<input required type="email" autoComplete="email" className="rounded-lg border border-black/20 bg-white px-4 py-3 font-normal text-black"/></label>
+                  <label className="grid gap-1 text-sm font-semibold">Full name<input required autoComplete="name" className="rounded-lg border border-black/20 bg-white px-4 py-3 font-normal text-black"/></label>
+                  <label className="grid gap-1 text-sm font-semibold">Delivery address<input required autoComplete="street-address" className="rounded-lg border border-black/20 bg-white px-4 py-3 font-normal text-black"/></label>
+                  {isFreshCrate && <label className="grid gap-1 text-sm font-semibold">Delivery window<select className="rounded-lg border border-black/20 bg-white px-4 py-3 font-normal text-black"><option>Saturday · 9:00–12:00</option><option>Saturday · 12:00–15:00</option><option>Sunday · 9:00–12:00</option></select></label>}
+                  <button className="rounded-lg px-5 py-3 font-bold text-black" style={{ backgroundColor: theme.primaryColor }}>Place demo order</button>
+                  <p role="status" aria-live="polite" className="text-sm">{formMessages.checkout || ''}</p>
+                </form>
+                <aside className={`h-fit rounded-2xl border p-6 ${isVoltGear ? 'border-white/10 bg-[#151923]' : 'border-[#1F2A1B]/10 bg-white'}`}>
+                  <h2 className="text-lg font-bold">Order summary</h2>
+                  {cartItems.length ? <ul className="mt-4 divide-y divide-current/10">{cartItems.map((item) => <li key={item.id} className="flex justify-between gap-3 py-3 text-sm"><span>{item.name} × {item.quantity}</span><strong>{formatStoreCurrency(item.price * item.quantity, displayCurrency)}</strong></li>)}</ul> : <p className={`mt-3 text-sm ${isVoltGear ? 'text-white/55' : 'text-neutral-600'}`}>Your bag is empty. Add a product before checkout.</p>}
+                  <form onSubmit={(event) => { event.preventDefault(); applyCoupon(); }} className="mt-4 flex gap-2"><label htmlFor="checkout-coupon" className="sr-only">Coupon code</label><input id="checkout-coupon" value={couponDraft} onChange={(event) => setCouponDraft(event.target.value)} placeholder={isFreshCrate ? 'FRESH10' : 'VOLT15'} className="min-w-0 flex-1 rounded-lg border border-current/25 bg-transparent px-3 py-2 text-sm"/><button type="submit" className="rounded-lg border border-current px-3 py-2 text-xs font-bold">Apply</button></form>
+                  {couponMessage && <p role="status" className="mt-2 text-xs">{couponMessage}</p>}
+                  <div className="mt-4 space-y-2 border-t border-current/10 pt-4 text-sm"><div className="flex justify-between"><span>Subtotal</span><strong>{formatStoreCurrency(cartTotals.subtotal, displayCurrency)}</strong></div>{cartTotals.discount > 0 && <div className="flex justify-between"><span>Discount</span><strong>−{formatStoreCurrency(cartTotals.discount, displayCurrency)}</strong></div>}<div className="flex justify-between"><span>Delivery</span><strong>{cartTotals.shipping ? formatStoreCurrency(cartTotals.shipping, displayCurrency) : 'Free'}</strong></div><div className="flex justify-between"><span>Estimated tax</span><strong>{formatStoreCurrency(cartTotals.tax, displayCurrency)}</strong></div><div className="flex justify-between border-t border-current/10 pt-2 text-base font-black"><span>Total</span><strong>{formatStoreCurrency(cartTotals.total, displayCurrency)}</strong></div></div>
+                  <p className={`mt-2 text-xs ${isVoltGear ? 'text-white/45' : 'text-neutral-500'}`}>Estimated only; configure real delivery and tax rates before taking orders.</p>
+                </aside>
+              </div>}
               {/(shop|collection|store|cart|checkout)/i.test(title) || <div className="mt-10 rounded-2xl border border-black/10 bg-white p-6 sm:p-10"><h2 className="text-2xl font-bold">Discover {siteTitle}</h2><p className="mt-3 leading-relaxed text-neutral-600">{heroContent.description}</p><a href={`/live/${subdomain}?page=collection`} className="mt-6 inline-flex rounded-lg px-5 py-3 font-bold" style={{ backgroundColor: theme.primaryColor }}>Explore collection</a></div>}
             </div>;
           })()}

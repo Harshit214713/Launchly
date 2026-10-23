@@ -1,49 +1,48 @@
-import { Template, TemplateCategory } from '@/types';
+import type { Template, TemplateCategory } from '@/types';
 
-// Category definitions with coming soon status
-// Ecommerce is currently available; the remaining categories are marked as coming soon.
 export const CATEGORIES: TemplateCategory[] = [
   'All',
-  'SaaS',
-  'AI',
-  'Agency',
-  'Portfolio',
   'Ecommerce',
-  'Web3',
-  'Media'
 ];
 
-// Categories that display a coming soon message when selected.
-export const COMING_SOON_CATEGORIES: TemplateCategory[] = [
-  'SaaS',
-  'AI',
-  'Agency',
-  'Portfolio',
-  'Web3',
-  'Media'
-];
-
-// The ecommerce catalog is intentionally focused on these two complete starter stores.
 export const TEMPLATES: Template[] = [
   {
     id: 'fresh-crate',
     name: 'Fresh Crate',
     category: 'Ecommerce',
-    description: 'A friendly neighborhood grocer for just-picked produce, pantry staples, and quick local delivery. Browse seasonal crates, choose a delivery slot, and bring the farm closer to home.',
-    tags: ['ecommerce', 'grocery', 'organic', 'local delivery', 'fresh food', 'farm to table'],
+    description: 'A friendly neighborhood grocer for just-picked produce, pantry staples, and quick local delivery.',
+    tags: ['ecommerce', 'grocery', 'organic', 'local delivery', 'fresh food'],
     badge: 'New',
     isPro: false,
     previewUrl: '/templates/fresh-crate',
-    thumbnail: '/templates/fresh-crate.svg',
+    thumbnail: '/templates/fresh-crate.png',
     accent: '#3FA34D',
     bgColor: '#FFF8EC',
     textColor: '#1F2A1B',
-    pages: ['Home'],
-    features: ['Single-page farm-to-door storefront starter', 'Twelve sample grocery products', 'Seasonal product grid with add-to-bag actions', 'Freshness and origin storytelling', 'Combo baskets and weekly offers', 'Delivery area and ordering information', 'Customer testimonials and common questions', 'Newsletter and contact sections', 'Responsive shared navigation and footer', 'Add and customize more pages in the editor'],
+    pages: ['Home', 'Shop', 'Product Details', 'Offers', 'Recipes', 'Recipe Detail', 'Blog', 'Blog Post', 'Cart', 'Checkout', 'Order Confirmation', 'Order Tracking', 'Account', 'Wishlist', 'About', 'Contact', 'FAQ', 'Delivery Areas', 'Privacy & Terms', '404'],
+    features: [
+      'Twenty purpose-built storefront pages',
+      'Twelve seasonal grocery products',
+      'Product variants and stock-aware shopping',
+      'Searchable, filterable shop catalog',
+      'One-off combo baskets and weekly offers',
+      'Recipe index and recipe detail pages',
+      'Editorial blog and article detail pages',
+      'Persistent cart and demo checkout',
+      'Order confirmation and tracking screens',
+      'Wishlist and recently viewed products',
+      'Local delivery areas and slot information',
+      'Customer reviews and common questions',
+      'Contact form and newsletter signup',
+      'Responsive navigation and shared footer',
+      'Per-page SEO titles and descriptions',
+      'Warm, customizable market theme',
+    ],
     rating: 4.9,
     reviewsCount: 126,
+    topReview: { author: 'Maya R.', role: 'Neighborhood customer', comment: 'The greens arrive crisp, and choosing a delivery slot is refreshingly easy.' },
     products: [
-      { name: 'Market Morning Crate', category: 'Seasonal crate', price: 1499, detail: 'A bright mix of farm-picked vegetables for the week.' },
+      { name: 'Market Morning Crate', category: 'Seasonal crate', price: 1499, detail: 'A bright mix of farm-picked vegetables for the week.', variants: [{ id: 'regular', label: 'Regular crate', price: 1499, stock: 24 }, { id: 'family', label: 'Family crate', price: 1999, stock: 8 }] },
       { name: 'Heirloom Tomato Box', category: 'Vegetables', price: 349, detail: 'Sun-ripened tomatoes from small partner farms.' },
       { name: 'Baby Spinach', category: 'Greens', price: 129, detail: 'Tender leaves washed and packed the same morning.' },
       { name: 'Rainbow Carrots', category: 'Vegetables', price: 179, detail: 'Sweet, colorful carrots with their greens attached.' },
@@ -64,21 +63,39 @@ export const TEMPLATES: Template[] = [
     id: 'volt-gear',
     name: 'Volt Gear',
     category: 'Ecommerce',
-    description: 'A high-contrast drop shop for audio, gaming, and everyday technology. Compare detailed specs, build a setup bundle, and follow each limited release from launch to delivery.',
-    tags: ['ecommerce', 'electronics', 'gadgets', 'audio', 'gaming', 'technology'],
+    description: 'A high-contrast drop shop for audio, gaming, and everyday technology, with product comparisons and setup bundles.',
+    tags: ['ecommerce', 'electronics', 'gadgets', 'audio', 'gaming'],
     badge: 'New',
     isPro: false,
     previewUrl: '/templates/volt-gear',
-    thumbnail: '/templates/volt-gear.svg',
+    thumbnail: '/templates/volt-gear.png',
     accent: '#C6FF3D',
     bgColor: '#0B0D12',
     textColor: '#F5F7FA',
-    pages: ['Home'],
-    features: ['Single-page drop-style ecommerce starter', 'Twelve sample technology products', 'High-contrast product grid with add-to-bag actions', 'Clear product specifications and categories', 'Limited-drop campaign storytelling', 'Setup bundle and comparison highlights', 'Customer reviews and support information', 'Newsletter and contact sections', 'Responsive shared navigation and footer', 'Add and customize more pages in the editor'],
+    pages: ['Home', 'Shop', 'Product Details', 'Compare', 'Deals', 'Bundles', 'Cart', 'Checkout', 'Order Confirmation', 'Order Tracking', 'Account', 'Wishlist', 'Support', 'Blog', 'Blog Post', 'About', 'Contact', 'Store Locator', 'Privacy & Terms', '404', 'Components'],
+    features: [
+      'Twenty-one purpose-built storefront pages',
+      'Twelve sample technology products',
+      'Variant selection with stock information',
+      'Searchable, sortable shop catalog',
+      'Product detail and comparison pages',
+      'Limited-drop deals and promotions',
+      'Build-your-setup bundle showcase',
+      'Persistent cart and demo checkout',
+      'Order confirmation and tracking screens',
+      'Wishlist and recently viewed products',
+      'Support, warranty, and FAQ information',
+      'Editorial blog and article detail pages',
+      'Store locator and partner information',
+      'Customer reviews and newsletter signup',
+      'Responsive navigation and shared footer',
+      'Per-page SEO and complete component showcase',
+    ],
     rating: 4.9,
     reviewsCount: 98,
+    topReview: { author: 'Nico P.', role: 'Creator', comment: 'The comparison details helped me choose a dock that works with my displays.' },
     products: [
-      { name: 'Pulse ANC Headphones', category: 'Audio', price: 12999, detail: 'Adaptive noise cancellation with 40-hour battery life.' },
+      { name: 'Pulse ANC Headphones', category: 'Audio', price: 12999, detail: 'Adaptive noise cancellation with 40-hour battery life.', variants: [{ id: 'graphite', label: 'Graphite', price: 12999, stock: 12 }, { id: 'lilac', label: 'Electric lilac', price: 13499, stock: 5 }] },
       { name: 'Volt Mechanical Keyboard', category: 'Desk setup', price: 7499, detail: 'Hot-swappable switches in a compact aluminum frame.' },
       { name: 'Arc Wireless Mouse', category: 'Desk setup', price: 3999, detail: 'A low-latency sensor with a sculpted ergonomic shell.' },
       { name: 'Nova 27 Gaming Monitor', category: 'Displays', price: 28999, detail: 'QHD resolution, vivid color, and a smooth 165Hz panel.' },
@@ -98,6 +115,22 @@ export const TEMPLATES: Template[] = [
 ];
 
 export const ALL_TEMPLATES: Template[] = [...TEMPLATES];
+
+export const DEFAULT_TEMPLATE: Template = {
+  id: 'blank',
+  name: 'My Website',
+  category: 'Blank',
+  description: 'A blank website ready for your content and design.',
+  tags: [],
+  isPro: false,
+  previewUrl: '/editor',
+  thumbnail: '',
+  accent: '#F4C542',
+  bgColor: '#FFFFFF',
+  textColor: '#171717',
+  pages: ['Home'],
+  features: [],
+};
 
 export function getTemplatesByCategory(category: string): Template[] {
   if (category === 'All') return TEMPLATES;

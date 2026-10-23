@@ -245,7 +245,7 @@ export default function HeroSection() {
 
           {/* Open full editor button */}
           <Link
-            href="/editor/saas-launch"
+            href="/editor/fresh-crate"
             className="brutal-press inline-flex items-center gap-1.5 rounded-xl border-[2.5px] border-ink bg-pink px-3 py-1.5 font-display text-xs sm:text-sm font-bold text-black shadow-brutal-sm"
           >
             <span>Open Studio</span>

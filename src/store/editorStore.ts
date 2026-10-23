@@ -3,7 +3,7 @@ import type { Column, Device, MenuItem, Section, SectionContent, SiteDocument, S
 
 export type SelectedElementPath = { sectionId: string; columnId: string; elementId: string };
 
-export type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'offline';
+export type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'offline' | 'error';
 export type SiteVersion = { id: string; label: string; createdAt: string; document: SiteDocument };
 export type EditorStoreState = {
   document: SiteDocument;
@@ -52,7 +52,7 @@ export type EditorStoreState = {
   setMenu: (menu: MenuItem[]) => void;
   setSaveStatus: (status: SaveStatus, lastSavedAt?: string) => void;
   setVersions: (versions: SiteVersion[]) => void;
-  captureVersion: (label: string) => SiteVersion;
+  captureVersion: (label: string, document?: SiteDocument) => SiteVersion;
   restoreVersion: (versionId: string) => boolean;
   undo: () => void;
   redo: () => void;
@@ -307,8 +307,8 @@ export function createEditorStore(initial: SiteDocument): StoreApi<EditorStoreSt
     })),
     setSaveStatus: (saveStatus, lastSavedAt) => set((state) => ({ ...state, saveStatus, lastSavedAt: lastSavedAt ?? state.lastSavedAt })),
     setVersions: (versions) => set({ versions: versions.slice(-20) }),
-    captureVersion: (label) => {
-      const version: SiteVersion = { id: `version-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, label, createdAt: new Date().toISOString(), document: structuredClone(get().document) };
+    captureVersion: (label, document = get().document) => {
+      const version: SiteVersion = { id: `version-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, label, createdAt: new Date().toISOString(), document: structuredClone(document) };
       set((state) => ({ versions: [...state.versions, version].slice(-20) }));
       return version;
     },

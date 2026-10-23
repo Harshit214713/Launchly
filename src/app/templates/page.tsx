@@ -5,8 +5,8 @@ import Footer from '@/components/Footer';
 import TemplatesPageContent from './TemplatesPageContent';
 
 export const metadata: Metadata = {
-  title: 'Templates — Launchly',
-  description: 'Choose a complete ecommerce storefront, then customize every page to match your brand.',
+  title: 'Ecommerce Templates — Launchly',
+  description: 'Choose a complete ecommerce storefront and customize it in the Launchly visual editor.',
 };
 
 export default function TemplatesPage() {

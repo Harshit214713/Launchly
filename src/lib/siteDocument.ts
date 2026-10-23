@@ -1,6 +1,31 @@
+import { getBlockDefinition } from './blockRegistry.ts';
+
 export type Device = 'desktop' | 'tablet' | 'mobile';
 export type PageTarget = { type: 'page' | 'url' | 'anchor' | 'email' | 'phone'; value: string };
 export type MenuItem = { id: string; label: string; target: PageTarget; newTab: boolean; rel?: string; icon?: string; badge?: string; children?: MenuItem[]; highlight?: boolean; visibleOn?: ('desktop' | 'mobile')[] };
+
+export function createStorefrontMenu(templateId: string): MenuItem[] {
+  const entries = templateId === 'fresh-crate'
+    ? [
+        ['menu-shop', 'Shop', 'collection'],
+        ['menu-how-it-works', 'How it works', 'home-how-it-works'],
+        ['menu-recipes', 'Recipes', 'home-recipes'],
+        ['menu-our-story', 'Our story', 'home-story'],
+      ]
+    : templateId === 'volt-gear'
+      ? [
+          ['menu-shop', 'Shop gear', 'collection'],
+          ['menu-how-it-works', 'How it works', 'home-how-it-works'],
+          ['menu-our-story', 'Our story', 'home-story'],
+        ]
+      : [];
+  return entries.map(([id, label, value]) => ({
+    id,
+    label,
+    target: { type: 'anchor', value },
+    newTab: false,
+  }));
+}
 export type SectionStyle = {
   padding?: Partial<Record<'top' | 'right' | 'bottom' | 'left', number>>;
   accentColor?: string;
@@ -76,6 +101,7 @@ export type DataBinding = {
 
 export type A11yProps = {
   role?: string;
+  title?: string;
   ariaLabel?: string;
   ariaLabelledby?: string;
   ariaDescribedby?: string;
@@ -435,11 +461,13 @@ export function makeSection(type: string, id: string, name?: string, style: Sect
 }
 
 function normalizeSection(section: Section): Section {
+  const defaults = getBlockDefinition(section.type).defaultContent;
+  const content = { ...structuredClone(defaults), ...structuredClone(section.content) };
   const columns = structuredClone(section.columns?.length ? section.columns : makeSection(section.type, section.id, section.name, section.style, section.content).columns || []);
   const primaryColumn = columns[0];
   const blockElement = primaryColumn?.elements.find((element) => element.type === 'block');
-  if (blockElement) blockElement.content = { blockType: section.type, ...structuredClone(section.content) };
-  return { ...section, layoutMode: section.layoutMode || 'flow', contentWidth: section.contentWidth || 'boxed', columns };
+  if (blockElement) blockElement.content = { blockType: section.type, ...structuredClone(content) };
+  return { ...section, content, layoutMode: section.layoutMode || 'flow', contentWidth: section.contentWidth || 'boxed', columns };
 }
 
 function normalizeDocument(document: SiteDocument): SiteDocument {
@@ -476,6 +504,16 @@ function normalizeDocument(document: SiteDocument): SiteDocument {
   };
 }
 
+function normalizeGeneratedStorefrontMenu(document: SiteDocument): SiteDocument {
+  const defaults = createStorefrontMenu(document.templateId);
+  if (!defaults.length) return document;
+  const visiblePages = document.pages.filter((page) => !page.isHome && page.showInMenu);
+  const isGeneratedPageMenu = document.menu.length === visiblePages.length
+    && document.menu.every((item) => item.target.type === 'page'
+      && visiblePages.some((page) => page.id === item.target.value && item.label === page.title));
+  return isGeneratedPageMenu ? { ...document, menu: defaults } : document;
+}
+
 export function createSiteDocument(input: {
   id: string; name: string; templateId: string; theme: Partial<Theme>; sections: Array<{ id: string; name: string; type: string; content?: SectionContent; style?: SectionStyle; columns?: Column[]; hidden?: Partial<Record<Device, boolean>>; locked?: boolean; anchorId?: string; customClass?: string }>;
   hero: Record<string, string>; features: Array<{ title: string; desc: string }>;
@@ -492,7 +530,12 @@ export function createSiteDocument(input: {
   const sections = input.sections.map((entry) => {
     const spacing = input.sectionSpacing?.[entry.id];
     const style: SectionStyle = { ...entry.style, ...(spacing ? { padding: { top: spacing.top || 0, right: spacing.right || 0, bottom: spacing.bottom || 0, left: spacing.left || 0 } } : {}) };
-    const defaultContent: SectionContent = entry.type === 'hero' ? input.hero : entry.type === 'features' ? { items: input.features } : entry.type === 'testimonials' ? { items: input.testimonials } : entry.type === 'cta' ? input.cta : {};
+    const defaults = getBlockDefinition(entry.type).defaultContent;
+    const defaultContent: SectionContent = entry.type === 'hero' && Object.keys(input.hero).length ? input.hero
+      : entry.type === 'features' && input.features.length ? { items: input.features }
+        : entry.type === 'testimonials' && input.testimonials.length ? { items: input.testimonials }
+          : entry.type === 'cta' && Object.values(input.cta).some(Boolean) ? input.cta
+            : defaults;
     const section = makeSection(entry.type, entry.id, entry.name, style, entry.content && Object.keys(entry.content).length ? entry.content : defaultContent);
     return { ...normalizeSection({ ...section, columns: entry.columns ? structuredClone(entry.columns) : section.columns }), hidden: { ...section.hidden, ...entry.hidden }, locked: entry.locked ?? section.locked, anchorId: entry.anchorId, customClass: entry.customClass };
   });
@@ -508,26 +551,13 @@ export function createSiteDocument(input: {
     return { id: page.id, slug: `/${pageSlug}`, title: page.title, isHome: false, showInMenu: page.showInMenu !== false, seo: { title: page.seoTitle || page.title, description: page.description, ogImage: page.ogImage || '', noindex: page.noindex || false }, sections: page.sections?.length ? page.sections : [makeSection('hero', `${page.id}-hero`, 'Hero', {}, { title: page.title, description: page.description })], elements: [], useSharedHeader: page.useSharedHeader !== false, useSharedFooter: page.useSharedFooter !== false, oldSlugs: page.oldSlugs || [] } satisfies SitePage;
   });
   const pageMenu = additionalPages.filter((page) => page.showInMenu).map((page) => ({ id: `menu-${page.id}`, label: page.title, target: { type: 'page' as const, value: page.id }, newTab: false }));
-  const storeAnchorMenu: MenuItem[] = input.templateId === 'fresh-crate'
-    ? [
-        { id: 'menu-shop', label: 'Shop', target: { type: 'anchor', value: 'collection' }, newTab: false },
-        { id: 'menu-how-it-works', label: 'How it works', target: { type: 'anchor', value: 'home-how-it-works' }, newTab: false },
-        { id: 'menu-recipes', label: 'Recipes', target: { type: 'anchor', value: 'home-recipes' }, newTab: false },
-        { id: 'menu-our-story', label: 'Our story', target: { type: 'anchor', value: 'home-story' }, newTab: false },
-      ]
-    : input.templateId === 'volt-gear'
-      ? [
-          { id: 'menu-shop', label: 'Shop gear', target: { type: 'anchor', value: 'collection' }, newTab: false },
-          { id: 'menu-how-it-works', label: 'How it works', target: { type: 'anchor', value: 'home-how-it-works' }, newTab: false },
-          { id: 'menu-our-story', label: 'Our story', target: { type: 'anchor', value: 'home-story' }, newTab: false },
-        ]
-      : [];
+  const storefrontMenu = createStorefrontMenu(input.templateId);
   const assets: SiteAsset[] = (input.assets || []).filter((asset) => asset.role === 'image' || asset.role === 'icon');
   for (const [role, src] of [['product', input.assetUrl], ['logo', input.logoUrl], ['favicon', input.faviconUrl]] as const) if (src) assets.push({ id: `${role}-asset`, name: role, role, src, alt: role === 'logo' ? `${input.name} logo` : '' });
   return {
     version: 4, id: input.id, name: input.name, templateId: input.templateId, theme,
     header: { sticky: true, mobileMenu: true }, footer: { enabled: true },
-    menu: pageMenu.length ? pageMenu : storeAnchorMenu, pages: [home, ...additionalPages], assets, collections: [],
+    menu: storefrontMenu.length ? storefrontMenu : pageMenu, pages: [home, ...additionalPages], assets, collections: [],
     settings: { subdomain: ids(input.name), status: 'draft', customCss: '', currency: 'USD', language: 'en' },
   };
 }
@@ -538,7 +568,7 @@ export function migrateSiteDocument(raw: unknown, defaults: SiteDocument): SiteD
 
   // Unwrap if wrapped in { document: ... }
   if (data.document && typeof data.document === 'object' && [1, 2, 3, 4].includes((data.document as { version?: number }).version || 0)) {
-    return normalizeDocument(data.document as SiteDocument);
+    return normalizeGeneratedStorefrontMenu(normalizeDocument(data.document as SiteDocument));
   }
 
   // Already a v3 or v4 document at top level
@@ -560,9 +590,9 @@ export function migrateSiteDocument(raw: unknown, defaults: SiteDocument): SiteD
       };
       // Remove legacy content field
       delete (upgraded as Record<string, unknown>)['content'];
-      return normalizeDocument(upgraded);
+      return normalizeGeneratedStorefrontMenu(normalizeDocument(upgraded));
     }
-    return normalizeDocument(doc);
+    return normalizeGeneratedStorefrontMenu(normalizeDocument(doc));
   }
 
   // Legacy key-value format (pre-v3)
@@ -628,7 +658,7 @@ export function migrateSiteDocument(raw: unknown, defaults: SiteDocument): SiteD
     }
   }
   if (data.sitePages?.length && doc.pages.length > 1) doc.menu = doc.pages.filter((page) => !page.isHome && page.showInMenu).map((page) => ({ id: `menu-${page.id}`, label: page.title, target: { type: 'page', value: page.id }, newTab: false }));
-  return doc;
+  return normalizeGeneratedStorefrontMenu(doc);
 }
 
 /** Merge the current editor controls into the canonical document without dropping page-level metadata. */
@@ -647,10 +677,7 @@ export function mergeEditorProjection(current: SiteDocument, projection: SiteDoc
   const pageIds = new Set(pages.map((page) => page.id));
   const pageById = new Map(pages.map((page) => [page.id, page]));
   const existingMenu = current.menu
-    .filter((item) => item.target.type !== 'page' || (pageIds.has(item.target.value) && pageById.get(item.target.value)?.showInMenu))
-    .map((item) => item.target.type === 'page'
-      ? { ...item, label: pageById.get(item.target.value)?.title || item.label }
-      : item);
+    .filter((item) => item.target.type !== 'page' || (pageIds.has(item.target.value) && pageById.get(item.target.value)?.showInMenu));
   const menuTargets = new Set(existingMenu.map((item) => item.id));
   const menu = [...existingMenu, ...projection.menu.filter((item) => {
     const key = item.id;

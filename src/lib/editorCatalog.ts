@@ -1,4 +1,4 @@
-import { extraCatalogItems } from '@/lib/editorCatalogExtras';
+import { extraCatalogItems } from './editorCatalogExtras.ts';
 
 export type EditorPlan = 'free' | 'pro';
 export type EditorPaletteCategory = 'layout' | 'text' | 'buttons' | 'media' | 'navigation' | 'parts' | 'forms' | 'interactive';

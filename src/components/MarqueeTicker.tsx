@@ -5,7 +5,7 @@ const TICKER_ITEMS = [
   '✦',
   'EXPORT NEXT.JS 15 CODE',
   '✦',
-  '12+ DESIGNER TEMPLATES',
+  'BUILD FROM A BLANK CANVAS',
   '✦',
   'ZERO CONTEXT SWITCHING',
   '✦',
