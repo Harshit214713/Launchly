@@ -380,3 +380,7 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and s
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for complete details.
 
 ---
+
+Made with ❤️ By Community!
+
+---
