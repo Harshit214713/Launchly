@@ -157,3 +157,19 @@ export function searchTemplates(query: string): Template[] {
 export function getTemplateById(id: string): Template | undefined {
   return ALL_TEMPLATES.find((t) => t.id === id);
 }
+
+export function calculateTemplateMetrics(template: Template): {
+  sectionsCount: number;
+  readTimeMinutes: number;
+} {
+  const sectionsCount = Math.max(template.features?.length || 0, template.pages?.length || 0, 3);
+  const textCorpus = [
+    template.name,
+    template.description,
+    ...(template.features || []),
+    ...(template.tags || []),
+  ].join(' ');
+  const words = textCorpus.trim().split(/\s+/).filter(Boolean).length;
+  const readTimeMinutes = Math.max(1, Math.ceil(words / 45));
+  return { sectionsCount, readTimeMinutes };
+}

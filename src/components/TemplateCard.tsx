@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Eye, ArrowUpRight, ArrowRight } from 'lucide-react';
 import { Template } from '@/types';
+import { calculateTemplateMetrics } from '@/lib/templates';
 
 // High-fidelity, award-winning visual previews for each template
 function TemplatePreviewCanvas({ template }: { template: Template }) {
@@ -223,9 +224,24 @@ export default function TemplateCard({ template, onCustomize }: TemplateCardProp
           </div>
 
           {/* Description */}
-          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-4 font-mono">
+          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-2 font-mono">
             {template.description}
           </p>
+
+          {/* Content metrics */}
+          {(() => {
+            const metrics = calculateTemplateMetrics(template);
+            return (
+              <div className="flex items-center gap-1.5 mb-3 font-mono text-[10px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1 rounded bg-ink/5 dark:bg-white/10 px-1.5 py-0.5 font-bold text-ink dark:text-foreground">
+                  <span>📖</span>
+                  <span>{metrics.readTimeMinutes} min read</span>
+                </span>
+                <span>•</span>
+                <span>{metrics.sectionsCount} sections</span>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Bottom row: Review rating and action */}
