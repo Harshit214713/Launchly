@@ -11,17 +11,35 @@ export default function FeedbackWidget() {
   const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setError(null);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: selectedTag,
+          rating,
+          message: message.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || 'Failed to submit feedback. Please try again.');
+      }
       setSent(true);
       setMessage('');
       setTimeout(() => setSent(false), 5000);
-    }, 600);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -118,6 +136,12 @@ export default function FeedbackWidget() {
                 className="w-full resize-none rounded-xl border-[3px] border-ink bg-background p-3.5 font-mono text-xs sm:text-sm text-foreground shadow-brutal outline-none focus:ring-4 focus:ring-pink/40"
               />
             </label>
+
+            {error && (
+              <p className="font-mono text-xs text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-950/40 p-2.5 rounded-lg border border-red-200 dark:border-red-900">
+                {error}
+              </p>
+            )}
 
             {/* Submit Row */}
             <div className="flex items-center justify-between gap-3 pt-2">
