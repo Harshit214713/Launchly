@@ -84,8 +84,12 @@ export default function DeployModal({ isOpen, onClose, siteData }: DeployModalPr
       return;
     }
 
-    if (rememberToken && typeof window !== 'undefined') {
-      localStorage.setItem('launchly_github_token', githubToken.trim());
+    if (typeof window !== 'undefined') {
+      if (rememberToken) {
+        localStorage.setItem('launchly_github_token', githubToken.trim());
+      } else {
+        localStorage.removeItem('launchly_github_token');
+      }
     }
 
     setDeployingGithub(true);
@@ -134,7 +138,11 @@ export default function DeployModal({ isOpen, onClose, siteData }: DeployModalPr
     }
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem('launchly_vercel_token', vercelToken.trim());
+      if (rememberToken) {
+        localStorage.setItem('launchly_vercel_token', vercelToken.trim());
+      } else {
+        localStorage.removeItem('launchly_vercel_token');
+      }
     }
 
     setDeployingVercel(true);
