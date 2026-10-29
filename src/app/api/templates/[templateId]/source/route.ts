@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { getTemplateById } from '@/lib/templates';
-import { verifySessionToken } from '@/lib/auth';
+import { exportTemplateAsZip } from '@/lib/zipExport';
+import { createTemplateDocument } from '@/lib/templateContent';
+import { getProAccess } from '@/lib/proAccess';
 
 export async function GET(
   request: Request,
@@ -17,30 +18,69 @@ export async function GET(
     );
   }
 
-  // Paywall enforcement: Pro templates require active Pro subscription
-  if (template.isPro) {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('launchly_session');
-    const session = sessionCookie?.value ? verifySessionToken(sessionCookie.value) : null;
+  const access = await getProAccess();
+  if (!access.authenticated) {
+    return NextResponse.json({ success: false, message: 'Sign in to access template source code.' }, { status: 401 });
+  }
+  if (!access.isPro) {
+    return NextResponse.json({ success: false, message: 'Template source code requires a Pro plan.' }, { status: 403 });
+  }
 
-    if (!session || session.plan !== 'pro') {
-      return NextResponse.json(
-        {
-          success: false,
-          isPro: true,
-          message: `"${template.name}" is a Pro template. Please upgrade to Launchly Pro to access the production source code.`,
-          upgradeUrl: `/checkout?plan=pro&templateId=${template.id}`
-        },
-        { status: 403 }
-      );
-    }
+  const isStorefront = Boolean(template.products?.length);
+  const document = createTemplateDocument(template);
+  const features = template.features.map((title) => ({
+    title,
+    desc: isStorefront
+      ? `${title} is thoughtfully integrated into the ${template.name} shopping experience.`
+      : `${title} helps tell the ${template.name} story and gives visitors a clear next step.`,
+  }));
+  if (new URL(request.url).searchParams.get('format') === 'download') {
+    const archive = await exportTemplateAsZip({
+      siteTitle: template.name,
+      templateId: template.id,
+      theme: {
+        primaryColor: template.accent,
+        bgColor: template.bgColor,
+        textColor: template.textColor,
+        fontFamily: 'Inter, sans-serif',
+        borderRadius: '16px',
+      },
+      heroContent: {
+        badge: `${template.category} // ${template.badge || 'FEATURED'}`,
+        title: template.name,
+        description: template.description,
+        ctaPrimary: isStorefront ? 'Shop the collection' : 'Get started',
+        ctaSecondary: isStorefront ? 'Discover the details' : 'Explore features',
+      },
+      featuresContent: features,
+      testimonialsContent: template.topReview
+        ? [{ quote: template.topReview.comment, name: template.topReview.author, role: template.topReview.role }]
+        : [],
+      ctaContent: {
+        title: `Discover ${template.name}.`,
+        desc: isStorefront
+          ? `Explore the ${template.name} collection and find your next favorite.`
+          : `Explore ${template.name} and invite visitors to take the next step.`,
+        buttonText: isStorefront ? 'Shop the collection' : 'Get started',
+      },
+      sectionOrder: ['nav', 'hero', 'gallery', 'features', 'testimonials', 'cta', 'footer'],
+      pages: template.pages,
+      document,
+    });
+    return new NextResponse(archive, {
+      headers: {
+        'Content-Type': 'application/zip',
+          'Content-Disposition': `attachment; filename="${template.id}-launchly-${isStorefront ? 'store' : 'project'}.zip"`,
+        'Cache-Control': 'private, no-store',
+      },
+    });
   }
 
   // Generates source code package metadata and files
   const projectArchive = {
     name: `${template.id}-launchly-project`,
     templateName: template.name,
-    framework: 'Next.js 15 (App Router)',
+    framework: 'Next.js 16 (App Router)',
     styling: 'Tailwind CSS v4',
     language: 'TypeScript',
     license: 'Commercial & Personal Royalty-Free',
@@ -56,10 +96,10 @@ export async function GET(
           dev: 'next dev',
           build: 'next build',
           start: 'next start',
-          lint: 'next lint'
+          lint: 'eslint'
         },
         dependencies: {
-          next: '^15.0.0',
+          next: '^16.4.0',
           react: '^19.0.0',
           'react-dom': '^19.0.0',
           'lucide-react': '^1.54.0',
@@ -67,7 +107,10 @@ export async function GET(
           'tailwind-merge': '^3.0.0'
         },
         devDependencies: {
+          '@tailwindcss/postcss': '^4.0.0',
           typescript: '^5.0.0',
+          eslint: '^9.0.0',
+          'eslint-config-next': '^16.4.0',
           '@types/node': '^20.0.0',
           '@types/react': '^19.0.0',
           tailwindcss: '^4.0.0'
@@ -81,7 +124,7 @@ export async function GET(
   return NextResponse.json({
     success: true,
     template,
-    downloadUrl: `/api/templates/${template.id}/source/download`,
+    downloadUrl: `/api/templates/${template.id}/source?format=download`,
     project: projectArchive,
     message: `Source code package for "${template.name}" generated successfully.`
   });

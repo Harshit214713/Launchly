@@ -11,10 +11,10 @@ import {
   Loader2, ExternalLink, Mail, Zap, CheckCircle2, Crown
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { TEMPLATES } from '@/lib/templates';
+import { DEFAULT_TEMPLATE, getTemplateById, TEMPLATES } from '@/lib/templates';
 import { cn, formatDate } from '@/lib/utils';
 import BrandWordmark from '@/components/BrandWordmark';
-import { scrollToSection } from '@/lib/navigation';
+import TemplateCard from '@/components/TemplateCard';
 
 interface WebsiteItem {
   id: string;
@@ -58,6 +58,22 @@ export default function Dashboard() {
     const greeting = hours < 12 ? 'Good Morning' : hours < 17 ? 'Good Afternoon' : 'Good Evening';
     requestAnimationFrame(() => setGreetingTime(greeting));
   }, []);
+
+  useEffect(() => {
+    if (!openMenu) return;
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (event.target instanceof Element && !event.target.closest('[data-website-action-menu]')) setOpenMenu(null);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenMenu(null);
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePress);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePress);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [openMenu]);
 
   // Sync theme with document class
   useEffect(() => {
@@ -112,7 +128,7 @@ export default function Dashboard() {
             const realSites: WebsiteItem[] = sitesData.sites.map((s: Record<string, unknown>) => ({
               id: String(s.id),
               name: String(s.name || 'Untitled Site'),
-              templateId: String(s.templateId || 'neuro-ai'),
+              templateId: String(s.templateId || 'blank'),
               status: (s.status === 'published' || s.status === 'live' || s.status === 'draft') ? s.status : 'live',
               subdomain: String(s.subdomain || ''),
               updatedAt: String(s.updatedAt || s.createdAt || new Date().toISOString()),
@@ -421,17 +437,13 @@ export default function Dashboard() {
                 <p className="font-mono text-[10px] leading-snug mb-2.5">
                   Deploy unlimited websites, hook up custom domains, and download complete source code.
                 </p>
-                <a
-                  href="/"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    scrollToSection('pricing', router);
-                  }}
+                <Link
+                  href="/checkout?plan=pro&billing=monthly"
                   className="brutal-press inline-flex items-center justify-center gap-1.5 w-full text-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-pink/90 transition-all cursor-pointer"
                 >
                   <span>Claim Pro Membership</span>
                   <ArrowRight size={12} className="stroke-[3]" />
-                </a>
+                </Link>
               </div>
             )}
 
@@ -505,7 +517,7 @@ export default function Dashboard() {
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-2 border-transparent hover:border-black dark:hover:border-[#262638] text-neutral-700 dark:text-neutral-300 hover:bg-[#faf5ff] dark:hover:bg-[#181824] font-display text-xs font-black uppercase tracking-wider transition-all"
             >
               <Globe size={16} />
-              <span>Templates</span>
+              <span>Studio Editor</span>
             </Link>
 
             <Link
@@ -513,7 +525,7 @@ export default function Dashboard() {
               className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-2 border-transparent hover:border-black dark:hover:border-[#262638] text-neutral-700 dark:text-neutral-300 hover:bg-[#faf5ff] dark:hover:bg-[#181824] font-display text-xs font-black uppercase tracking-wider transition-all"
             >
               <Edit3 size={16} />
-              <span>Studio Editor</span>
+              <span>Browse Templates</span>
             </Link>
 
             <button
@@ -546,17 +558,13 @@ export default function Dashboard() {
                 />
               </div>
 
-              <a
-                href="/"
-                onClick={(e) => {
-                  e.preventDefault();
-                  scrollToSection('pricing', router);
-                }}
+              <Link
+                href="/checkout?plan=pro&billing=monthly"
                 className="brutal-press w-full inline-flex items-center justify-center py-2 px-3 rounded-xl border-2 border-black bg-pink text-black font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-pink/90 transition-all cursor-pointer"
               >
                 <ArrowUpRight size={13} className="mr-1 stroke-[2.5]" />
                 Upgrade to Pro
-              </a>
+              </Link>
             </div>
           )}
         </nav>
@@ -720,7 +728,7 @@ export default function Dashboard() {
                 className="brutal-press inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-black dark:border-[#262638] bg-card text-ink font-display text-xs font-black uppercase tracking-wider shadow-brutal-xs hover:bg-neutral-100 dark:hover:bg-[#1a1a26]"
               >
                 <Layers size={14} />
-                <span>Templates</span>
+                <span>Start Building</span>
                 <ChevronRight size={14} />
               </Link>
             </div>
@@ -788,47 +796,21 @@ export default function Dashboard() {
             ) : websites.length === 0 ? (
               /* Neo-Brutalist Personalized Empty State */
               <div className="rounded-3xl border-[3.5px] border-black dark:border-[#262638] bg-card dark:bg-[#12121a] p-6 sm:p-10 shadow-brutal-lg text-center relative overflow-hidden">
-                <div className="max-w-xl mx-auto space-y-4">
+                <div className="mx-auto space-y-4">
                   <h3 className="font-display text-2xl sm:text-3xl font-black text-black dark:text-white tracking-tight">
                     {user
-                      ? `${user.name.split(' ')[0]}, you haven't launched any websites yet!`
-                      : 'You haven\'t launched any websites yet'}
+                      ? `${user.name.split(' ')[0]}, choose a template to get started`
+                      : 'Choose a template to get started'}
                   </h3>
 
-                  <p className="font-mono text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                    Pick a template from the gallery below. Customize the copy, colors, and components in the Studio editor, then launch directly to your custom <span className="font-bold text-pink">.launchly.site</span> subdomain.
+                  <p className="mx-auto max-w-2xl font-mono text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                    Pick a professionally designed storefront, open it in Studio, and customize it before publishing to your <span className="font-bold text-pink">.launchly.site</span> subdomain.
                   </p>
 
-                  <div className="pt-2">
-                    <Link
-                      href="/templates"
-                      className="brutal-press inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl border-[3px] border-black bg-pink text-black font-display text-sm font-black uppercase tracking-wider shadow-brutal hover:bg-pink/90 transition-all cursor-pointer"
-                    >
-                      <Plus size={18} className="stroke-[3]" />
-                      <span>Create Your First Website</span>
-                      <ArrowRight size={16} className="stroke-[3]" />
-                    </Link>
-                  </div>
-
-                  {/* 3-Step Simple Guide */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-6 text-left border-t-2 border-black/10 dark:border-[#262638]/60 mt-6">
-                    <div className="p-3.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#181824] shadow-brutal-xs">
-                      <span className="font-mono text-xs font-black text-pink block mb-1">01 / CHOOSE</span>
-                      <span className="font-display text-xs font-black text-black dark:text-white block">Pick a Template</span>
-                      <span className="font-mono text-[10px] text-neutral-500">12+ responsive templates ready to deploy.</span>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#181824] shadow-brutal-xs">
-                      <span className="font-mono text-xs font-black text-yellow block mb-1">02 / TWEAK</span>
-                      <span className="font-display text-xs font-black text-black dark:text-white block">Edit in Studio</span>
-                      <span className="font-mono text-[10px] text-neutral-500">Visual editor + live Next.js hot reload.</span>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl border-2 border-black dark:border-[#262638] bg-background dark:bg-[#181824] shadow-brutal-xs">
-                      <span className="font-mono text-xs font-black text-mint block mb-1">03 / SHIP</span>
-                      <span className="font-display text-xs font-black text-black dark:text-white block">Instant Edge URL</span>
-                      <span className="font-mono text-[10px] text-neutral-500">Free SSL, global CDN, zero configuration.</span>
-                    </div>
+                  <div className="grid gap-5 pt-4 text-left sm:grid-cols-2 xl:grid-cols-3">
+                    {TEMPLATES.map((template) => (
+                      <TemplateCard key={template.id} template={template} />
+                    ))}
                   </div>
                 </div>
               </div>
@@ -857,21 +839,21 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <div className="font-display text-sm font-black text-black dark:text-white uppercase tracking-wider group-hover:text-pink transition-colors">
-                      + Create Another Website
+                      + Start from a Template
                     </div>
                     <div className="font-mono text-[11px] text-neutral-500 mt-0.5">
-                      Choose from 12+ templates
+                      Choose a complete ecommerce storefront
                     </div>
                   </div>
                 </Link>
 
                 {filteredWebsites.map((website) => {
-                  const template = TEMPLATES.find(t => t.id === website.templateId) || TEMPLATES[0];
+                  const template = getTemplateById(website.templateId) || DEFAULT_TEMPLATE;
 
                   return (
                     <div
                       key={website.id}
-                      className="bg-card dark:bg-[#12121a] rounded-3xl border-[2.5px] border-black dark:border-[#262638] overflow-hidden shadow-brutal hover:shadow-brutal-md transition-all flex flex-col justify-between group"
+                      className="bg-card dark:bg-[#12121a] rounded-3xl border-[2.5px] border-black dark:border-[#262638] shadow-brutal hover:shadow-brutal-md transition-all flex flex-col justify-between group"
                     >
                       <div>
                         {/* Visual Banner Preview */}
@@ -952,17 +934,19 @@ export default function Dashboard() {
                             </div>
 
                             {/* Options Dropdown Menu */}
-                            <div className="relative shrink-0">
+                            <div className="relative z-40 shrink-0" data-website-action-menu>
                               <button
                                 onClick={() => setOpenMenu(openMenu === website.id ? null : website.id)}
                                 className="p-1.5 rounded-lg border border-black/10 dark:border-[#262638] hover:bg-neutral-100 dark:hover:bg-[#1a1a26] text-neutral-500 hover:text-ink transition-colors cursor-pointer"
                                 aria-label="Website actions menu"
+                                aria-expanded={openMenu === website.id}
+                                aria-controls={`website-actions-${website.id}`}
                               >
                                 <MoreHorizontal size={16} />
                               </button>
 
                               {openMenu === website.id && (
-                                <div className="absolute right-0 top-8 bg-card dark:bg-[#161622] border-2 border-black dark:border-[#262638] rounded-2xl shadow-brutal z-30 py-1.5 min-w-44">
+                                <div id={`website-actions-${website.id}`} role="menu" className="absolute right-0 top-8 bg-card dark:bg-[#161622] border-2 border-black dark:border-[#262638] rounded-2xl shadow-brutal z-50 py-1.5 min-w-44">
                                   <Link
                                     href={`/editor/${website.templateId}`}
                                     className="flex items-center gap-2.5 px-3.5 py-2 font-mono text-xs font-bold text-ink hover:bg-pink hover:text-black transition-colors"
@@ -1034,108 +1018,33 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Discover New Templates Shelf */}
+          {websites.length > 0 && (
           <div className="pt-6 border-t-2 border-black/10 dark:border-[#262638]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 mb-4">
               <div className="min-w-0">
                 <h2 className="font-display text-xl sm:text-2xl font-black text-black dark:text-white">
-                  Explore Templates
+                  Start with a template
                 </h2>
                 <p className="font-mono text-xs text-neutral-500 mt-0.5">
-                  Ready to customize and deploy live in your visual studio workspace.
+                  Choose a storefront and customize it in Studio.
                 </p>
               </div>
               <Link
                 href="/templates"
                 className="font-mono text-xs font-black uppercase text-pink hover:underline inline-flex items-center gap-1 shrink-0 whitespace-nowrap self-start sm:self-auto"
               >
-                <span>View all ({TEMPLATES.length})</span>
+                <span>Browse all templates</span>
                 <ChevronRight size={14} className="shrink-0" />
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {TEMPLATES.slice(0, 4).map((tmpl) => {
-                const isDark = tmpl.bgColor?.startsWith('#0') || tmpl.bgColor?.startsWith('#1') || tmpl.textColor === '#FFFFFF';
-
-                return (
-                  <Link
-                    key={tmpl.id}
-                    href={`/editor/${tmpl.id}`}
-                    className="group rounded-2xl overflow-hidden border-2 border-black dark:border-[#262638] hover:shadow-brutal-sm transition-all bg-card flex flex-col justify-between hover:-translate-y-0.5"
-                  >
-                    <div
-                      className="h-32 relative flex flex-col justify-between p-3.5 border-b-2 border-black dark:border-[#262638] overflow-hidden"
-                      style={{
-                        backgroundColor: isDark ? '#0e0f17' : (tmpl.bgColor || '#FAF9F6'),
-                      }}
-                    >
-                      {/* Ambient Accent Glow for Dark Templates */}
-                      {isDark && (
-                        <div
-                          className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-2xl opacity-25 pointer-events-none"
-                          style={{ backgroundColor: tmpl.accent || '#FF5500' }}
-                        />
-                      )}
-
-                      {/* Top micro badges */}
-                      <div className="flex items-center justify-between relative z-10">
-                        <span
-                          className="font-mono text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-black/30 bg-white/20 dark:bg-black/40 backdrop-blur-xs"
-                          style={{ color: isDark ? '#FFFFFF' : '#171717' }}
-                        >
-                          {tmpl.category}
-                        </span>
-                        <span className={cn(
-                          "font-mono text-[9px] font-black uppercase px-1.5 py-0.5 rounded border border-black shadow-2xs",
-                          tmpl.isPro ? "bg-yellow text-black" : "bg-mint text-black"
-                        )}>
-                          {tmpl.isPro ? "PRO" : "FREE"}
-                        </span>
-                      </div>
-
-                      {/* Center headline */}
-                      <div className="my-auto relative z-10 py-1">
-                        <div
-                          className="font-display font-black text-sm tracking-tight leading-tight line-clamp-1"
-                          style={{ color: isDark ? '#FFFFFF' : '#171717' }}
-                        >
-                          {tmpl.name}
-                        </div>
-                        <div
-                          className="font-mono text-[10px] opacity-70 line-clamp-1 mt-0.5"
-                          style={{ color: isDark ? '#E2E8F0' : '#525252' }}
-                        >
-                          {tmpl.tags?.slice(0, 2).map(t => `#${t}`).join(' ')}
-                        </div>
-                      </div>
-
-                      {/* Hover action overlay */}
-                      <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20 backdrop-blur-2xs">
-                        <span className="brutal-press bg-pink text-black text-[11px] font-display font-black uppercase tracking-wider px-3 py-1.5 rounded-xl border border-black shadow-brutal-xs flex items-center gap-1">
-                          Use Template →
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 sm:p-3 bg-card dark:bg-[#12121a] flex items-center justify-between gap-2 min-w-0">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-display font-black text-xs text-black dark:text-white truncate" title={tmpl.name}>
-                          {tmpl.name}
-                        </div>
-                        <div className="font-mono text-[9px] sm:text-[10px] text-pink font-bold uppercase truncate mt-0.5">
-                          {tmpl.category}
-                        </div>
-                      </div>
-                      <span className="font-mono text-[10px] font-bold text-neutral-400 group-hover:text-pink transition-colors shrink-0 whitespace-nowrap pl-1">
-                        Launch ↗
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {TEMPLATES.map((template) => (
+                <TemplateCard key={template.id} template={template} />
+              ))}
             </div>
           </div>
+          )}
         </div>
       </main>
     </div>

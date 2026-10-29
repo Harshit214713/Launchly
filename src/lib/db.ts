@@ -28,6 +28,7 @@ export interface ContactMessage {
 
 export interface SiteRecord {
   id: string;
+  userId?: string;
   templateId: string;
   name: string;
   subdomain: string;
@@ -37,6 +38,7 @@ export interface SiteRecord {
   createdAt: string;
   updatedAt: string;
   siteData?: Record<string, unknown>;
+  draftData?: Record<string, unknown>;
 }
 
 export interface PaymentRecord {
@@ -362,6 +364,7 @@ export async function publishSite(
 
   const newSite: SiteRecord = {
     id,
+    userId,
     templateId,
     name: siteName || 'My Launchly Website',
     subdomain: cleanSubdomain,
@@ -384,14 +387,16 @@ export async function publishSite(
         return { success: false, message: `Subdomain "${cleanSubdomain}.launchly.site" is already registered to another user.` };
       }
 
-      await supabaseAdmin.from('sites').update({
+      const { error: updateError } = await supabaseAdmin.from('sites').update({
         user_id: userId,
         template_id: templateId,
         name: siteName || 'My Launchly Website',
         status: 'live',
         site_data: siteData,
+        draft_data: null,
         updated_at: now
       }).eq('id', existing.id);
+      if (updateError) throw updateError;
 
       const cacheIdx = sitesCache.findIndex(s => s.subdomain === cleanSubdomain);
       const updatedRecord: SiteRecord = {
@@ -411,7 +416,7 @@ export async function publishSite(
       };
     }
 
-    await supabaseAdmin.from('sites').insert({
+    const { error: insertError } = await supabaseAdmin.from('sites').insert({
       id,
       user_id: userId,
       template_id: templateId,
@@ -420,9 +425,11 @@ export async function publishSite(
       status: 'live',
       views: 1,
       site_data: siteData,
+      draft_data: null,
       created_at: now,
       updated_at: now
     });
+    if (insertError) throw insertError;
   } catch (err) {
     console.warn('[Supabase] sites insert error, saving to cache:', err);
   }
@@ -433,6 +440,89 @@ export async function publishSite(
     message: `Your site is published live at https://${cleanSubdomain}.launchly.site!`,
     site: newSite,
   };
+}
+
+export async function saveDraftSite(
+  templateId: string,
+  siteName: string,
+  subdomain: string,
+  userId: string,
+  siteData: Record<string, unknown>
+): Promise<{ success: boolean; site?: SiteRecord; message: string }> {
+  const cleanSubdomain = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/^-+|-+$/g, '');
+  if (!cleanSubdomain || cleanSubdomain.length < 3) return { success: false, message: 'Choose a site name with at least 3 letters or numbers.' };
+  if (!userId) return { success: false, message: 'Sign in to save this draft.' };
+  const now = new Date().toISOString();
+  try {
+    const { data: existing, error } = await supabaseAdmin.from('sites').select('id, user_id, status, views, created_at, site_data, draft_data').eq('subdomain', cleanSubdomain).maybeSingle();
+    if (error) console.warn('[Supabase] Draft lookup fallback:', error.message);
+    if (existing?.user_id && existing.user_id !== userId) return { success: false, message: 'This site address belongs to another account.' };
+    const id = existing?.id || sitesCache.find((site) => site.subdomain === cleanSubdomain)?.id || `site_${Date.now()}`;
+    const publishedData = existing?.site_data && typeof existing.site_data === 'object'
+      ? { ...(existing.site_data as Record<string, unknown>) }
+      : {};
+    delete publishedData.draftDocument;
+    const site: SiteRecord = {
+      id,
+      userId,
+      templateId,
+      name: siteName || 'My Launchly Website',
+      subdomain: cleanSubdomain,
+      status: existing?.status === 'live' ? 'live' : 'draft',
+      views: existing?.views || 0,
+      createdAt: existing?.created_at || now,
+      updatedAt: now,
+      siteData: existing?.status === 'live' ? publishedData : {},
+      draftData: siteData,
+    };
+    if (existing) {
+      const { error: updateError } = await supabaseAdmin.from('sites').update({
+        user_id: userId,
+        template_id: templateId,
+        name: site.name,
+        draft_data: siteData,
+        updated_at: now,
+      }).eq('id', id);
+      if (updateError) throw updateError;
+    } else {
+      const { error: insertError } = await supabaseAdmin.from('sites').insert({
+        id,
+        user_id: userId,
+        template_id: templateId,
+        name: site.name,
+        subdomain: cleanSubdomain,
+        status: 'draft',
+        views: 0,
+        site_data: {},
+        draft_data: siteData,
+        created_at: now,
+        updated_at: now,
+      });
+      if (insertError) throw insertError;
+    }
+    const index = sitesCache.findIndex((entry) => entry.subdomain === cleanSubdomain);
+    if (index >= 0) sitesCache[index] = site; else sitesCache.unshift(site);
+    return { success: true, site, message: 'Draft saved.' };
+  } catch (error) {
+    console.warn('[Supabase] Draft save using local process cache:', error);
+    const existing = sitesCache.find((site) => site.subdomain === cleanSubdomain);
+    if (existing && existing.userId !== userId) return { success: false, message: 'This site address belongs to another account.' };
+    const site: SiteRecord = {
+      id: existing?.id || `site_${Date.now()}`,
+      userId,
+      templateId,
+      name: siteName || 'My Launchly Website',
+      subdomain: cleanSubdomain,
+      status: existing?.status === 'live' ? 'live' : 'draft',
+      views: existing?.views || 0,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      siteData: existing?.status === 'live' ? existing.siteData : {},
+      draftData: siteData,
+    };
+    if (existing) sitesCache[sitesCache.indexOf(existing)] = site; else sitesCache.unshift(site);
+    return { success: true, site, message: 'Draft saved locally for this server process.' };
+  }
 }
 
 interface DbSiteRow {
@@ -447,6 +537,23 @@ interface DbSiteRow {
   created_at: string;
   updated_at: string;
   site_data?: Record<string, unknown>;
+  draft_data?: Record<string, unknown> | null;
+}
+
+function publishedSiteData(siteData?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!siteData || !Object.hasOwn(siteData, 'draftDocument')) return siteData;
+  const published = { ...siteData };
+  delete published.draftDocument;
+  return published;
+}
+
+function editorDraftData(row: DbSiteRow): Record<string, unknown> | undefined {
+  if (row.draft_data && typeof row.draft_data === 'object') return row.draft_data;
+  const legacyDraft = row.site_data?.draftDocument;
+  if (legacyDraft && typeof legacyDraft === 'object' && !Array.isArray(legacyDraft)) {
+    return legacyDraft as Record<string, unknown>;
+  }
+  return row.site_data;
 }
 
 export async function getAllSites(): Promise<SiteRecord[]> {
@@ -467,14 +574,25 @@ export async function getAllSites(): Promise<SiteRecord[]> {
         views: d.views,
         createdAt: d.created_at,
         updatedAt: d.updated_at,
-        siteData: d.site_data
+        siteData: publishedSiteData(d.site_data)
       }));
     }
   } catch (err) {
     console.warn('[Supabase] getAllSites error:', err);
   }
 
-  return [...sitesCache];
+  return sitesCache.map((site) => ({
+    id: site.id,
+    templateId: site.templateId,
+    name: site.name,
+    subdomain: site.subdomain,
+    customDomain: site.customDomain,
+    status: site.status,
+    views: site.views,
+    createdAt: site.createdAt,
+    updatedAt: site.updatedAt,
+    siteData: publishedSiteData(site.siteData),
+  }));
 }
 
 export async function getSitesForUser(userId: string): Promise<SiteRecord[]> {
@@ -490,6 +608,7 @@ export async function getSitesForUser(userId: string): Promise<SiteRecord[]> {
     if (!error && data) {
       return (data as unknown as DbSiteRow[]).map((d) => ({
         id: d.id,
+        userId: d.user_id,
         templateId: d.template_id,
         name: d.name,
         subdomain: d.subdomain,
@@ -498,14 +617,17 @@ export async function getSitesForUser(userId: string): Promise<SiteRecord[]> {
         views: d.views,
         createdAt: d.created_at,
         updatedAt: d.updated_at,
-        siteData: d.site_data
+        siteData: editorDraftData(d),
+        draftData: d.draft_data || undefined,
       }));
     }
   } catch (err) {
     console.warn('[Supabase] getSitesForUser error:', err);
   }
 
-  return sitesCache.filter((s) => !s.siteData?.userId || s.siteData?.userId === userId);
+  return sitesCache
+    .filter((site) => site.userId === userId || (!site.userId && site.siteData?.userId === userId))
+    .map((site) => ({ ...site, siteData: site.draftData || site.siteData }));
 }
 
 export async function deleteSite(id: string, userId: string): Promise<{ success: boolean; message: string }> {

@@ -14,37 +14,37 @@ const FEATURES = [
     icon: Laptop,
     bg: 'bg-pink',
     title: 'Visual + Code on one screen',
-    description: 'Keep your live website canvas, layout controls, and runnable Next.js code in one unified, focused workspace.',
+    description: 'Edit page content and layout in the visual workspace, then preview responsive breakpoints as you work.',
   },
   {
     icon: Code2,
     bg: 'bg-yellow',
-    title: 'Clean Next.js 15 Export',
-    description: 'Download 100% clean, documented source code with App Router, TypeScript, and Tailwind CSS v4. No lock-in ever.',
+    title: 'Next.js 16 source export',
+    description: 'Export an editable project built with the App Router, TypeScript, and Tailwind CSS v4.',
   },
   {
     icon: Zap,
     bg: 'bg-mint',
-    title: 'Zero Context Switching',
-    description: 'Stop jumping between Figma, code editors, and hosting dashboards. Customize, test, and deploy in one tab.',
+    title: 'One focused workspace',
+    description: 'Customize pages, preview devices, manage assets, and prepare your site for publishing from one editor.',
   },
   {
     icon: Layers,
     bg: 'bg-lilac',
-    title: '12+ Production Templates',
-    description: 'Crafted for SaaS founders, creative agencies, freelance portfolios, and modern e-commerce stores.',
+    title: 'Ecommerce starters',
+    description: 'Begin with grocery and technology storefronts, then replace the sample copy and products with your own.',
   },
   {
     icon: Globe,
     bg: 'bg-sky',
-    title: 'Instant Custom Domains',
-    description: 'Connect your personal domain with automated SSL certificates, Edge SSR, and global CDN caching in seconds.',
+    title: 'Publish or export',
+    description: 'Preview your work, publish to a Launchly URL, or export the source project for your own deployment workflow.',
   },
   {
     icon: Moon,
     bg: 'bg-pink',
-    title: 'Light + Dark Modes Built-in',
-    description: 'Every single template and section is fully wired with harmonious light and dark palettes out of the box.',
+    title: 'Customizable visual style',
+    description: 'Adjust colors, typography, spacing, and component styles to bring the starter closer to your brand.',
   },
 ];
 
@@ -60,7 +60,7 @@ export default function Features() {
           The whole launch loop, one screen.
         </h2>
         <p className="mt-3 text-base text-muted-foreground">
-          Everything you need to design, inspect, polish, and deploy your dream website without touching messy boilerplate.
+          A practical set of tools to design, preview, and export a website without starting from an empty project.
         </p>
       </div>
 

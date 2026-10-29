@@ -26,8 +26,8 @@ export default function PromoBanner({
   tagline = 'OFFICIAL 2026 CAMPAIGN EDITORIAL',
   headline = 'Create without limits. Launch like an icon.',
   description = 'From visual canvas to global deployment — crafted for the next generation of digital tastemakers, founders, and creative directors.',
-  ctaText = 'Explore Her Curated Templates',
-  ctaHref = '/templates?category=Portfolio',
+  ctaText = 'Explore the templates',
+  ctaHref = '/templates',
   onDismiss,
 }: PromoBannerProps) {
   const [isVisible, setIsVisible] = useState(true);
@@ -110,7 +110,7 @@ export default function PromoBanner({
               href="/templates"
               className="brutal-press inline-flex items-center gap-1.5 rounded-xl border-[2.5px] border-ink bg-card px-4 py-3 font-display text-xs font-black uppercase text-ink shadow-brutal-xs hover:bg-neutral-100 dark:hover:bg-[#1b1c2b]"
             >
-              <span>See Her Picks</span>
+              <span>See all templates</span>
             </Link>
           </div>
         </div>

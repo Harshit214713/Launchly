@@ -27,11 +27,11 @@ export default function Hero() {
 
         {/* Supporting description - Crisp solid readable text */}
         <p className="mx-auto mt-4 sm:mt-5 max-w-2xl text-sm sm:text-lg md:text-xl font-medium leading-relaxed text-neutral-700 dark:text-[#a0a4be]">
-          Discover world-class templates, customize every pixel visually, and{' '}
+          Start with a storefront, customize its pages and products visually, then{' '}
           <span className="font-bold text-black dark:text-white underline decoration-yellow decoration-4 underline-offset-4">
-            publish live to your custom domain
+            publish on Launchly or export your code
           </span>{' '}
-          in minutes. No coding required.
+          when you are ready.
         </p>
 
         {/* Primary CTAs */}
@@ -40,7 +40,7 @@ export default function Hero() {
             href="/templates"
             className="brutal-press group inline-flex min-h-12 sm:min-h-13 items-center justify-center gap-2.5 rounded-2xl border-[3px] border-black dark:border-[#26283d] bg-pink px-7 sm:px-8 font-display text-sm sm:text-base font-black text-black shadow-brutal hover:bg-pink/90"
           >
-            <span>Start building free</span>
+            <span>Explore templates</span>
             <ArrowUpRight className="h-4 w-4 sm:h-4.5 sm:w-4.5 stroke-[3] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </Link>
 
@@ -53,29 +53,10 @@ export default function Hero() {
           </button>
         </div>
 
-        {/* Social Proof */}
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-700 dark:text-[#a0a4be] select-none">
-          <div className="flex -space-x-1.5 group cursor-pointer py-0.5 shrink-0">
-            <div className="h-6 w-6 sm:h-6.5 sm:w-6.5 rounded-full border-2 border-black bg-mint shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:-translate-x-1 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!-rotate-6 hover:shadow-brutal-sm">
-              M
-            </div>
-            <div className="h-6 w-6 sm:h-6.5 sm:w-6.5 rounded-full border-2 border-black bg-yellow shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!rotate-6 hover:shadow-brutal-sm">
-              K
-            </div>
-            <div className="h-6 w-6 sm:h-6.5 sm:w-6.5 rounded-full border-2 border-black bg-pink shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!-rotate-6 hover:shadow-brutal-sm">
-              S
-            </div>
-            <div className="h-6 w-6 sm:h-6.5 sm:w-6.5 rounded-full border-2 border-black bg-lilac shadow-xs flex items-center justify-center text-[9px] font-black text-black transition-all duration-300 group-hover:translate-x-1 group-hover:-translate-y-0.5 hover:!scale-130 hover:!z-30 hover:!rotate-6 hover:shadow-brutal-sm">
-              V
-            </div>
-          </div>
-          <div className="inline-flex items-center gap-1.5 shrink-0">
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span className="whitespace-nowrap">Joined by 2,400+ makers &amp; founders</span>
-          </div>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2 font-mono text-[10px] font-bold uppercase tracking-wider text-neutral-700 dark:text-[#a0a4be]">
+          <span className="rounded-full border border-black/15 bg-white/70 px-3 py-1.5 dark:border-white/15 dark:bg-white/5">Visual editing</span>
+          <span className="rounded-full border border-black/15 bg-white/70 px-3 py-1.5 dark:border-white/15 dark:bg-white/5">Responsive previews</span>
+          <span className="rounded-full border border-black/15 bg-white/70 px-3 py-1.5 dark:border-white/15 dark:bg-white/5">Source export</span>
         </div>
       </div>
     </section>

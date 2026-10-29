@@ -22,7 +22,7 @@ const FREE_FEATURES = [
 
 const PRO_FEATURES = [
   'Everything included in Free',
-  'Full source code download (Next.js 15 App Router)',
+  'Full source code download (Next.js 16 App Router)',
   'Access to all Pro templates & designs',
   'Custom domain mapping (e.g. yourbrand.com)',
   'Zero Launchly brand watermarks',
@@ -33,8 +33,8 @@ const PRO_FEATURES = [
 
 const FAQS = [
   {
-    q: 'Can I download the actual Next.js source code?',
-    a: 'Yes! On the Pro plan, you can download clean, fully documented Next.js 15, React 19, Tailwind CSS v4, and TypeScript code that you can deploy to Vercel, Netlify, or any VPS.'
+    q: 'Can I download the Next.js source code?',
+    a: 'Yes. Pro includes a complete project export using the Next.js App Router, React, TypeScript, and Tailwind CSS. You can adapt it for your preferred hosting provider.'
   },
   {
     q: 'Do I need any coding or design experience to build?',

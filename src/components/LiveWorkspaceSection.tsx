@@ -27,8 +27,6 @@ export default function LiveWorkspaceSection() {
   const [ctaText, setCtaText] = useState('Get Started Free');
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'code' | 'props'>('code');
-  const [runtimeVersion, setRuntimeVersion] = useState('Next.js 15.2');
-  const [showRuntimeMenu, setShowRuntimeMenu] = useState(false);
   
   // Resizable split width percentage (20% to 80%)
   const [splitWidth, setSplitWidth] = useState(54);
@@ -105,7 +103,7 @@ export default function LiveWorkspaceSection() {
     setIsDragging(false);
   };
 
-  const generatedCode = `// Generated Next.js 15 + Tailwind CSS Component
+  const generatedCode = `// Example component for a Next.js 16.4 + Tailwind CSS project
 export default function HeroSection() {
   return (
     <section className="py-24 px-6 text-center bg-[#fdf2f8]">
@@ -245,7 +243,7 @@ export default function HeroSection() {
 
           {/* Open full editor button */}
           <Link
-            href="/editor/saas-launch"
+            href="/editor/fresh-crate"
             className="brutal-press inline-flex items-center gap-1.5 rounded-xl border-[2.5px] border-ink bg-pink px-3 py-1.5 font-display text-xs sm:text-sm font-bold text-black shadow-brutal-sm"
           >
             <span>Open Studio</span>
@@ -461,38 +459,13 @@ export default function HeroSection() {
                       <span className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-[#10b981] border border-black/30 inline-block" />
                     </div>
                     <span className="font-mono text-[10px] sm:text-xs font-black tracking-wider text-neutral-300 uppercase">
-                      CODE EXECUTION SANDBOX
+                      GENERATED COMPONENT PREVIEW
                     </span>
                   </div>
 
-                  {/* Version dropdown pill */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowRuntimeMenu(!showRuntimeMenu)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-neutral-700 bg-[#1a1a24] px-2 py-0.5 sm:px-2.5 sm:py-1 font-mono text-[11px] sm:text-xs font-bold text-lilac hover:border-neutral-500 cursor-pointer"
-                    >
-                      <span>{runtimeVersion}</span>
-                      <span className="text-[9px] text-neutral-400">▼</span>
-                    </button>
-                    {showRuntimeMenu && (
-                      <div className="absolute right-0 top-full mt-1 z-30 w-36 rounded-xl border-2 border-neutral-700 bg-[#161622] py-1 shadow-lg font-mono text-xs">
-                        {['Next.js 15.2', 'React 19', 'TypeScript 5.7'].map((v) => (
-                          <button
-                            key={v}
-                            type="button"
-                            onClick={() => {
-                              setRuntimeVersion(v);
-                              setShowRuntimeMenu(false);
-                            }}
-                            className="w-full text-left px-3 py-1.5 hover:bg-white/10 text-neutral-300 hover:text-white"
-                          >
-                            {v}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <span className="inline-flex items-center rounded-lg border border-neutral-700 bg-[#1a1a24] px-2 py-0.5 font-mono text-[11px] font-bold text-lilac sm:px-2.5 sm:py-1">
+                    Next.js 16.4
+                  </span>
                 </div>
 
                 {/* Inner Card: Code Editor or Properties */}

@@ -4,7 +4,7 @@
 
   # Launchly
 
-  ### Open-Source Visual Web Studio & Production Next.js Engine
+  ### Open-Source Visual Web Studio & Production Engine
 
   <p align="center">
     A high-performance visual website builder and curated template architecture.<br/>
@@ -374,6 +374,13 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and s
 ---
 
 <a id="license"></a>
+
 ## License
 
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for complete details.
+
+---
+
+### Made with ❤️ By Community!
+
+---

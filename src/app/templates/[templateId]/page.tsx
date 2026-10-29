@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use, useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { 
   ArrowLeft, 
@@ -18,14 +18,10 @@ import {
   Palette,
   Lock,
   X,
-  Play,
-  Terminal,
-  Code2,
-  Copy
 } from 'lucide-react';
-import { TEMPLATES } from '@/lib/templates';
-import { notFound } from 'next/navigation';
-import PaymentModal from '@/components/PaymentModal';
+import { getTemplateById } from '@/lib/templates';
+import { createStorefrontPages, getTemplateFeatureDescriptions } from '@/lib/templateContent';
+import { redirect } from 'next/navigation';
 
 const COLOR_PALETTES = [
   { name: 'Original', color: '' },
@@ -35,16 +31,25 @@ const COLOR_PALETTES = [
   { name: 'Emerald', color: '#10B981' },
 ];
 
+function PreviewProductArt({ fresh, index }: { fresh: boolean; index: number }) {
+  const accent = fresh ? ['#3FA34D', '#E76F51', '#F4A93B'][index % 3] : ['#C6FF3D', '#7C5CFF', '#40D9E8'][index % 3];
+  return <svg viewBox="0 0 480 320" aria-hidden="true" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
+    <defs><linearGradient id={`preview-art-${fresh ? 'fresh' : 'volt'}-${index}`} x1="0" y1="0" x2="1" y2="1"><stop stopColor={fresh ? '#FFF8EC' : '#252C3B'}/><stop offset="1" stopColor={fresh ? '#DCEBD4' : '#11141C'}/></linearGradient></defs>
+    <rect width="480" height="320" fill={`url(#preview-art-${fresh ? 'fresh' : 'volt'}-${index})`}/><circle cx="390" cy="55" r="90" fill={accent} opacity=".15"/>
+    {fresh ? <g><path d="M112 135h256l-24 142H136z" fill="#C3874D"/><path d="M130 158h220M136 205h208M143 251h194" stroke="#8F5C36" strokeWidth="10"/><path d="M155 141c-4-72 51-88 68-25 22-80 83-77 91-5 39-57 84-30 71 30" fill="none" stroke={accent} strokeWidth="15" strokeLinecap="round"/><circle cx="177" cy="165" r="31" fill="#E76F51"/><circle cx="238" cy="155" r="29" fill="#F4A93B"/><circle cx="297" cy="169" r="32" fill="#89B85D"/><circle cx="211" cy="209" r="27" fill="#D84D42"/><circle cx="275" cy="216" r="29" fill="#F2BC47"/></g> : <g><path d="M156 196v-48c0-85 36-124 84-124s84 39 84 124v48" fill="none" stroke={accent} strokeWidth="19" strokeLinecap="round"/><rect x="123" y="166" width="62" height="94" rx="24" fill="#30384A" stroke={accent} strokeWidth="7"/><rect x="295" y="166" width="62" height="94" rx="24" fill="#30384A" stroke={accent} strokeWidth="7"/><path d="M181 277h118" stroke="#8993A7" strokeWidth="8" strokeLinecap="round"/></g>}
+  </svg>;
+}
+
 export default function TemplatePreviewPage({ 
   params 
 }: { 
   params: Promise<{ templateId: string }> 
 }) {
   const { templateId } = use(params);
-  const template = TEMPLATES.find((t) => t.id === templateId);
+  const template = getTemplateById(templateId);
 
   if (!template) {
-    notFound();
+    redirect('/editor');
   }
 
   const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
@@ -52,33 +57,46 @@ export default function TemplatePreviewPage({
   const [activePalette, setActivePalette] = useState(0);
   const [activeSection, setActiveSection] = useState(template.pages[0]?.toLowerCase() || 'overview');
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isPro, setIsPro] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [cartCount, setCartCount] = useState(0);
+  const [wishlist, setWishlist] = useState<string[]>([]);
+  const [orderPlaced, setOrderPlaced] = useState(false);
 
-  // Interactive playground states
-  const [promptInput, setPromptInput] = useState('orchestrate multi-agent inference runtime with real-time prompt telemetry');
-  const [isRunningPrompt, setIsRunningPrompt] = useState(false);
-  const [tokensCount, setTokensCount] = useState(4200000);
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
-  const [codeCopied, setCodeCopied] = useState(false);
-
-  // Live token ticker animation when prompt runs
   useEffect(() => {
-    if (!isRunningPrompt) return;
-    const interval = setInterval(() => {
-      setTokensCount((prev) => prev + Math.floor(Math.random() * 85000 + 15000));
-    }, 180);
-    const timeout = setTimeout(() => {
-      setIsRunningPrompt(false);
-      clearInterval(interval);
-    }, 2000);
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, [isRunningPrompt]);
+    fetch('/api/auth/me')
+      .then((response) => response.json())
+      .then((data) => {
+        setIsAuthenticated(Boolean(data?.authenticated && data.user));
+        setIsPro(Boolean(data?.authenticated && data.user?.plan === 'pro'));
+      })
+      .catch(() => {
+        setIsAuthenticated(false);
+        setIsPro(false);
+      })
+      .finally(() => setAuthResolved(true));
+  }, []);
+
+  useEffect(() => {
+    const requestedPage = new URLSearchParams(window.location.search).get('page')?.toLowerCase();
+    if (requestedPage && template.pages.some((page) => page.toLowerCase() === requestedPage)) {
+      const frame = requestAnimationFrame(() => setActiveSection(requestedPage));
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [template.id, template.pages]);
 
   const currentAccent = COLOR_PALETTES[activePalette].color || template.accent;
+  const products = template.products || [];
+  const featureDescriptions = getTemplateFeatureDescriptions(template.id, template.features);
+  const previewPages = useMemo(
+    () => createStorefrontPages(template.id, template.pages, products),
+    [template.id, template.pages, products],
+  );
+  const visibleProducts = activeSection.includes('wishlist')
+    ? products.filter((product) => wishlist.includes(product.name))
+    : products;
 
   const deviceWidths = {
     desktop: '100%',
@@ -122,15 +140,6 @@ export default function TemplatePreviewPage({
               <span className="font-mono text-[9px] font-black uppercase text-black bg-mint border border-ink px-1.5 py-0.5 rounded shadow-2xs shrink-0">
                 {template.category}
               </span>
-              {template.isPro ? (
-                <span className="font-mono text-[9px] font-black uppercase text-black bg-yellow border border-ink px-1.5 py-0.5 rounded flex items-center gap-0.5 shadow-2xs shrink-0">
-                  <Sparkles size={9} /> PRO
-                </span>
-              ) : (
-                <span className="font-mono text-[9px] font-black uppercase text-black bg-pink border border-ink px-1.5 py-0.5 rounded shadow-2xs shrink-0">
-                  FREE
-                </span>
-              )}
             </div>
           </div>
 
@@ -155,6 +164,18 @@ export default function TemplatePreviewPage({
               </button>
             ))}
           </div>
+
+          <label className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-card px-2 py-1.5 font-mono text-[10px] font-bold text-ink shadow-brutal-xs shrink-0">
+            <span className="hidden sm:inline">Preview page</span>
+            <select
+              aria-label="Choose preview page"
+              value={activeSection}
+              onChange={(event) => setActiveSection(event.target.value)}
+              className="max-w-24 sm:max-w-32 cursor-pointer bg-transparent outline-none"
+            >
+              {template.pages.map((page) => <option key={page} value={page.toLowerCase()}>{page}</option>)}
+            </select>
+          </label>
 
           {/* Right: Palette & Actions (Compact, fits comfortably on 1366px screen) */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
@@ -181,8 +202,9 @@ export default function TemplatePreviewPage({
               onClick={() => setShowExportModal(true)}
               className="hidden xl:flex brutal-press items-center gap-1 px-2.5 py-1.5 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-mint border-2 border-ink shadow-brutal-xs cursor-pointer"
             >
-              <Download size={12} />
+              {isPro ? <Download size={12} /> : <Lock size={12} />}
               <span>Source Code</span>
+              {!isPro && <span className="rounded border border-ink bg-yellow px-1 py-0.5 text-[8px]">PRO</span>}
             </button>
 
             {/* Share Link */}
@@ -300,11 +322,11 @@ export default function TemplatePreviewPage({
                 </span>
               </div>
 
-              {/* Interactive Tab Links */}
+              {/* Keep primary storefront navigation concise; the page picker contains every preview route. */}
               <div className={`hidden sm:flex items-center gap-5 text-xs font-semibold ${
                 isDarkTemplate ? 'text-neutral-300' : 'text-[#525252]'
               }`}>
-                {template.pages.map((p) => {
+                {template.pages.filter((page) => page.toLowerCase() !== 'home').slice(0, 3).map((p) => {
                   const key = p.toLowerCase();
                   const isActive = activeSection === key;
                   return (
@@ -324,13 +346,14 @@ export default function TemplatePreviewPage({
                 })}
               </div>
 
-              <Link
-                href={`/editor/${template.id}`}
-                className="text-xs font-bold px-4 py-2 rounded-full shadow-xs transition-transform hover:scale-105"
-                style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#FFFFFF' : '#171717' }}
-              >
-                Use Template
-              </Link>
+              <div className="flex items-center gap-2 shrink-0">
+                {products.length > 0 ? (
+                  <button type="button" onClick={() => setActiveSection(template.pages.find((page) => page.toLowerCase().includes('cart'))?.toLowerCase() || template.pages[0].toLowerCase())} className="relative rounded-full border px-3 py-2 text-xs font-bold" aria-label={`Shopping bag, ${cartCount} items`}>
+                    Bag{cartCount > 0 && <span className="ml-1 rounded-full px-1.5 py-0.5 text-[9px] text-black" style={{ backgroundColor: currentAccent }}>{cartCount}</span>}
+                  </button>
+                ) : null}
+                <Link href={`/editor/${template.id}`} className="text-xs font-bold px-4 py-2 rounded-full shadow-xs transition-transform hover:scale-105" style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#FFFFFF' : '#171717' }}>Use Template</Link>
+              </div>
             </nav>
 
             {/* DYNAMIC INTERACTIVE SECTION CONTENT */}
@@ -344,19 +367,19 @@ export default function TemplatePreviewPage({
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-2 border-black font-mono text-[11px] sm:text-xs font-black uppercase text-black shadow-[2px_2px_0px_#000] mb-5"
                     style={{ backgroundColor: currentAccent }}
                   >
-                    <span>{template.category.toUpperCase()}{' // '}{template.badge?.toUpperCase() || 'POPULAR'}</span>
+                    <span>{template.id === 'fresh-crate' ? 'FRESH CRATE / LOCAL MARKET' : template.id === 'volt-gear' ? 'VOLT GEAR / FIELD TESTED' : `${template.category.toUpperCase()} / ${template.badge?.toUpperCase() || 'POPULAR'}`}</span>
                   </div>
 
                   <h1 className={`font-display text-4xl sm:text-6xl font-black tracking-tight mb-4 leading-[1.08] ${
                     isDarkTemplate ? 'text-white' : 'text-[#171717]'
                   }`}>
-                    {template.name}
+                    {template.id === 'fresh-crate' ? 'Good food starts close to home.' : template.id === 'volt-gear' ? 'Gear for your next big idea.' : template.name}
                   </h1>
 
                   <p className={`font-mono text-xs sm:text-base opacity-80 max-w-xl mx-auto mb-8 leading-relaxed ${
                     isDarkTemplate ? 'text-neutral-300' : 'text-[#525252]'
                   }`}>
-                    {template.description}
+                    {template.id === 'fresh-crate' ? 'Seasonal produce from nearby farms, thoughtful pantry staples, and a fresh delivery at your door.' : template.id === 'volt-gear' ? 'Thoughtful technology for work, play, and everything you want to build next.' : template.description}
                   </p>
 
                   <div className="flex flex-wrap items-center justify-center gap-3">
@@ -368,67 +391,38 @@ export default function TemplatePreviewPage({
                       <span>Customize in Studio</span>
                       <ArrowUpRight size={14} className="stroke-[3]" />
                     </Link>
-                    <Link
-                      href={`/live/${template.id}`}
-                      target="_blank"
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection(template.pages[1]?.toLowerCase() || template.pages[0].toLowerCase())}
                       className={`px-5 sm:px-7 py-3 rounded-xl border-2 font-mono text-xs sm:text-sm font-bold transition-all cursor-pointer backdrop-blur-xs ${
                         isDarkTemplate 
                           ? 'border-white/30 text-white hover:border-white bg-white/10' 
                           : 'border-black/30 text-black hover:border-black bg-black/5'
                       }`}
                     >
-                      Live Website View
-                    </Link>
+                      Explore {template.pages[1] || 'the site'}
+                    </button>
                   </div>
                 </section>
 
-                {/* Interactive Live Playground Console */}
-                <section className="px-6 sm:px-12 pb-14 max-w-3xl mx-auto text-left">
-                  <div className={`p-5 rounded-2xl border shadow-lg backdrop-blur-md ${
-                    isDarkTemplate 
-                      ? 'bg-[#151624]/90 border-white/15' 
-                      : 'bg-white border-black/15'
-                  }`}>
-                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
-                      <div className="flex items-center gap-2">
-                        <Terminal size={14} style={{ color: currentAccent }} />
-                        <span className={`text-xs font-mono font-bold ${isDarkTemplate ? 'text-white' : 'text-black'}`}>
-                          Live Runtime Playground
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-green-500/20 text-green-400 font-bold flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                        STREAMING ACTIVE
-                      </span>
+                <section className={`px-6 sm:px-12 pb-14 pt-4 ${isDarkTemplate ? 'text-white' : 'text-[#171717]'}`}>
+                  <div className="max-w-5xl mx-auto">
+                    <div className="flex items-end justify-between mb-5">
+                      <div><span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: currentAccent }}>{products.length > 0 ? 'Curated for you' : 'A closer look'}</span><h2 className="text-2xl font-black mt-1">{products.length > 0 ? 'Featured pieces' : 'Built for your next idea'}</h2></div>
+                      <button type="button" onClick={() => document.getElementById('template-featured-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="text-xs font-bold underline underline-offset-4">{products.length > 0 ? 'Shop all' : 'Explore features'}</button>
                     </div>
-
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input
-                        type="text"
-                        value={promptInput}
-                        onChange={(e) => setPromptInput(e.target.value)}
-                        placeholder="Type an inference prompt or query..."
-                        className={`flex-1 px-3.5 py-2.5 rounded-xl border text-xs font-mono focus:outline-none ${
-                          isDarkTemplate 
-                            ? 'bg-[#0b0b14] border-white/15 text-white placeholder:text-neutral-500' 
-                            : 'bg-[#fafafa] border-black/10 text-black placeholder:text-neutral-400'
-                        }`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setIsRunningPrompt(true)}
-                        disabled={isRunningPrompt}
-                        className="px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all hover:opacity-90 disabled:opacity-50"
-                        style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#FFFFFF' : '#171717' }}
-                      >
-                        <Play size={12} className={isRunningPrompt ? "animate-spin" : ""} />
-                        <span>{isRunningPrompt ? 'Executing...' : 'Run Prompt'}</span>
-                      </button>
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono opacity-75">
-                      <span>Inference Speed: {(tokensCount / 1000000).toFixed(2)}M Tokens/s</span>
-                      <span>P99 TTFB: 12ms</span>
+                    <div id="template-featured-products" className="grid grid-cols-1 scroll-mt-24 sm:grid-cols-3 gap-4">
+                      {products.length > 0 ? products.slice(0, 3).map((product, index) => (
+                        <article key={product.name} className={`overflow-hidden rounded-2xl border ${isDarkTemplate ? 'bg-white/5 border-white/10' : 'bg-white border-black/10'}`}>
+                          <div className="h-40 overflow-hidden"><PreviewProductArt fresh={template.id === 'fresh-crate'} index={index}/></div>
+                          <div className="p-4"><span className="font-mono text-[9px] uppercase tracking-wider opacity-60">{product.category}</span><h3 className="font-bold mt-1">{product.name}</h3><p className="text-xs opacity-65 mt-1">{product.detail}</p><div className="flex items-center justify-between mt-4"><span className="font-black">₹{product.price.toLocaleString('en-IN')}</span><button type="button" onClick={() => setCartCount((count) => count + 1)} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#111' : '#171717' }}>Add to {template.id === 'fresh-crate' ? 'crate' : 'bag'}</button></div></div>
+                        </article>
+                      )) : template.features.slice(0, 3).map((feature) => (
+                        <article key={feature} className={`flex min-h-40 flex-col justify-between rounded-2xl border p-5 ${isDarkTemplate ? 'bg-white/5 border-white/10' : 'bg-white border-black/10'}`}>
+                          <CheckCircle2 size={20} style={{ color: currentAccent }} />
+                          <h3 className="mt-5 font-bold">{feature}</h3>
+                        </article>
+                      ))}
                     </div>
                   </div>
                 </section>
@@ -452,7 +446,7 @@ export default function TemplatePreviewPage({
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                      {template.features.map((feat) => (
+                      {template.features.map((feat, index) => (
                         <div 
                           key={feat} 
                           className={`p-4 rounded-2xl border shadow-xs transition-all text-left ${
@@ -466,7 +460,7 @@ export default function TemplatePreviewPage({
                             {feat}
                           </p>
                           <p className={`text-[11px] mt-1 ${isDarkTemplate ? 'text-neutral-400' : 'text-[#737373]'}`}>
-                            Fully responsive with modular React components.
+                            {featureDescriptions[index]?.desc}
                           </p>
                         </div>
                       ))}
@@ -476,147 +470,48 @@ export default function TemplatePreviewPage({
               </div>
             )}
 
-            {/* SECTION 2: PRICING */}
-            {activeSection.includes('pricing') && (
-              <section className="px-6 sm:px-12 py-16 max-w-4xl mx-auto text-center relative z-10">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider" style={{ color: currentAccent }}>
-                  Flexible Plans
-                </span>
-                <h3 className={`text-3xl font-black mt-1 mb-4 ${isDarkTemplate ? 'text-white' : 'text-black'}`}>
-                  Simple, Transparent Pricing
-                </h3>
-
-                {/* Billing toggle */}
-                <div className="inline-flex items-center gap-2 p-1 rounded-full border border-white/10 bg-black/20 mb-10 text-xs font-bold">
-                  <button
-                    type="button"
-                    onClick={() => setBillingCycle('monthly')}
-                    className={`px-4 py-1.5 rounded-full transition-all cursor-pointer ${
-                      billingCycle === 'monthly' ? 'bg-white text-black' : 'text-neutral-400'
-                    }`}
-                  >
-                    Monthly
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBillingCycle('annual')}
-                    className={`px-4 py-1.5 rounded-full transition-all cursor-pointer ${
-                      billingCycle === 'annual' ? 'bg-white text-black' : 'text-neutral-400'
-                    }`}
-                  >
-                    Annual (Save 20%)
-                  </button>
+            {activeSection !== template.pages[0]?.toLowerCase() && (
+              <section className="px-6 sm:px-12 py-12 max-w-5xl mx-auto relative z-10">
+                <div className="text-center mb-8">
+                  <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: currentAccent }}>{template.name}</span>
+                  <h2 className={`text-3xl font-black mt-1 ${isDarkTemplate ? 'text-white' : 'text-black'}`}>{previewPages.find((page) => page.id === activeSection)?.title || activeSection.replace(/-/g, ' ')}</h2>
+                  <p className="mx-auto mt-2 max-w-2xl text-sm text-neutral-400">{previewPages.find((page) => page.id === activeSection)?.description || template.description}</p>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-                  {[
-                    { name: 'Starter', price: billingCycle === 'monthly' ? '$19' : '$15', desc: 'Ideal for early-stage builders' },
-                    { name: 'Professional', price: billingCycle === 'monthly' ? '$49' : '$39', desc: 'High-throughput scaling teams', popular: true },
-                    { name: 'Enterprise', price: billingCycle === 'monthly' ? '$199' : '$159', desc: 'Dedicated cluster with SLA' },
-                  ].map((tier) => (
-                    <div
-                      key={tier.name}
-                      className={`p-6 rounded-2xl border transition-all ${
-                        tier.popular
-                          ? (isDarkTemplate ? 'bg-[#1b1d2e] border-white/30 ring-2 ring-white/20' : 'bg-white border-black ring-2 ring-black/20')
-                          : (isDarkTemplate ? 'bg-[#141522] border-white/10' : 'bg-white border-black/10')
-                      }`}
-                    >
-                      {tier.popular && (
-                        <span className="text-[10px] font-mono font-black uppercase px-2 py-0.5 rounded-full bg-pink text-black inline-block mb-3">
-                          MOST POPULAR
-                        </span>
-                      )}
-                      <h4 className={`text-lg font-bold ${isDarkTemplate ? 'text-white' : 'text-black'}`}>{tier.name}</h4>
-                      <p className="text-xs text-neutral-400 mt-1 mb-4">{tier.desc}</p>
-                      <div className="flex items-baseline gap-1 mb-6">
-                        <span className={`text-3xl font-black ${isDarkTemplate ? 'text-white' : 'text-black'}`}>{tier.price}</span>
-                        <span className="text-xs text-neutral-400">/month</span>
-                      </div>
-                      <Link
-                        href={`/editor/${template.id}`}
-                        className="block w-full py-2.5 rounded-xl text-center text-xs font-bold transition-all hover:scale-102"
-                        style={{ backgroundColor: tier.popular ? currentAccent : 'rgba(255,255,255,0.1)', color: '#FFFFFF' }}
-                      >
-                        Choose {tier.name}
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* SECTION 3: SPECS / RUNTIME / DOCS */}
-            {activeSection !== template.pages[0]?.toLowerCase() && !activeSection.includes('pricing') && (
-              <section className="px-6 sm:px-12 py-16 max-w-4xl mx-auto relative z-10">
-                <div className="text-center mb-10">
-                  <span className="text-xs font-mono font-bold uppercase tracking-wider capitalize" style={{ color: currentAccent }}>
-                    {activeSection} View
-                  </span>
-                  <h3 className={`text-3xl font-black mt-1 capitalize ${isDarkTemplate ? 'text-white' : 'text-black'}`}>
-                    {template.name}{' // '}{activeSection}
-                  </h3>
-                  <p className="text-xs text-neutral-400 mt-2 max-w-lg mx-auto">
-                    Interactive modular architecture. Click any item to explore simulated telemetry.
-                  </p>
-                </div>
-
-                <div className={`rounded-2xl border p-6 font-mono text-xs shadow-lg ${
-                  isDarkTemplate ? 'bg-[#12131e] border-white/15 text-neutral-300' : 'bg-[#f8f8f8] border-black/10 text-black'
-                }`}>
-                  <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
-                    <span className="font-bold flex items-center gap-2">
-                      <Code2 size={14} style={{ color: currentAccent }} />
-                      <span>{template.id}-client.ts</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard?.writeText(`import { ${template.name.replace(/\s+/g, '')}Client } from '@launchly/templates';\n\nconst client = new ${template.name.replace(/\s+/g, '')}Client({\n  apiKey: process.env.API_KEY,\n  streaming: true,\n});`);
-                        setCodeCopied(true);
-                        setTimeout(() => setCodeCopied(false), 2000);
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 cursor-pointer"
-                    >
-                      <Copy size={11} />
-                      <span>{codeCopied ? 'Copied!' : 'Copy Code'}</span>
-                    </button>
+                {activeSection.includes('checkout') ? (
+                  <form onSubmit={(event) => { event.preventDefault(); setOrderPlaced(true); }} className={`max-w-xl mx-auto rounded-2xl border p-6 space-y-3 ${isDarkTemplate ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-black/10 text-black'}`}>
+                    <h3 className="font-bold text-lg">Checkout</h3>
+                    <p className="font-mono text-xs opacity-70">{cartCount} item{cartCount === 1 ? '' : 's'} in your bag</p>
+                    <input required aria-label="Full name" placeholder="Full name" className="w-full rounded-lg border border-black/20 bg-transparent px-3 py-2 text-sm" />
+                    <input required type="email" aria-label="Email address" placeholder="Email address" className="w-full rounded-lg border border-black/20 bg-transparent px-3 py-2 text-sm" />
+                    <input required aria-label="Shipping address" placeholder="Shipping address" className="w-full rounded-lg border border-black/20 bg-transparent px-3 py-2 text-sm" />
+                    <button className="w-full rounded-lg px-4 py-3 font-bold text-black" style={{ backgroundColor: currentAccent }}>Place demo order</button>
+                    {orderPlaced && <p role="status" className="text-sm font-bold">Your demo order is confirmed. Thank you!</p>}
+                  </form>
+                ) : activeSection.includes('cart') ? (
+                  <div className={`max-w-xl mx-auto rounded-2xl border p-6 text-center ${isDarkTemplate ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-black/10 text-black'}`}>
+                    <h3 className="font-bold text-lg">Your bag</h3><p className="font-mono text-sm mt-2">{cartCount ? `${cartCount} item${cartCount === 1 ? '' : 's'} in your bag` : 'Your bag is currently empty.'}</p>
+                    <button type="button" onClick={() => { setActiveSection(template.pages[0].toLowerCase()); window.setTimeout(() => document.getElementById('template-featured-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} className="mt-5 rounded-lg px-4 py-2 font-bold text-black" style={{ backgroundColor: currentAccent }}>Continue shopping</button>
                   </div>
-
-                  <pre className="overflow-x-auto leading-relaxed">
-{`import { ${template.name.replace(/\s+/g, '')}Client } from '@launchly/templates';
-
-// Initialize ${template.name} high-speed edge client
-const client = new ${template.name.replace(/\s+/g, '')}Client({
-  apiKey: process.env.LAUNCHLY_API_KEY,
-  streaming: true,
-  latencyMode: 'zero-shot'
-});
-
-export async function handleInference(prompt: string) {
-  const response = await client.execute({
-    prompt,
-    maxTokens: 4096,
-    temperature: 0.7
-  });
-  return response.stream();
-}`}
-                  </pre>
-                </div>
-
-                <div className="mt-8 text-center">
-                  <Link
-                    href={`/editor/${template.id}`}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-xs font-bold shadow-md hover:scale-105 transition-all"
-                    style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#FFFFFF' : '#171717' }}
-                  >
-                    <Sparkles size={13} />
-                    <span>Open in Visual Editor</span>
-                  </Link>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                    {visibleProducts.length ? visibleProducts.map((product, index) => (
+                      <article key={product.name} className={`overflow-hidden rounded-2xl border ${isDarkTemplate ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-black/10 text-black'}`}>
+                        <div className="h-48 overflow-hidden"><PreviewProductArt fresh={template.id === 'fresh-crate'} index={index}/></div>
+                        <div className="p-4"><span className="font-mono text-[9px] uppercase tracking-wider opacity-60">{product.category}</span><h3 className="font-bold mt-1">{product.name}</h3><p className="text-xs opacity-65 mt-1">{product.detail}</p><div className="flex items-center justify-between mt-4"><span className="font-black">₹{product.price.toLocaleString('en-IN')}</span><div className="flex gap-2"><button type="button" aria-label={`Save ${product.name}`} onClick={() => setWishlist((items) => items.includes(product.name) ? items.filter((item) => item !== product.name) : [...items, product.name])} className="rounded-lg border px-2 py-1 text-xs">{wishlist.includes(product.name) ? '♥' : '♡'}</button><button type="button" onClick={() => setCartCount((count) => count + 1)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-black" style={{ backgroundColor: currentAccent }}>Add to {template.id === 'fresh-crate' ? 'crate' : 'bag'}</button></div></div></div>
+                      </article>
+                  )) : products.length > 0
+                    ? <p className="col-span-full py-12 text-center text-sm opacity-60">No saved items yet. Tap the heart on a piece to add it to your wishlist.</p>
+                    : template.features.map((feature) => (
+                      <article key={feature} className={`flex min-h-40 flex-col justify-between rounded-2xl border p-5 ${isDarkTemplate ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-black/10 text-black'}`}>
+                        <CheckCircle2 size={20} style={{ color: currentAccent }} />
+                        <h3 className="mt-5 font-bold">{feature}</h3>
+                      </article>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-10 text-center"><Link href={`/editor/${template.id}`} className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-bold shadow-md hover:scale-105 transition-all" style={{ backgroundColor: currentAccent, color: isDarkTemplate ? '#111' : '#171717' }}><Sparkles size={13} /><span>Customize this template</span></Link></div>
               </section>
             )}
-
             {/* Template Bottom Footer */}
             <footer className={`px-6 py-10 border-t text-center text-xs relative z-10 ${
               isDarkTemplate 
@@ -665,13 +560,13 @@ export async function handleInference(prompt: string) {
             </div>
 
             <p className="text-xs font-mono text-muted-foreground leading-relaxed">
-              Export the production-ready Next.js 15, TailwindCSS, and TypeScript project for &ldquo;{template.name}&rdquo;. Zero vendor lock-in.
+              Export the production-ready Next.js 16, Tailwind CSS, and TypeScript project for &ldquo;{template.name}&rdquo;.
             </p>
 
             <div className="p-3.5 rounded-2xl bg-background border-2 border-ink space-y-2 text-xs font-mono">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Framework:</span>
-                <span className="font-bold text-ink">Next.js 15 (App Router)</span>
+                <span className="font-bold text-ink">Next.js 16 (App Router)</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Styling:</span>
@@ -684,17 +579,27 @@ export async function handleInference(prompt: string) {
             </div>
 
             <div className="flex flex-col gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowExportModal(false);
-                  setShowPaymentModal(true);
-                }}
-                className="brutal-press w-full py-2.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-pink border-2 border-ink shadow-brutal-xs hover:bg-yellow transition-colors cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Download size={14} className="stroke-[2.5]" />
-                <span>Pay & Download Source Code ($49)</span>
-              </button>
+              {!authResolved ? (
+                <button type="button" disabled className="w-full py-2.5 px-4 rounded-xl border-2 border-ink bg-background font-display text-xs font-black uppercase text-muted-foreground disabled:opacity-60">
+                  Checking plan…
+                </button>
+              ) : isPro ? (
+                <a
+                  href={`${template.sourceCodeUrl || `/api/templates/${template.id}/source`}?format=download`}
+                  className="brutal-press w-full py-2.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-pink border-2 border-ink shadow-brutal-xs hover:bg-yellow transition-colors cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Download size={14} className="stroke-[2.5]" />
+                  <span>Download source code</span>
+                </a>
+              ) : (
+                <Link
+                  href={isAuthenticated ? '/dashboard' : '/login'}
+                  className="brutal-press w-full py-2.5 px-4 rounded-xl font-display text-xs font-black uppercase tracking-wider text-black bg-yellow border-2 border-ink shadow-brutal-xs hover:bg-pink transition-colors flex items-center justify-center gap-2"
+                >
+                  <Lock size={14} />
+                  <span>{isAuthenticated ? 'Upgrade to Pro for source code' : 'Sign in for Pro source code'}</span>
+                </Link>
+              )}
               <div className="flex items-center gap-2">
                 <Link
                   href={`/editor/${template.id}`}
@@ -715,14 +620,6 @@ export async function handleInference(prompt: string) {
         </div>
       )}
 
-      {/* Official QR Payment Modal */}
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        itemName={`${template.name} Source Code`}
-        price="$49"
-        planId={`template-${template.id}`}
-      />
     </div>
   );
 }

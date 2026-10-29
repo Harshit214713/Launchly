@@ -40,7 +40,7 @@ export default function CleanUrlManager() {
             }
           }, 100);
         }
-      } catch (_) {}
+      } catch {}
     }
 
     // Hashchange listener to prevent browser from keeping hashes in the address bar

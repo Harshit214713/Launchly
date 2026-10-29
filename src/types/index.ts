@@ -23,9 +23,16 @@ export interface Template {
   sourceCodeAvailable?: boolean;
   sourceCodeUrl?: string;
   techStack?: string[];
+  products?: Array<{
+    name: string;
+    category: string;
+    price: number;
+    detail: string;
+    variants?: Array<{ id: string; label: string; price: number; stock: number; image?: string }>;
+  }>;
 }
 
-export type TemplateCategory = 'All' | 'SaaS' | 'AI' | 'Agency' | 'Portfolio' | 'Ecommerce' | 'Web3' | 'Media';
+export type TemplateCategory = 'All' | 'Blank' | 'SaaS' | 'AI' | 'Agency' | 'Portfolio' | 'Ecommerce' | 'Web3' | 'Media';
 
 export interface Website {
   id: string;

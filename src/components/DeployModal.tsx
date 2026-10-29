@@ -11,10 +11,7 @@ import {
   ShieldCheck,
   AlertCircle,
   Copy,
-  Check,
-  Key,
-  Layers,
-  Sparkles
+  Check
 } from 'lucide-react';
 import { ProjectTemplateParams } from '@/lib/projectFiles';
 
@@ -68,10 +65,10 @@ export default function DeployModal({ isOpen, onClose, siteData }: DeployModalPr
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedGithub = localStorage.getItem('launchly_github_token');
-      if (storedGithub) setGithubToken(storedGithub);
+      if (storedGithub) window.setTimeout(() => setGithubToken(storedGithub), 0);
 
       const storedVercel = localStorage.getItem('launchly_vercel_token');
-      if (storedVercel) setVercelToken(storedVercel);
+      if (storedVercel) window.setTimeout(() => setVercelToken(storedVercel), 0);
     }
   }, []);
 
@@ -119,8 +116,8 @@ export default function DeployModal({ isOpen, onClose, siteData }: DeployModalPr
         owner: data.owner,
         repo: data.repo,
       });
-    } catch (err: any) {
-      setGithubError(err.message || 'An unexpected error occurred during GitHub deployment.');
+    } catch (err: unknown) {
+      setGithubError(err instanceof Error ? err.message : 'An unexpected error occurred during GitHub deployment.');
     } finally {
       setDeployingGithub(false);
     }
@@ -161,8 +158,8 @@ export default function DeployModal({ isOpen, onClose, siteData }: DeployModalPr
         deploymentUrl: data.deploymentUrl,
         inspectorUrl: data.inspectorUrl,
       });
-    } catch (err: any) {
-      setVercelError(err.message || 'Failed to deploy to Vercel.');
+    } catch (err: unknown) {
+      setVercelError(err instanceof Error ? err.message : 'Failed to deploy to Vercel.');
     } finally {
       setDeployingVercel(false);
     }

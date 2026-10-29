@@ -5,6 +5,8 @@ interface BrandWordmarkProps {
   size?: 'sm' | 'md' | 'lg';
   showSubtitle?: boolean;
   subtitle?: string;
+  /** Force contrast when the surrounding surface is known (for example the editor's white chrome). */
+  tone?: 'auto' | 'dark' | 'light';
 }
 
 export default function BrandWordmark({
@@ -12,6 +14,7 @@ export default function BrandWordmark({
   size = 'md',
   showSubtitle = true,
   subtitle = 'VISUAL WEB STUDIO',
+  tone = 'auto',
 }: BrandWordmarkProps) {
   const sizeClasses = {
     sm: 'text-base sm:text-lg tracking-[0.14em]',
@@ -24,11 +27,13 @@ export default function BrandWordmark({
     md: 'text-[8.5px] sm:text-[9.5px] tracking-[0.18em]',
     lg: 'text-[10px] sm:text-[11px] tracking-[0.2em]',
   };
+  const wordmarkTone = tone === 'dark' ? 'text-black' : tone === 'light' ? 'text-white' : 'text-black dark:text-white';
+  const subtitleTone = tone === 'dark' ? 'text-neutral-600' : tone === 'light' ? 'text-neutral-300' : 'text-neutral-600 dark:text-neutral-400';
 
   return (
     <div className={`inline-flex flex-col justify-center select-none ${className}`}>
       <span
-        className={`font-brand font-black uppercase text-black dark:text-white inline-flex items-center leading-none ${sizeClasses[size]}`}
+        className={`font-brand font-black uppercase ${wordmarkTone} inline-flex items-center leading-none ${sizeClasses[size]}`}
       >
         <span>L</span>
         <span className="relative inline-flex items-center justify-center">
@@ -52,7 +57,7 @@ export default function BrandWordmark({
 
       {showSubtitle && (
         <span
-          className={`font-mono font-bold uppercase text-neutral-600 dark:text-neutral-400 mt-0.5 leading-none ${subtitleClasses[size]}`}
+          className={`font-mono font-bold uppercase ${subtitleTone} mt-0.5 leading-none ${subtitleClasses[size]}`}
         >
           {subtitle}
         </span>
